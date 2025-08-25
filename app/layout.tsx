@@ -15,7 +15,7 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: "Takenos Portal",
+  title: "Takenos | La billetera digital para cobros y pagos en todo el mundo.",
   description: "Portal financiero de Takenos para depósitos y retiros",
   generator: "v0.app",
 }
