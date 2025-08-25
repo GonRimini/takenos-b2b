@@ -24,6 +24,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useCacheInvalidation } from "@/hooks/use-cache-invalidation"
 import { AlertCircle, DollarSign } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 const boliviaBanks = [
   "Banco Mercantil", "Banco Nacional de Bolivia S.A.", "Banco de crédito de Bolivia S.A.", "Banco de la Nación de Argentina",
@@ -49,9 +50,15 @@ const walletNetworks = [
 export default function RetirarPage() {
   const [showSummary, setShowSummary] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showAccounts, setShowAccounts] = useState(false)
+  const [accounts, setAccounts] = useState<any[]>([])
+  const [loadingAccounts, setLoadingAccounts] = useState(false)
   const { toast } = useToast()
   const { user } = useAuth()
   const { invalidateWithdrawalsCache } = useCacheInvalidation()
+
+  // TODO: reemplazar por userId real de sesión
+  const currentUserId = "<REEMPLAZAR_USER_ID>"
   
   // Debug: Log user info when component mounts
   useEffect(() => {
@@ -215,6 +222,90 @@ export default function RetirarPage() {
     }
   }
 
+  async function openSavedAccounts() {
+    setShowAccounts(true)
+    setLoadingAccounts(true)
+    try {
+      const res = await fetch(`/api/payout-accounts?userId=${currentUserId}`)
+      const json = await res.json()
+      if (!json.ok) throw new Error(json.error || "No se pudo cargar")
+      setAccounts(json.data || [])
+    } catch (e) {
+      console.error(e)
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar las cuentas guardadas",
+        variant: "destructive",
+      })
+    } finally {
+      setLoadingAccounts(false)
+    }
+  }
+
+  function clearBankFields() {
+    setValue("accountOwnership", undefined as any)
+    setValue("beneficiaryName", "")
+    setValue("beneficiaryBank", "")
+    setValue("accountType", undefined as any)
+    setValue("accountNumber", "")
+    setValue("routingNumber", "")
+    setValue("swiftBic", "")
+  }
+
+  function clearCryptoFields() {
+    setValue("walletAlias", "")
+    setValue("walletAddress", "")
+    setValue("walletNetwork", undefined as any)
+  }
+
+  function clearLocalFields() {
+    setValue("localAccountName", "")
+    setValue("localBank", "")
+    setValue("localAccountNumber", "")
+  }
+
+  function prefillFromAccount(acc: any) {
+    // Setear categoría y método primero
+    setValue("category", acc.category)
+    if (acc.category === "usd_bank") {
+      setValue("method", acc.method) // 'ach' | 'wire'
+    } else {
+      setValue("method", undefined as any)
+    }
+
+    // Limpiar campos no usados
+    clearBankFields()
+    clearCryptoFields()
+    clearLocalFields()
+
+    const d = acc.details || {}
+
+    if (acc.category === "usd_bank") {
+      setValue("accountOwnership", d.accountOwnership || undefined)
+      setValue("beneficiaryName", d.beneficiaryName || "")
+      setValue("beneficiaryBank", d.beneficiaryBank || "")
+      setValue("accountType", d.accountType || undefined)
+      setValue("accountNumber", d.accountNumber || "")
+      if (acc.method === "ach") {
+        setValue("routingNumber", d.routingNumber || "")
+      }
+      if (acc.method === "wire") {
+        setValue("swiftBic", d.swiftBic || "")
+      }
+    } else if (acc.category === "crypto") {
+      setValue("walletAlias", d.walletAlias || "")
+      setValue("walletAddress", d.walletAddress || "")
+      setValue("walletNetwork", d.walletNetwork || undefined)
+    } else if (acc.category === "local_currency") {
+      setValue("localAccountName", d.localAccountName || "")
+      setValue("localBank", d.localBank || "")
+      setValue("localAccountNumber", d.localAccountNumber || "")
+    }
+
+    // Mantener amount/reference como estaban (no tocar).
+    setShowAccounts(false)
+  }
+
   const getHelperText = () => {
     if (watchedCategory === "usd_bank" && watchedMethod === "wire") {
       return "Para transferencias internacionales, utiliza el SWIFT/BIC o IBAN si aplica."
@@ -233,9 +324,14 @@ export default function RetirarPage() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground mb-2">Solicitud de retiro</h1>
-        <p className="text-muted-foreground">Completa el formulario para solicitar un retiro</p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground mb-2">Solicitud de retiro</h1>
+          <p className="text-muted-foreground">Completa el formulario para solicitar un retiro</p>
+        </div>
+        <Button variant="secondary" onClick={openSavedAccounts}>
+          Usar cuenta guardada
+        </Button>
       </div>
 
 
@@ -606,6 +702,52 @@ export default function RetirarPage() {
         data={getValues()}
         isSubmitting={isSubmitting}
       />
+
+      {/* Modal de cuentas guardadas */}
+      <Dialog open={showAccounts} onOpenChange={setShowAccounts}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Cuentas guardadas</DialogTitle>
+            <DialogDescription>Elegí una para completar los campos.</DialogDescription>
+          </DialogHeader>
+
+          {loadingAccounts ? (
+            <div className="py-6 text-sm text-muted-foreground">Cargando…</div>
+          ) : accounts.length === 0 ? (
+            <div className="py-6 text-sm text-muted-foreground">No tenés cuentas guardadas.</div>
+          ) : (
+            <div className="space-y-2 max-h-80 overflow-auto">
+              {accounts.map((a) => {
+                const subtitle =
+                  a.category === "usd_bank"
+                    ? `${a.beneficiary_bank ?? "Banco"} ••••${a.last4 ?? ""}`
+                    : a.category === "crypto"
+                    ? `${a.wallet_network ?? ""} ••••${a.last4 ?? ""}`
+                    : `${a.local_bank ?? ""} ••••${a.last4 ?? ""}`
+                const title =
+                  a.nickname ??
+                  `${a.category}${a.method ? " " + a.method.toUpperCase() : ""} ••••${a.last4 ?? ""}`
+
+                return (
+                  <div key={a.id} className="flex items-center justify-between rounded-lg border p-3">
+                    <div>
+                      <div className="font-medium">{title}</div>
+                      <div className="text-xs text-muted-foreground">{subtitle}</div>
+                    </div>
+                    <Button size="sm" onClick={() => prefillFromAccount(a)}>
+                      Seleccionar
+                    </Button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAccounts(false)}>Cerrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
