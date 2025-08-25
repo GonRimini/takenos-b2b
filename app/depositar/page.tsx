@@ -6,54 +6,81 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button"
 import { AccountField } from "@/components/account-field"
 import { downloadPDF } from "@/lib/pdf-generator"
-import { Download, AlertCircle, Loader2 } from "lucide-react"
+import { Download, AlertCircle, Loader2, RefreshCw } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { getDepositDataForUser, type BlindpayVirtualAccount } from "@/lib/blindpay-api"
 import { getUserSession } from "@/lib/auth"
 import { toast } from "@/hooks/use-toast"
+import { useDataCache } from "@/hooks/use-data-cache"
+import { useCacheInvalidation } from "@/hooks/use-cache-invalidation"
 
 export type DepositMethod = "ach" | "wire" | "rtp" | "swift"
 
 export default function DepositarPage() {
   const [selectedMethod, setSelectedMethod] = useState<DepositMethod | "">("")
-  const [depositData, setDepositData] = useState<BlindpayVirtualAccount | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    const loadDepositData = async () => {
-      try {
-        const user = getUserSession()
-        if (!user?.email) {
-          setError("No se encontró información del usuario")
-          return
-        }
-
-        const data = await getDepositDataForUser(user.email)
-        setDepositData(data)
-      } catch (err) {
-        console.error("Error loading deposit data:", err)
-        setError(err instanceof Error ? err.message : "Error al cargar los datos de depósito")
-        toast({
-          title: "Error",
-          description: "No se pudieron cargar los datos de depósito",
-          variant: "destructive",
-        })
-      } finally {
-        setIsLoading(false)
-      }
+  
+  // Obtener usuario
+  const user = getUserSession()
+  
+  // Función para obtener datos de depósito
+  const fetchDepositData = async (): Promise<BlindpayVirtualAccount> => {
+    if (!user?.email) {
+      throw new Error("No se encontró información del usuario")
     }
+    
+    const data = await getDepositDataForUser(user.email)
+    if (!data) {
+      throw new Error("No se pudieron obtener los datos de depósito")
+    }
+    
+    return data
+  }
 
-    loadDepositData()
-  }, [])
+  // Usar el hook de caché para los datos de depósito
+  const depositDataCache = useDataCache(
+    `deposit-data-${user?.email}`,
+    fetchDepositData,
+    {
+      ttl: 10 * 60 * 1000, // 10 minutos para datos de depósito
+      immediate: !!user?.email
+    }
+  )
 
-  const handleDownloadPDF = () => {
-    if (selectedMethod && depositData) {
-      downloadPDF(selectedMethod, depositData)
+  // Hook para invalidar caché
+  const { invalidateKeys } = useCacheInvalidation()
+
+  // Función para actualizar datos
+  const refreshDepositData = async () => {
+    try {
+      await depositDataCache.refresh()
+      toast({
+        title: "Datos actualizados",
+        description: "La información de depósito se ha actualizado correctamente",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudieron actualizar los datos de depósito",
+        variant: "destructive",
+      })
     }
   }
 
-  if (isLoading) {
+  // Función para invalidar caché de depósito (útil para futuras operaciones)
+  const invalidateDepositCache = () => {
+    if (user?.email) {
+      invalidateKeys([`deposit-data-${user.email}`])
+    }
+  }
+
+  const handleDownloadPDF = () => {
+    if (selectedMethod && depositDataCache.data) {
+      downloadPDF(selectedMethod, depositDataCache.data)
+    }
+  }
+
+  // Mostrar loading
+  if (depositDataCache.loading) {
     return (
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-center py-12">
@@ -66,13 +93,14 @@ export default function DepositarPage() {
     )
   }
 
-  if (error || !depositData) {
+  // Mostrar error
+  if (depositDataCache.error || !depositDataCache.data) {
     return (
       <div className="max-w-2xl mx-auto">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            {error || "No se pudieron cargar los datos de depósito. Por favor, intenta nuevamente."}
+            {depositDataCache.error || "No se pudieron cargar los datos de depósito. Por favor, intenta nuevamente."}
           </AlertDescription>
         </Alert>
       </div>
@@ -83,6 +111,7 @@ export default function DepositarPage() {
     if (!selectedMethod) return null
 
     const isSwift = selectedMethod === "swift"
+    const depositData = depositDataCache.data
 
     return (
       <Card className="rounded-lg shadow-sm">
@@ -138,11 +167,25 @@ export default function DepositarPage() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground mb-2">Instrucciones de depósito</h1>
-        <p className="text-muted-foreground">
-          Selecciona el método de depósito para obtener la información bancaria necesaria
-        </p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground mb-2">Instrucciones de depósito</h1>
+          <p className="text-muted-foreground">
+            Selecciona el método de depósito para obtener la información bancaria necesaria
+          </p>
+        </div>
+        
+        {/* Botón de actualización */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={refreshDepositData}
+          disabled={depositDataCache.loading}
+          className="flex items-center space-x-2"
+        >
+          <RefreshCw className={`h-4 w-4 ${depositDataCache.loading ? 'animate-spin' : ''}`} />
+          <span>Actualizar</span>
+        </Button>
       </div>
 
       <div className="space-y-4">

@@ -1,18 +1,15 @@
 "use client"
 
-import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { HelpCircle, Mail, Phone, Clock, CreditCard, Banknote, Shield, AlertTriangle } from "lucide-react"
+import { HelpCircle, Mail, Phone, Clock, CreditCard, Banknote, AlertTriangle } from "lucide-react"
 
 export default function AyudaPage() {
   return (
     <div className="min-h-screen flex flex-col">
-      <Navbar />
-
       <main className="flex-1 py-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-8">
@@ -38,7 +35,7 @@ export default function AyudaPage() {
                     <Mail className="h-4 w-4 text-primary" />
                     <div>
                       <div className="text-sm font-medium">Email</div>
-                      <div className="text-sm text-muted-foreground">soporte@takenos.com</div>
+                      <div className="text-sm text-muted-foreground">fermin@takenos.com</div>
                     </div>
                   </div>
 
@@ -46,7 +43,7 @@ export default function AyudaPage() {
                     <Phone className="h-4 w-4 text-primary" />
                     <div>
                       <div className="text-sm font-medium">Teléfono</div>
-                      <div className="text-sm text-muted-foreground">+1 (555) 123-4567</div>
+                      <div className="text-sm text-muted-foreground">+54 9 11 6563-7616</div>
                     </div>
                   </div>
 
@@ -54,13 +51,16 @@ export default function AyudaPage() {
                     <Clock className="h-4 w-4 text-primary" />
                     <div>
                       <div className="text-sm font-medium">Horario</div>
-                      <div className="text-sm text-muted-foreground">Lun-Vie 9:00-18:00</div>
+                      <div className="text-sm text-muted-foreground">24/7</div>
                     </div>
                   </div>
 
-                  <Button className="w-full mt-4">
-                    <Mail className="mr-2 h-4 w-4" />
-                    Contactar Soporte
+                  <Button 
+                    className="w-full mt-4"
+                    onClick={() => window.open('https://wa.me/5491165637616', '_blank')}
+                  >
+                    <Phone className="mr-2 h-4 w-4" />
+                    Hablar con Fermín
                   </Button>
                 </CardContent>
               </Card>
@@ -101,8 +101,7 @@ export default function AyudaPage() {
                     <AccordionItem value="deposit-2">
                       <AccordionTrigger>¿Hay límites mínimos o máximos para depósitos?</AccordionTrigger>
                       <AccordionContent>
-                        Los límites dependen del método de depósito y tu tipo de cuenta. Contacta a nuestro equipo de
-                        soporte para conocer los límites específicos de tu cuenta.
+                        Podés consultar tus límites con el equipo de Takenos. Es posible iniciar una solicitud de extensión de límites.
                       </AccordionContent>
                     </AccordionItem>
 
@@ -130,14 +129,19 @@ export default function AyudaPage() {
                     <AccordionItem value="withdrawal-1">
                       <AccordionTrigger>¿Cuándo se procesará mi solicitud de retiro?</AccordionTrigger>
                       <AccordionContent>
-                        Las solicitudes de retiro se procesan de lunes a viernes durante horario hábil. El tiempo de
-                        procesamiento depende del método seleccionado:
+                        La solicitud de retiro se genera inmediatamente. El procesamiento del mismo se realiza los días hábiles en horarios bancarios.
                         <ul className="list-disc list-inside mt-2 space-y-1">
                           <li>
-                            <strong>Estándar:</strong> 2-3 días hábiles
+                            <strong>ACH:</strong> 2-3 días hábiles
                           </li>
                           <li>
-                            <strong>Acelerado:</strong> 1 día hábil (tarifa adicional de $10 USD)
+                            <strong>Wire Transfer:</strong> 1-2 días hábiles
+                          </li>
+                          <li>
+                            <strong>Crypto BEP20/MATIC:</strong> Instantáneo
+                          </li>
+                          <li>
+                            <strong>Crypto TRC20:</strong> 4 días hábiles
                           </li>
                         </ul>
                       </AccordionContent>
@@ -163,34 +167,7 @@ export default function AyudaPage() {
                 </CardContent>
               </Card>
 
-              <Card className="rounded-2xl">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Shield className="h-5 w-5 text-green-600" />
-                    Seguridad y Verificación
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Accordion type="single" collapsible className="w-full">
-                    <AccordionItem value="security-1">
-                      <AccordionTrigger>¿Cómo protegen mi información financiera?</AccordionTrigger>
-                      <AccordionContent>
-                        Utilizamos encriptación de nivel bancario y cumplimos con los más altos estándares de seguridad.
-                        Tu información está protegida con tecnología SSL de 256 bits y nunca almacenamos información
-                        sensible como contraseñas bancarias.
-                      </AccordionContent>
-                    </AccordionItem>
 
-                    <AccordionItem value="security-2">
-                      <AccordionTrigger>¿Necesito verificar mi identidad?</AccordionTrigger>
-                      <AccordionContent>
-                        Por regulaciones de seguridad financiera, es posible que necesites verificar tu identidad para
-                        ciertas transacciones. Te notificaremos si se requiere documentación adicional.
-                      </AccordionContent>
-                    </AccordionItem>
-                  </Accordion>
-                </CardContent>
-              </Card>
 
               <Alert>
                 <AlertTriangle className="h-4 w-4" />

@@ -21,6 +21,7 @@ import {
   walletNetworkEnum
 } from "@/lib/withdrawal-schema"
 import { useToast } from "@/hooks/use-toast"
+import { useCacheInvalidation } from "@/hooks/use-cache-invalidation"
 import { AlertCircle, DollarSign } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
@@ -50,6 +51,7 @@ export default function RetirarPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
   const { user } = useAuth()
+  const { invalidateWithdrawalsCache } = useCacheInvalidation()
   
   // Debug: Log user info when component mounts
   useEffect(() => {
@@ -184,6 +186,11 @@ export default function RetirarPage() {
         description: "Te contactaremos por email para confirmar tu retiro.",
       })
 
+      // Invalidar caché de retiros pendientes
+      if (userEmail) {
+        invalidateWithdrawalsCache(userEmail)
+      }
+
       setShowSummary(false)
       // Reset form
       setValue("category", undefined as any)
@@ -231,41 +238,7 @@ export default function RetirarPage() {
         <p className="text-muted-foreground">Completa el formulario para solicitar un retiro</p>
       </div>
 
-      {/* Debug info - temporal */}
-      <div className="mb-4 p-4 bg-gray-100 rounded-lg">
-        <p className="text-sm text-gray-600">Debug - Usuario actual: {user?.email || "No disponible"}</p>
-        <p className="text-sm text-gray-600">Debug - User object: {JSON.stringify(user, null, 2)}</p>
-        <p className="text-sm text-gray-600">Debug - localStorage: {(() => {
-          try {
-            const storedUser = localStorage.getItem("takenos_user")
-            if (storedUser) {
-              const parsedUser = JSON.parse(storedUser)
-              return parsedUser.email || "No email in localStorage"
-            }
-            return "No user in localStorage"
-          } catch (e) {
-            return "Error reading localStorage"
-          }
-        })()}</p>
-        <button 
-          onClick={() => {
-            const storedUser = localStorage.getItem("takenos_user")
-            console.log("localStorage user:", storedUser)
-            if (storedUser) {
-              const parsedUser = JSON.parse(storedUser)
-              console.log("Parsed user:", parsedUser)
-              console.log("User email:", parsedUser.email)
-            }
-            
-            // También mostrar el estado del useAuth
-            console.log("useAuth user:", user)
-            console.log("useAuth user email:", user?.email)
-          }}
-          className="px-2 py-1 bg-blue-500 text-white text-xs rounded"
-        >
-          Debug localStorage
-        </button>
-      </div>
+
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <Card className="rounded-lg">

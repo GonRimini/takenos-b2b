@@ -59,7 +59,7 @@ const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: DashboardIcon },
   { name: "Depositar", href: "/depositar", icon: DepositIcon },
   { name: "Retirar", href: "/retirar", icon: WithdrawIcon },
-  // { name: "Ayuda", href: "/ayuda", icon: HelpIcon },
+  { name: "Ayuda", href: "/ayuda", icon: HelpIcon },
 ]
 
 export function Sidebar() {

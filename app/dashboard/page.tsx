@@ -8,137 +8,108 @@ import { Button } from "@/components/ui/button"
 import { RefreshCw, Download } from "lucide-react"
 import { useAuth } from "@/components/auth-wrapper"
 import { downloadTransactionReceipt } from "@/lib/pdf-generator"
+import { useDataCache, useCacheInvalidator } from "@/hooks/use-data-cache"
 
 
 
 export default function Dashboard() {
   const { user } = useAuth()
-  const [balance, setBalance] = useState<number | null>(null)
-  const [balanceError, setBalanceError] = useState<string | null>(null)
-  const [movements, setMovements] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
-  const [movementsLoading, setMovementsLoading] = useState(true)
   const [startDate, setStartDate] = useState<string>("")
   const [endDate, setEndDate] = useState<string>("")
-  const [pendingWithdrawals, setPendingWithdrawals] = useState<any[]>([])
-  const [pendingWithdrawalsLoading, setPendingWithdrawalsLoading] = useState(true)
+  const { invalidateKeys } = useCacheInvalidator()
 
-  // Simplified balance fetching - no polling needed
+  // Función para obtener el balance
+  const fetchBalanceData = async (): Promise<{ balance: number; source: string }> => {
+    if (!user?.email) throw new Error("Usuario no autenticado")
+    
+    const response = await fetch("/api/balance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userEmail: user.email }),
+    })
 
-  const fetchBalance = async (isRefresh = false) => {
-    if (!user?.email) {
-      setLoading(false)
-      return
-    }
-
-    if (isRefresh) {
-      setRefreshing(true)
-    } else {
-      setLoading(true)
-    }
-
-    try {
-      console.log("[v0] Fetching balance for user:", user.email)
-      const response = await fetch("/api/balance", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ userEmail: user.email }),
-      })
-
-      const data = await response.json()
-      console.log("[v0] Balance API response:", data)
-
-      if (response.ok) {
-        if (data.balance) {
-          setBalance(Number.parseFloat(data.balance))
-          setBalanceError(null)
-          setLastUpdated(new Date())
-          console.log(`[v0] Balance updated: ${data.balance} (source: ${data.source})`)
-        } else {
-          console.log("[v0] No balance data received")
-          setBalanceError("No balance data available")
-          setBalance(null)
-        }
-      } else {
-        console.log("[v0] Balance API error:", data.error)
-        setBalanceError(data.error)
-        setBalance(null)
-      }
-    } catch (error) {
-      console.error("[v0] Error fetching balance:", error)
-      setBalanceError("Error al cargar el balance")
-      setBalance(null)
-    } finally {
-      setLoading(false)
-      setRefreshing(false)
-    }
+    const data = await response.json()
+    if (!response.ok) throw new Error(data.error || "Error al cargar el balance")
+    
+    return { balance: Number.parseFloat(data.balance), source: data.source }
   }
 
-  const fetchMovements = async () => {
-    if (!user?.email) {
-      setMovementsLoading(false)
-      return
-    }
-    setMovementsLoading(true)
-    try {
-      const res = await fetch("/api/transactions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userEmail: user.email }),
-      })
-      const data = await res.json()
-      console.log("[v0] Transactions API response:", data)
-      console.log("[v0] Data.data length:", data.data?.length)
-      console.log("[v0] Is Array:", Array.isArray(data.data))
-      if (res.ok && Array.isArray(data.data)) {
-        console.log("[v0] Setting movements:", data.data.length, "transactions")
-        setMovements(data.data)
-        console.log("[v0] Movements set successfully")
-      } else {
-        console.log("[v0] Setting empty movements array")
-        setMovements([])
-      }
-    } catch (e) {
-      console.error("[v0] Error fetching transactions:", e)
-      setMovements([])
-    } finally {
-      setMovementsLoading(false)
-    }
+  // Función para obtener movimientos
+  const fetchMovementsData = async (): Promise<any[]> => {
+    if (!user?.email) throw new Error("Usuario no autenticado")
+    
+    const response = await fetch("/api/transactions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userEmail: user.email }),
+    })
+
+    const data = await response.json()
+    if (!response.ok) throw new Error(data.error || "Error al cargar movimientos")
+    
+    return Array.isArray(data.data) ? data.data : []
   }
 
-  const fetchPendingWithdrawals = async () => {
-    if (!user?.email) {
-      setPendingWithdrawalsLoading(false)
-      return
-    }
-    setPendingWithdrawalsLoading(true)
-    try {
-      const res = await fetch(`/api/withdrawals/pending?userEmail=${encodeURIComponent(user.email)}`)
-      const data = await res.json()
-      console.log("[v0] Pending withdrawals API response:", data)
-      if (res.ok && data.success) {
-        setPendingWithdrawals(data.data || [])
-      } else {
-        setPendingWithdrawals([])
-      }
-    } catch (e) {
-      console.error("[v0] Error fetching pending withdrawals:", e)
-      setPendingWithdrawals([])
-    } finally {
-      setPendingWithdrawalsLoading(false)
-    }
+  // Función para obtener retiros pendientes
+  const fetchPendingWithdrawalsData = async (): Promise<any[]> => {
+    if (!user?.email) throw new Error("Usuario no autenticado")
+    
+    const response = await fetch(`/api/withdrawals/pending?userEmail=${encodeURIComponent(user.email)}`)
+    const data = await response.json()
+    
+    if (!response.ok) throw new Error(data.error || "Error al cargar retiros pendientes")
+    
+    return data.success ? (data.data || []) : []
   }
 
-  useEffect(() => {
-    console.log("[v0] useEffect triggered, user email:", user?.email)
-    fetchBalance()
-    fetchMovements()
-    fetchPendingWithdrawals()
-  }, [user?.email])
+  // Usar el hook de caché para cada tipo de dato
+  const balanceCache = useDataCache(
+    `balance-${user?.email}`,
+    fetchBalanceData,
+    {
+      ttl: 2 * 60 * 1000, // 2 minutos para balance
+      immediate: !!user?.email
+    }
+  )
+
+  const movementsCache = useDataCache(
+    `movements-${user?.email}`,
+    fetchMovementsData,
+    {
+      ttl: 5 * 60 * 1000, // 5 minutos para movimientos
+      immediate: !!user?.email
+    }
+  )
+
+  const pendingWithdrawalsCache = useDataCache(
+    `pending-withdrawals-${user?.email}`,
+    fetchPendingWithdrawalsData,
+    {
+      ttl: 3 * 60 * 1000, // 3 minutos para retiros pendientes
+      immediate: !!user?.email
+    }
+  )
+
+  // Función para actualizar todos los datos
+  const refreshAllData = async () => {
+    console.log("[v0] Refreshing all data...")
+    await Promise.all([
+      balanceCache.refresh(),
+      movementsCache.refresh(),
+      pendingWithdrawalsCache.refresh()
+    ])
+  }
+
+  // Función para invalidar caché después de operaciones
+  const invalidateCacheAfterOperation = () => {
+    invalidateKeys([
+      `balance-${user?.email}`,
+      `movements-${user?.email}`,
+      `pending-withdrawals-${user?.email}`
+    ])
+  }
+
+
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("es-US", {
@@ -210,10 +181,10 @@ export default function Dashboard() {
   }
 
   const downloadCSV = () => {
-    if (movements.length === 0) return
+    if (!movementsCache.data || movementsCache.data.length === 0) return
 
     // Filtrar movimientos por fecha si hay filtros aplicados
-    const filteredMovements = filterMovementsByDate(movements)
+    const filteredMovements = filterMovementsByDate(movementsCache.data)
 
     // Crear headers del CSV
     const headers = ["Fecha", "Descripción", "Monto (USD)", "Tipo", "Estado"]
@@ -280,9 +251,27 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-1">Bienvenido, {user?.email}</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-600 mt-1">Bienvenido, {user?.email}</p>
+        </div>
+        
+        {/* Controles de actualización */}
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={refreshAllData}
+            disabled={balanceCache.loading || movementsCache.loading || pendingWithdrawalsCache.loading}
+            className="flex items-center space-x-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${balanceCache.loading || movementsCache.loading || pendingWithdrawalsCache.loading ? 'animate-spin' : ''}`} />
+            <span>Actualizar</span>
+          </Button>
+          
+
+        </div>
       </div>
 
       {/* Balance Card */}
@@ -290,38 +279,33 @@ export default function Dashboard() {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-medium text-gray-700">Balance Total</CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => fetchBalance(true)}
-              disabled={refreshing || loading}
-              className="h-8 w-8 p-0"
-            >
-              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-            </Button>
+            <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1 text-xs text-gray-500">
+                <div className="w-2 h-2 rounded-full bg-gray-400"></div>
+                <span>Manual</span>
+              </div>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {balanceCache.loading ? (
             <div className="animate-pulse">
               <div className="h-8 bg-gray-200 rounded w-32"></div>
             </div>
-          ) : balanceError ? (
-            <div className="text-2xl font-bold text-red-600">{balanceError}</div>
-          ) : balance !== null ? (
-            <div className="text-3xl font-bold text-[#6d37d5]">{formatCurrency(balance)}</div>
+          ) : balanceCache.error ? (
+            <div className="text-2xl font-bold text-red-600">{balanceCache.error}</div>
+          ) : balanceCache.data ? (
+            <div className="text-3xl font-bold text-[#6d37d5]">{formatCurrency(balanceCache.data.balance)}</div>
           ) : (
             <div className="text-2xl font-bold text-gray-500">Balance no disponible</div>
           )}
           <p className="text-sm text-gray-500 mt-1">
-            {loading 
+            {balanceCache.loading 
               ? "Cargando..." 
-              : refreshing 
-              ? "Actualizando..." 
-              : balanceError 
+              : balanceCache.error 
               ? "Verifique su información" 
-              : lastUpdated 
-              ? formatLastUpdated(lastUpdated)
+              : balanceCache.lastUpdated 
+              ? formatLastUpdated(balanceCache.lastUpdated)
               : "No disponible"
             }
           </p>
@@ -340,7 +324,7 @@ export default function Dashboard() {
               onClick={downloadCSV}
               variant="outline"
               size="sm"
-              disabled={movementsLoading || movements.length === 0}
+              disabled={movementsCache.loading || !movementsCache.data || movementsCache.data.length === 0}
               className="ml-4"
             >
               Descargar CSV
@@ -400,20 +384,20 @@ export default function Dashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {movementsLoading ? (
+                {movementsCache.loading ? (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center py-8 text-gray-500">
                       Cargando...
                     </TableCell>
                   </TableRow>
-                ) : filterMovementsByDate(movements).length === 0 ? (
+                ) : !movementsCache.data || filterMovementsByDate(movementsCache.data).length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center py-8 text-gray-500">
                       {startDate || endDate ? "No hay movimientos en el rango de fechas seleccionado" : "No hay movimientos registrados"}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filterMovementsByDate(movements).map((m) => (
+                  filterMovementsByDate(movementsCache.data).map((m) => (
                     <TableRow key={m.id}>
                       <TableCell className="font-medium">{formatDate(m.date)}</TableCell>
                       <TableCell>{m.description}</TableCell>
@@ -463,20 +447,20 @@ export default function Dashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {pendingWithdrawalsLoading ? (
+                {pendingWithdrawalsCache.loading ? (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center py-8 text-gray-500">
                       Cargando...
                     </TableCell>
                   </TableRow>
-                ) : pendingWithdrawals.length === 0 ? (
+                ) : !pendingWithdrawalsCache.data || pendingWithdrawalsCache.data.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center py-8 text-gray-500">
                       No hay retiros pendientes
                     </TableCell>
                   </TableRow>
                 ) : (
-                  pendingWithdrawals.map((withdrawal) => (
+                  pendingWithdrawalsCache.data.map((withdrawal: any) => (
                     <TableRow key={withdrawal.id}>
                       <TableCell className="font-medium">
                         {formatDate(withdrawal.created_at)}
