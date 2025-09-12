@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { Toaster } from "@/components/ui/toaster"
+import { AuthProvider } from "@/components/auth-provider"
 import AuthWrapper from "@/components/auth-wrapper"
 import { ConditionalLayout } from "@/components/conditional-layout"
 // import ErrorBoundary from "@/components/error-boundary"
@@ -28,9 +29,11 @@ export default function RootLayout({
   return (
     <html lang="es" className={inter.variable}>
       <body className="font-sans antialiased">
-        <AuthWrapper>
-          <ConditionalLayout>{children}</ConditionalLayout>
-        </AuthWrapper>
+        <AuthProvider>
+          <AuthWrapper>
+            <ConditionalLayout>{children}</ConditionalLayout>
+          </AuthWrapper>
+        </AuthProvider>
         <Toaster />
         <ApiStatusChecker />
       </body>

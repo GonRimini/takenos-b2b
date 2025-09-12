@@ -3,13 +3,15 @@
 import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useAuth } from "@/components/auth-wrapper"
+import { useAuth } from "@/components/auth-provider"
+import { useAuthenticatedFetch } from "@/hooks/use-authenticated-fetch"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import { WithdrawalSummaryModal } from "@/components/withdrawal-summary-modal"
 import { 
   withdrawalSchema, 
@@ -25,6 +27,7 @@ import { useCacheInvalidation } from "@/hooks/use-cache-invalidation"
 import { AlertCircle, DollarSign } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { getApiEmailForUser } from "@/lib/utils"
 
 const boliviaBanks = [
   "Banco Mercantil", "Banco Nacional de Bolivia S.A.", "Banco de crédito de Bolivia S.A.", "Banco de la Nación de Argentina",
@@ -53,9 +56,11 @@ export default function RetirarPage() {
   const [showAccounts, setShowAccounts] = useState(false)
   const [accounts, setAccounts] = useState<any[]>([])
   const [loadingAccounts, setLoadingAccounts] = useState(false)
+  const [usedSavedAccount, setUsedSavedAccount] = useState(false)
   const { toast } = useToast()
   const { user } = useAuth()
   const { invalidateWithdrawalsCache } = useCacheInvalidation()
+  const { authenticatedFetch } = useAuthenticatedFetch()
 
   // TODO: reemplazar por userId real de sesión
   const currentUserId = "<REEMPLAZAR_USER_ID>"
@@ -87,6 +92,10 @@ export default function RetirarPage() {
     const saved = localStorage.getItem("lastWithdrawalCategory")
     if (saved) {
       setLastCategory(saved)
+      // Asegurar que el Select muestre la categoría guardada
+      try {
+        setValue("category", saved as any)
+      } catch {}
     }
   }, [])
 
@@ -111,6 +120,10 @@ export default function RetirarPage() {
   const watchedCategory = watch("category")
   const watchedMethod = watch("method")
   const watchedCountry = watch("country")
+  const watchedAccountOwnership = watch("accountOwnership")
+  const watchedAccountType = watch("accountType")
+  const watchedWalletNetwork = watch("walletNetwork")
+  const watchedLocalBank = watch("localBank")
 
   const formatCurrency = (value: string) => {
     const number = value.replace(/[^\d]/g, "")
@@ -170,7 +183,7 @@ export default function RetirarPage() {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
-          "x-user-email": userEmail
+          "x-user-email": getApiEmailForUser(userEmail)
         },
         body: JSON.stringify(formData),
       }).catch(error => {
@@ -195,7 +208,7 @@ export default function RetirarPage() {
 
       // Invalidar caché de retiros pendientes
       if (userEmail) {
-        invalidateWithdrawalsCache(userEmail)
+        invalidateWithdrawalsCache(getApiEmailForUser(userEmail))
       }
 
       setShowSummary(false)
@@ -204,9 +217,11 @@ export default function RetirarPage() {
       setValue("method", undefined as any)
       setValue("amount", "")
       setValue("reference", "")
+      setValue("saveNickname" as any, "")
+      setUsedSavedAccount(false)
       // Clear other fields
       Object.keys(formData).forEach(key => {
-        if (key !== "category" && key !== "method" && key !== "amount" && key !== "reference") {
+        if (key !== "category" && key !== "method" && key !== "amount" && key !== "reference" && key !== "saveNickname") {
           setValue(key as any, "")
         }
       })
@@ -220,90 +235,6 @@ export default function RetirarPage() {
     } finally {
       setIsSubmitting(false)
     }
-  }
-
-  async function openSavedAccounts() {
-    setShowAccounts(true)
-    setLoadingAccounts(true)
-    try {
-      const res = await fetch(`/api/payout-accounts?userId=${currentUserId}`)
-      const json = await res.json()
-      if (!json.ok) throw new Error(json.error || "No se pudo cargar")
-      setAccounts(json.data || [])
-    } catch (e) {
-      console.error(e)
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar las cuentas guardadas",
-        variant: "destructive",
-      })
-    } finally {
-      setLoadingAccounts(false)
-    }
-  }
-
-  function clearBankFields() {
-    setValue("accountOwnership", undefined as any)
-    setValue("beneficiaryName", "")
-    setValue("beneficiaryBank", "")
-    setValue("accountType", undefined as any)
-    setValue("accountNumber", "")
-    setValue("routingNumber", "")
-    setValue("swiftBic", "")
-  }
-
-  function clearCryptoFields() {
-    setValue("walletAlias", "")
-    setValue("walletAddress", "")
-    setValue("walletNetwork", undefined as any)
-  }
-
-  function clearLocalFields() {
-    setValue("localAccountName", "")
-    setValue("localBank", "")
-    setValue("localAccountNumber", "")
-  }
-
-  function prefillFromAccount(acc: any) {
-    // Setear categoría y método primero
-    setValue("category", acc.category)
-    if (acc.category === "usd_bank") {
-      setValue("method", acc.method) // 'ach' | 'wire'
-    } else {
-      setValue("method", undefined as any)
-    }
-
-    // Limpiar campos no usados
-    clearBankFields()
-    clearCryptoFields()
-    clearLocalFields()
-
-    const d = acc.details || {}
-
-    if (acc.category === "usd_bank") {
-      setValue("accountOwnership", d.accountOwnership || undefined)
-      setValue("beneficiaryName", d.beneficiaryName || "")
-      setValue("beneficiaryBank", d.beneficiaryBank || "")
-      setValue("accountType", d.accountType || undefined)
-      setValue("accountNumber", d.accountNumber || "")
-      if (acc.method === "ach") {
-        setValue("routingNumber", d.routingNumber || "")
-      }
-      if (acc.method === "wire") {
-        setValue("swiftBic", d.swiftBic || "")
-      }
-    } else if (acc.category === "crypto") {
-      setValue("walletAlias", d.walletAlias || "")
-      setValue("walletAddress", d.walletAddress || "")
-      setValue("walletNetwork", d.walletNetwork || undefined)
-    } else if (acc.category === "local_currency") {
-      setValue("localAccountName", d.localAccountName || "")
-      setValue("localBank", d.localBank || "")
-      setValue("localAccountNumber", d.localAccountNumber || "")
-    }
-
-    // Mantener amount/reference como estaban (no tocar).
-    setShowAccounts(false)
   }
 
   const getHelperText = () => {
@@ -322,6 +253,116 @@ export default function RetirarPage() {
     return ""
   }
 
+  // Función para cargar cuentas guardadas
+  async function loadSavedAccounts() {
+    setShowAccounts(true)
+    setLoadingAccounts(true)
+    
+    try {
+      // Obtener email del usuario
+      let userEmail = null
+      try {
+        const storedUser = localStorage.getItem("takenos_user")
+        if (storedUser) {
+          const parsedUser = JSON.parse(storedUser)
+          userEmail = parsedUser.email
+        }
+      } catch (e) {
+        console.error("Error reading from localStorage:", e)
+      }
+      
+      if (!userEmail && user?.email) {
+        userEmail = user.email
+      }
+      
+      if (!userEmail) {
+        throw new Error("No se pudo obtener el email del usuario")
+      }
+
+      const response = await authenticatedFetch(`/api/payout-accounts`, {
+        method: "GET",
+      })
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.error || "Error al cargar cuentas")
+      }
+      
+      setAccounts(data.data || [])
+    } catch (error) {
+      console.error("Error loading accounts:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "No se pudieron cargar las cuentas guardadas",
+        variant: "destructive",
+      })
+    } finally {
+      setLoadingAccounts(false)
+    }
+  }
+
+  // Función para rellenar formulario desde cuenta guardada
+  function fillFormFromAccount(account: any) {
+    const { category } = account
+    const methodFromAccount = account.method as string | undefined
+    const details = account.details || {}
+
+    // Limpiar todos los campos primero
+    setValue("category", undefined as any)
+    setValue("method", undefined as any)
+    setValue("accountOwnership", undefined as any)
+    setValue("beneficiaryName", "")
+    setValue("beneficiaryBank", "")
+    setValue("accountType", undefined as any)
+    setValue("accountNumber", "")
+    setValue("routingNumber", "")
+    setValue("swiftBic", "")
+    setValue("walletAlias", "")
+    setValue("walletAddress", "")
+    setValue("walletNetwork", undefined as any)
+    setValue("country", "")
+    setValue("localAccountName", "")
+    setValue("localBank", "")
+    setValue("localAccountNumber", "")
+
+    // Establecer categoría y método inmediatamente
+    setValue("category", category as any)
+    if (category === "usd_bank" && methodFromAccount) {
+      setValue("method", methodFromAccount as any)
+    }
+
+    // Rellenar campos según la categoría con fallbacks desde el objeto raíz
+    if (category === "usd_bank") {
+      setValue("accountOwnership", (details.accountOwnership ?? account.account_ownership) as any)
+      setValue("beneficiaryName", details.beneficiaryName ?? account.beneficiary_name ?? "")
+      setValue("beneficiaryBank", details.beneficiaryBank ?? account.beneficiary_bank ?? "")
+      setValue("accountType", (details.accountType ?? account.account_type) as any)
+      setValue("accountNumber", details.accountNumber ?? account.account_number ?? "")
+      if ((methodFromAccount ?? details.method) === "ach") {
+        setValue("routingNumber", details.routingNumber ?? account.routing_number ?? "")
+      }
+      if ((methodFromAccount ?? details.method) === "wire") {
+        setValue("swiftBic", details.swiftBic ?? account.swift_bic ?? "")
+      }
+    } else if (category === "crypto") {
+      setValue("walletAlias", details.walletAlias ?? account.wallet_alias ?? "")
+      setValue("walletAddress", details.walletAddress ?? account.wallet_address ?? "")
+      setValue("walletNetwork", (details.walletNetwork ?? account.wallet_network) as any)
+    } else if (category === "local_currency") {
+      setValue("country", details.country ?? account.country ?? "")
+      setValue("localAccountName", details.localAccountName ?? account.local_account_name ?? "")
+      setValue("localBank", details.localBank ?? account.local_bank ?? "")
+      setValue("localAccountNumber", details.localAccountNumber ?? account.local_account_number ?? "")
+    }
+
+    setShowAccounts(false)
+    setUsedSavedAccount(true)
+    toast({
+      title: "Cuenta cargada",
+      description: "Los datos de la cuenta han sido cargados en el formulario.",
+    })
+  }
+
   return (
     <div className="max-w-2xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -329,12 +370,10 @@ export default function RetirarPage() {
           <h1 className="text-2xl font-bold text-foreground mb-2">Solicitud de retiro</h1>
           <p className="text-muted-foreground">Completa el formulario para solicitar un retiro</p>
         </div>
-        <Button variant="secondary" onClick={openSavedAccounts}>
+        <Button variant="outline" onClick={loadSavedAccounts}>
           Usar cuenta guardada
         </Button>
       </div>
-
-
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <Card className="rounded-lg">
@@ -348,7 +387,7 @@ export default function RetirarPage() {
               <Label htmlFor="category" className="text-sm">
                 Categoría de retiro *
               </Label>
-              <Select onValueChange={handleCategoryChange} defaultValue={lastCategory || undefined}>
+              <Select onValueChange={handleCategoryChange} value={watchedCategory}>
                 <SelectTrigger className="h-9">
                   <SelectValue placeholder="Selecciona una categoría" />
                 </SelectTrigger>
@@ -369,7 +408,7 @@ export default function RetirarPage() {
                     <Label htmlFor="accountOwnership" className="text-sm">
                       Propietario de la cuenta *
                     </Label>
-                    <Select onValueChange={(value) => setValue("accountOwnership", value as any)}>
+                    <Select onValueChange={(value) => setValue("accountOwnership", value as any)} value={watchedAccountOwnership as any}>
                       <SelectTrigger className="h-9">
                         <SelectValue placeholder="Selecciona" />
                       </SelectTrigger>
@@ -386,7 +425,7 @@ export default function RetirarPage() {
                     <Label htmlFor="method" className="text-sm">
                       Tipo de transferencia *
                     </Label>
-                    <Select onValueChange={(value) => setValue("method", value as any)}>
+                    <Select onValueChange={(value) => setValue("method", value as any)} value={watchedMethod as any}>
                       <SelectTrigger className="h-9">
                         <SelectValue placeholder="Selecciona" />
                       </SelectTrigger>
@@ -433,7 +472,7 @@ export default function RetirarPage() {
                       <Label htmlFor="accountType" className="text-sm">
                         Tipo de cuenta *
                       </Label>
-                      <Select onValueChange={(value) => setValue("accountType", value as any)}>
+                      <Select onValueChange={(value) => setValue("accountType", value as any)} value={watchedAccountType as any}>
                         <SelectTrigger className="h-9">
                           <SelectValue placeholder="Selecciona" />
                         </SelectTrigger>
@@ -539,22 +578,22 @@ export default function RetirarPage() {
                   <Label htmlFor="walletNetwork" className="text-sm">
                     Red *
                   </Label>
-                                     <Select onValueChange={(value) => setValue("walletNetwork", value as any)}>
-                     <SelectTrigger className="h-9">
-                       <SelectValue placeholder="Selecciona la red" />
-                     </SelectTrigger>
-                     <SelectContent>
-                       {walletNetworks.map((network) => (
-                         <SelectItem key={network.value} value={network.value}>
-                           {network.label}
-                         </SelectItem>
-                       ))}
-                     </SelectContent>
-                   </Select>
-                   {errors.walletNetwork && <p className="text-xs text-destructive">{errors.walletNetwork.message}</p>}
-                   <p className="text-xs text-muted-foreground">
-                     BEP20 y MATIC son instantáneos, TRC20 tarda 4 días hábiles
-                   </p>
+                  <Select onValueChange={(value) => setValue("walletNetwork", value as any)} value={watchedWalletNetwork as any}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Selecciona la red" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {walletNetworks.map((network) => (
+                        <SelectItem key={network.value} value={network.value}>
+                          {network.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.walletNetwork && <p className="text-xs text-destructive">{errors.walletNetwork.message}</p>}
+                  <p className="text-xs text-muted-foreground">
+                    BEP20 y MATIC son instantáneos, TRC20 tarda 4 días hábiles
+                  </p>
                 </div>
               </>
             )}
@@ -596,7 +635,7 @@ export default function RetirarPage() {
                     <Label htmlFor="localBank" className="text-sm">
                       Banco *
                     </Label>
-                    <Select onValueChange={(value) => setValue("localBank", value)}>
+                    <Select onValueChange={(value) => setValue("localBank", value)} value={watchedLocalBank || undefined}>
                       <SelectTrigger className="h-9">
                         <SelectValue placeholder="Selecciona el banco" />
                       </SelectTrigger>
@@ -675,7 +714,190 @@ export default function RetirarPage() {
 
             {/* Helper text */}
             {getHelperText() && (
-              <p className="text-xs text-muted-foreground">{getHelperText()}</p>
+              <p className="text-xs text-muted-foreground">{getHelperText()}</p>)}
+
+            {/* Guardar cuenta */}
+            {!usedSavedAccount && (
+            <div className="space-y-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  const formData = getValues()
+                  const { category, method } = formData as any
+                  
+                  // Validar que tengamos datos básicos
+                  if (!category) {
+                    toast({
+                      title: "Selecciona una categoría",
+                      description: "Primero completa la información básica de la cuenta",
+                      variant: "destructive",
+                    })
+                    return
+                  }
+                  
+                  // Validar que tengamos un alias/apodo según la categoría
+                  let nickname = null
+                  if (category === "crypto") {
+                    if (!formData.walletAlias) {
+                      toast({
+                        title: "Apodo requerido",
+                        description: "Para guardar una cuenta crypto, debes completar el 'Apodo de la billetera'",
+                        variant: "destructive",
+                      })
+                      return
+                    }
+                    nickname = formData.walletAlias
+                  } else if (category === "usd_bank") {
+                    if (!(formData as any).saveNickname) {
+                      toast({
+                        title: "Alias requerido",
+                        description: "Para guardar una cuenta bancaria, debes agregar un alias",
+                        variant: "destructive",
+                      })
+                      return
+                    }
+                    nickname = (formData as any).saveNickname
+                  } else if (category === "local_currency") {
+                    if (!(formData as any).saveNickname) {
+                      toast({
+                        title: "Alias requerido",
+                        description: "Para guardar una cuenta local, debes agregar un alias",
+                        variant: "destructive",
+                      })
+                      return
+                    }
+                    nickname = (formData as any).saveNickname
+                  }
+                  
+                  // Obtener email del usuario
+                  let userEmail = null
+                  try {
+                    const storedUser = localStorage.getItem("takenos_user")
+                    if (storedUser) {
+                      const parsedUser = JSON.parse(storedUser)
+                      userEmail = parsedUser.email
+                    }
+                  } catch (e) {
+                    console.error("Error reading from localStorage:", e)
+                  }
+                  
+                  if (!userEmail && user?.email) {
+                    userEmail = user.email
+                  }
+                  
+                  if (!userEmail) {
+                    toast({
+                      title: "Error",
+                      description: "No se pudo obtener el email del usuario",
+                      variant: "destructive",
+                    })
+                    return
+                  }
+                  
+                  // Construir detalles según categoría
+                  let details: any = {}
+                  if (category === "usd_bank") {
+                    details = {
+                      beneficiaryName: formData.beneficiaryName,
+                      beneficiaryBank: formData.beneficiaryBank,
+                      accountType: formData.accountType,
+                      accountNumber: formData.accountNumber,
+                      accountOwnership: formData.accountOwnership,
+                    }
+                    if (method === "ach") {
+                      details.routingNumber = formData.routingNumber
+                    }
+                    if (method === "wire") {
+                      details.swiftBic = formData.swiftBic
+                    }
+                  } else if (category === "crypto") {
+                    details = {
+                      walletAlias: formData.walletAlias,
+                      walletAddress: formData.walletAddress,
+                      walletNetwork: formData.walletNetwork,
+                    }
+                  } else if (category === "local_currency") {
+                    details = {
+                      localAccountName: formData.localAccountName,
+                      localBank: formData.localBank,
+                      localAccountNumber: formData.localAccountNumber,
+                    }
+                  }
+                  
+                  try {
+                    // Evitar alias duplicado
+                    const fetchEmail = async (): Promise<string | null> => {
+                      try {
+                        const storedUser = localStorage.getItem("takenos_user")
+                        if (storedUser) {
+                          const parsedUser = JSON.parse(storedUser)
+                          return parsedUser.email
+                        }
+                      } catch {}
+                      return user?.email ?? null
+                    }
+                    const emailForCheck = await fetchEmail()
+                    if (!emailForCheck) {
+                      toast({ title: "Error", description: "No se pudo obtener el email del usuario", variant: "destructive" })
+                      return
+                    }
+                    const existingRes = await authenticatedFetch(`/api/payout-accounts`, {
+                      method: "GET",
+                    })
+                    const existingJson = await existingRes.json().catch(() => ({}))
+                    const existing = Array.isArray(existingJson?.data) ? existingJson.data : []
+                    const aliasExists = existing.some((a: any) => (a.nickname || "").toLowerCase() === (nickname || "").toLowerCase())
+                    if (aliasExists) {
+                      toast({ title: "Alias ya usado", description: "Elegí un alias diferente para esta cuenta.", variant: "destructive" })
+                      return
+                    }
+
+                    const saveResp = await authenticatedFetch("/api/payout-accounts", {
+                      method: "POST",
+                      body: JSON.stringify({
+                        category,
+                        method: method ?? null,
+                        nickname,
+                        details,
+                      }),
+                    })
+                    const saveJson = await saveResp.json().catch(() => ({}))
+                    if (saveResp.ok && saveJson?.ok) {
+                      toast({ 
+                        title: "Cuenta guardada", 
+                        description: "La cuenta fue guardada correctamente para futuros retiros." 
+                      })
+                    } else {
+                      toast({ 
+                        title: "No se pudo guardar la cuenta", 
+                        description: saveJson?.error || "Intentá más tarde.", 
+                        variant: "destructive" 
+                      })
+                    }
+                  } catch (e) {
+                    console.error("Error guardando la cuenta:", e)
+                    toast({ 
+                      title: "Error", 
+                      description: "No se pudo guardar la cuenta. Intentá más tarde.", 
+                      variant: "destructive" 
+                    })
+                  }
+                }}
+                className="w-full"
+              >
+                Guardar cuenta para futuros retiros
+              </Button>
+              {watchedCategory !== "crypto" && (
+                <Input
+                  id="saveNickname"
+                  {...register("saveNickname" as any)}
+                  placeholder="Alias para la cuenta (requerido para guardar)"
+                  className="h-9"
+                />
+              )}
+            </div>
             )}
           </CardContent>
         </Card>
@@ -708,34 +930,54 @@ export default function RetirarPage() {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Cuentas guardadas</DialogTitle>
-            <DialogDescription>Elegí una para completar los campos.</DialogDescription>
+            <DialogDescription>Selecciona una cuenta para completar el formulario automáticamente</DialogDescription>
           </DialogHeader>
 
           {loadingAccounts ? (
-            <div className="py-6 text-sm text-muted-foreground">Cargando…</div>
+            <div className="py-6 text-center text-sm text-muted-foreground">
+              Cargando cuentas...
+            </div>
           ) : accounts.length === 0 ? (
-            <div className="py-6 text-sm text-muted-foreground">No tenés cuentas guardadas.</div>
+            <div className="py-6 text-center text-sm text-muted-foreground">
+              No tienes cuentas guardadas
+            </div>
           ) : (
-            <div className="space-y-2 max-h-80 overflow-auto">
-              {accounts.map((a) => {
-                const subtitle =
-                  a.category === "usd_bank"
-                    ? `${a.beneficiary_bank ?? "Banco"} ••••${a.last4 ?? ""}`
-                    : a.category === "crypto"
-                    ? `${a.wallet_network ?? ""} ••••${a.last4 ?? ""}`
-                    : `${a.local_bank ?? ""} ••••${a.last4 ?? ""}`
-                const title =
-                  a.nickname ??
-                  `${a.category}${a.method ? " " + a.method.toUpperCase() : ""} ••••${a.last4 ?? ""}`
+            <div className="space-y-2 max-h-80 overflow-y-auto">
+              {accounts.map((account) => {
+                const getAccountTitle = () => {
+                  if (account.nickname) return account.nickname
+                  
+                  if (account.category === "usd_bank") {
+                    return `${account.beneficiary_bank || "Banco"} ••••${account.last4 || ""}`
+                  } else if (account.category === "crypto") {
+                    return `${account.wallet_network || "Crypto"} ••••${account.last4 || ""}`
+                  } else if (account.category === "local_currency") {
+                    return `${account.local_bank || "Banco local"} ••••${account.last4 || ""}`
+                  }
+                  
+                  return `Cuenta ${account.category}`
+                }
+
+                const getAccountSubtitle = () => {
+                  if (account.category === "usd_bank") {
+                    return `${account.method?.toUpperCase() || ""} • ${account.beneficiary_bank || ""}`
+                  } else if (account.category === "crypto") {
+                    return `${account.wallet_network || ""} • ${account.wallet_alias || ""}`
+                  } else if (account.category === "local_currency") {
+                    return `${account.local_bank || ""} • ${account.local_account_name || ""}`
+                  }
+                  
+                  return account.category
+                }
 
                 return (
-                  <div key={a.id} className="flex items-center justify-between rounded-lg border p-3">
-                    <div>
-                      <div className="font-medium">{title}</div>
-                      <div className="text-xs text-muted-foreground">{subtitle}</div>
+                  <div key={account.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50">
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">{getAccountTitle()}</div>
+                      <div className="text-xs text-muted-foreground">{getAccountSubtitle()}</div>
                     </div>
-                    <Button size="sm" onClick={() => prefillFromAccount(a)}>
-                      Seleccionar
+                    <Button size="sm" onClick={() => fillFormFromAccount(account)}>
+                      Usar
                     </Button>
                   </div>
                 )
@@ -744,7 +986,9 @@ export default function RetirarPage() {
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAccounts(false)}>Cerrar</Button>
+            <Button variant="outline" onClick={() => setShowAccounts(false)}>
+              Cerrar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

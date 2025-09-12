@@ -88,9 +88,7 @@ export default function AyudaPage() {
                           <li>
                             <strong>Wire Transfer:</strong> Mismo día o siguiente día hábil
                           </li>
-                          <li>
-                            <strong>RTP:</strong> Inmediato (24/7)
-                          </li>
+                          
                           <li>
                             <strong>SWIFT:</strong> 1-5 días hábiles (internacional)
                           </li>

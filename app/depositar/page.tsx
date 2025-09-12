@@ -5,113 +5,64 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { AccountField } from "@/components/account-field"
-import { downloadPDF } from "@/lib/pdf-generator"
 import { Download, AlertCircle, Loader2, RefreshCw } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { getDepositDataForUser, type BlindpayVirtualAccount } from "@/lib/blindpay-api"
-import { getUserSession } from "@/lib/auth"
-import { toast } from "@/hooks/use-toast"
-import { useDataCache } from "@/hooks/use-data-cache"
-import { useCacheInvalidation } from "@/hooks/use-cache-invalidation"
+import { useAuth } from "@/components/auth-provider"
+import { getSheetDataByGid, findRowByEmail } from "@/lib/google-sheets"
 
-export type DepositMethod = "ach" | "wire" | "rtp" | "swift"
+export type DepositMethod = "ach" | "wire" | "swift"
 
 export default function DepositarPage() {
   const [selectedMethod, setSelectedMethod] = useState<DepositMethod | "">("")
   
-  // Obtener usuario
-  const user = getUserSession()
+  // Obtener usuario desde Supabase
+  const { user } = useAuth()
   
-  // Función para obtener datos de depósito
-  const fetchDepositData = async (): Promise<BlindpayVirtualAccount> => {
-    if (!user?.email) {
-      throw new Error("No se encontró información del usuario")
+  // Función para mapear emails (duplicada del middleware para evitar dependencias)
+  const getApiEmailForUser = (displayEmail: string): string => {
+    if (displayEmail === "fermin@takenos.com") {
+      return "geraldinebrisa2017@gmail.com"
     }
-    
-    const data = await getDepositDataForUser(user.email)
-    if (!data) {
-      throw new Error("No se pudieron obtener los datos de depósito")
-    }
-    
-    return data
+    return displayEmail
   }
+  
+  const apiEmail = user?.email ? getApiEmailForUser(user.email) : ""
 
-  // Usar el hook de caché para los datos de depósito
-  const depositDataCache = useDataCache(
-    `deposit-data-${user?.email}`,
-    fetchDepositData,
-    {
-      ttl: 10 * 60 * 1000, // 10 minutos para datos de depósito
-      immediate: !!user?.email
-    }
-  )
+  // Google Sheets state (ACH)
+  const [sheetRows, setSheetRows] = useState<any[][] | null>(null)
+  const [sheetLoading, setSheetLoading] = useState<boolean>(false)
+  const [sheetError, setSheetError] = useState<string | null>(null)
 
-  // Hook para invalidar caché
-  const { invalidateKeys } = useCacheInvalidation()
-
-  // Función para actualizar datos
-  const refreshDepositData = async () => {
+  async function loadSheet() {
     try {
-      await depositDataCache.refresh()
-      toast({
-        title: "Datos actualizados",
-        description: "La información de depósito se ha actualizado correctamente",
-      })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "No se pudieron actualizar los datos de depósito",
-        variant: "destructive",
-      })
+      setSheetLoading(true)
+      setSheetError(null)
+      const rows = await getSheetDataByGid(400616177)
+      setSheetRows(rows)
+    } catch (e: any) {
+      setSheetError(e?.message || 'Error cargando Google Sheet')
+    } finally {
+      setSheetLoading(false)
     }
   }
 
-  // Función para invalidar caché de depósito (útil para futuras operaciones)
-  const invalidateDepositCache = () => {
-    if (user?.email) {
-      invalidateKeys([`deposit-data-${user.email}`])
+  useEffect(() => {
+    if (selectedMethod === 'ach') {
+      loadSheet()
     }
-  }
+  }, [selectedMethod])
+  
+  // PDF deshabilitado temporalmente
 
-  const handleDownloadPDF = () => {
-    if (selectedMethod && depositDataCache.data) {
-      downloadPDF(selectedMethod, depositDataCache.data)
-    }
-  }
+  // Loading se maneja a nivel de sección según método seleccionado
 
-  // Mostrar loading
-  if (depositDataCache.loading) {
-    return (
-      <div className="max-w-2xl mx-auto">
-        <div className="flex items-center justify-center py-12">
-          <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-[#6d37d5]" />
-            <p className="text-muted-foreground">Cargando información de depósito...</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Mostrar error
-  if (depositDataCache.error || !depositDataCache.data) {
-    return (
-      <div className="max-w-2xl mx-auto">
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            {depositDataCache.error || "No se pudieron cargar los datos de depósito. Por favor, intenta nuevamente."}
-          </AlertDescription>
-        </Alert>
-      </div>
-    )
-  }
+  // No devolvemos temprano en caso de error: mostramos aviso pero permitimos elegir método
 
   const renderDepositInfo = () => {
     if (!selectedMethod) return null
 
     const isSwift = selectedMethod === "swift"
-    const depositData = depositDataCache.data
+    const sheetMatch = selectedMethod === 'ach' && sheetRows ? findRowByEmail(sheetRows, apiEmail) : null
 
     return (
       <Card className="rounded-lg shadow-sm">
@@ -120,46 +71,70 @@ export default function DepositarPage() {
           <CardDescription>Utiliza estos datos para realizar tu depósito</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {isSwift ? (
+          {/* Preferir datos de Google Sheet si hay match en ACH; si no, placeholders */}
+          {selectedMethod === 'ach' && sheetLoading ? (
+            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Cargando desde Google Sheets...</span>
+            </div>
+          ) : selectedMethod === 'ach' && sheetError ? (
+            <div className="flex items-center space-x-2 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4" />
+              <span>Error cargando datos: {sheetError}</span>
+            </div>
+          ) : selectedMethod === 'ach' && sheetRows && !sheetMatch ? (
+            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+              <AlertCircle className="h-4 w-4" />
+              <span>No se encontraron datos para {apiEmail}</span>
+            </div>
+          ) : selectedMethod === 'ach' && sheetMatch ? (
             <>
-              <AccountField label="SWIFT/BIC Code" value={depositData.us.swift_bic_code} />
-              <AccountField label="Número de cuenta" value={depositData.us.wire.account_number} maskable />
+              <AccountField label="Routing Number" value={String(sheetMatch[3] || "")} />
+              <AccountField label="Número de cuenta" value={String(sheetMatch[2] || "")} maskable />
+              <AccountField label="Nombre del beneficiario" value={String(sheetMatch[4] || "")} />
+              <AccountField label="Banco receptor" value={String(sheetMatch[5] || "")} />
+              <AccountField label="Tipo de cuenta" value={String(sheetMatch[6] || "")} />
             </>
           ) : (
             <>
-              <AccountField label="Routing Number" value={depositData.us[selectedMethod].routing_number} />
-              <AccountField label="Número de cuenta" value={depositData.us[selectedMethod].account_number} maskable />
+              {isSwift ? (
+                <>
+                  <AccountField label="SWIFT/BIC Code" value="Temporalmente no disponible" />
+                  <AccountField label="Número de cuenta" value="Temporalmente no disponible" />
+                </>
+              ) : (
+                <>
+                  <AccountField label="Routing Number" value="Temporalmente no disponible" />
+                  <AccountField label="Número de cuenta" value="Temporalmente no disponible" />
+                </>
+              )}
+              <AccountField label="Nombre del beneficiario" value="Temporalmente no disponible" />
+              <AccountField label="Banco receptor" value="Temporalmente no disponible" />
+              <AccountField label="Tipo de cuenta" value="Temporalmente no disponible" />
             </>
           )}
-
-          <AccountField label="Nombre del beneficiario" value={depositData.us.beneficiary.name} />
-          <AccountField label="Banco receptor" value={depositData.us.receiving_bank.name} />
-          <AccountField label="Tipo de cuenta" value={depositData.us.account_type} />
 
           <div className="grid md:grid-cols-2 gap-3">
             <div className="space-y-1">
               <div className="text-sm font-medium text-foreground">Dirección del beneficiario</div>
               <div className="p-2 bg-muted/50 rounded border text-xs">
-                <div className="text-muted-foreground">{depositData.us.beneficiary.address_line_1}</div>
-                <div className="text-muted-foreground">{depositData.us.beneficiary.address_line_2}</div>
+                <div className="text-muted-foreground">
+                  {selectedMethod === 'ach' && sheetMatch ? (sheetMatch[7] || "No disponible") : "Temporalmente no disponible"}
+                </div>
               </div>
             </div>
 
             <div className="space-y-1">
               <div className="text-sm font-medium text-foreground">Dirección del banco receptor</div>
               <div className="p-2 bg-muted/50 rounded border text-xs">
-                <div className="text-muted-foreground">{depositData.us.receiving_bank.address_line_1}</div>
-                <div className="text-muted-foreground">{depositData.us.receiving_bank.address_line_2}</div>
+                <div className="text-muted-foreground">
+                  {selectedMethod === 'ach' && sheetMatch ? (sheetMatch[8] || "No disponible") : "Temporalmente no disponible"}
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="pt-2">
-            <Button onClick={handleDownloadPDF} className="w-full" size="sm">
-              <Download className="mr-2 h-4 w-4" />
-              Descargar PDF
-            </Button>
-          </div>
+          {/* PDF deshabilitado */}
         </CardContent>
       </Card>
     )
@@ -175,15 +150,15 @@ export default function DepositarPage() {
           </p>
         </div>
         
-        {/* Botón de actualización */}
+        {/* Botón de actualización: recarga Google Sheets si aplica */}
         <Button
           variant="outline"
           size="sm"
-          onClick={refreshDepositData}
-          disabled={depositDataCache.loading}
+          onClick={() => { if (selectedMethod === 'ach') { loadSheet() } }}
+          disabled={selectedMethod !== 'ach' || sheetLoading}
           className="flex items-center space-x-2"
         >
-          <RefreshCw className={`h-4 w-4 ${depositDataCache.loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-4 w-4 ${sheetLoading ? 'animate-spin' : ''}`} />
           <span>Actualizar</span>
         </Button>
       </div>
@@ -202,7 +177,6 @@ export default function DepositarPage() {
               <SelectContent>
                 <SelectItem value="ach">ACH (Automated Clearing House)</SelectItem>
                 <SelectItem value="wire">Wire Transfer</SelectItem>
-                <SelectItem value="rtp">RTP (Real-Time Payments)</SelectItem>
                 <SelectItem value="swift">SWIFT (Internacional)</SelectItem>
               </SelectContent>
             </Select>

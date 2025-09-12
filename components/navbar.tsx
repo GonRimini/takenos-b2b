@@ -3,16 +3,43 @@
 import Link from "next/link"
 import Image from "next/image"
 import { useState } from "react"
-import { Menu, X } from "lucide-react"
+import { Menu, X, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/components/auth-provider"
+import { toast } from "@/hooks/use-toast"
 
 export function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const pathname = usePathname()
+  const { user, signOut } = useAuth()
 
   const isActive = (path: string) => pathname === path
+
+  const handleSignOut = async () => {
+    try {
+      const { error } = await signOut()
+      if (error) {
+        toast({
+          title: "Error al cerrar sesión",
+          description: error.message,
+          variant: "destructive",
+        })
+      } else {
+        toast({
+          title: "Sesión cerrada",
+          description: "Has cerrado sesión correctamente",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Ocurrió un error al cerrar sesión",
+        variant: "destructive",
+      })
+    }
+  }
 
   return (
     <nav className="bg-white border-b border-border sticky top-0 z-50 backdrop-blur-sm bg-white/95">
@@ -66,6 +93,17 @@ export function Navbar() {
               Ayuda
               {isActive("/ayuda") && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />}
             </Link>
+            
+            {/* User info and logout */}
+            {user && (
+              <div className="flex items-center space-x-4">
+                <span className="text-sm text-muted-foreground">{user.email}</span>
+                <Button variant="outline" size="sm" onClick={handleSignOut}>
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Cerrar Sesión
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Mobile menu button */}
@@ -110,6 +148,17 @@ export function Navbar() {
               >
                 Ayuda
               </Link>
+              
+              {/* Mobile logout */}
+              {user && (
+                <div className="pt-4 border-t border-border">
+                  <div className="text-sm text-muted-foreground mb-2">{user.email}</div>
+                  <Button variant="outline" size="sm" onClick={handleSignOut} className="w-full">
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Cerrar Sesión
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         )}

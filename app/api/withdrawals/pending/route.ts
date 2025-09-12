@@ -1,15 +1,16 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase-server"
+import { getAuthenticatedUserEmail } from "@/lib/auth-middleware"
 
 export const runtime = "nodejs"
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const userEmail = searchParams.get("userEmail")
-
-    if (!userEmail) {
-      return NextResponse.json({ error: "User email is required" }, { status: 400 })
+    // Validar autenticación y obtener email del token
+    const { email: userEmail, error: authError } = await getAuthenticatedUserEmail(request)
+    
+    if (authError || !userEmail) {
+      return NextResponse.json({ error: authError || "Authentication required" }, { status: 401 })
     }
 
     const supa = supabaseServer()

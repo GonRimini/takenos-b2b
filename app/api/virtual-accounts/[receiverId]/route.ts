@@ -1,20 +1,22 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { handleApiError, logError, validateEnvironment, ValidationError, ApiError } from "@/lib/error-handler"
 
 const BLINDPAY_API_BASE = "https://api.blindpay.com/v1"
 const INSTANCE_ID = "in_QLygoDC4zomg"
 
-export async function GET(request: NextRequest, { params }: { params: { receiverId: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ receiverId: string }> }) {
   try {
-    validateEnvironment()
-
-    const { receiverId } = params
-
-    if (!receiverId) {
-      throw new ValidationError("Receiver ID is required", "receiverId")
+    // Validar que tengamos la API key
+    const BLINDPAY_API_KEY = process.env.BLINDPAY_API_KEY
+    if (!BLINDPAY_API_KEY) {
+      console.error("[v0] Missing BLINDPAY_API_KEY environment variable")
+      return NextResponse.json({ error: "Configuration error: Missing API key" }, { status: 500 })
     }
 
-    const BLINDPAY_API_KEY = process.env.BLINDPAY_API_KEY!
+    const { receiverId } = await params
+
+    if (!receiverId) {
+      return NextResponse.json({ error: "Receiver ID is required" }, { status: 400 })
+    }
 
     const apiUrl = `${BLINDPAY_API_BASE}/instances/${INSTANCE_ID}/receivers/${receiverId}/virtual-accounts`
     console.log("[v0] Making request to:", apiUrl)
@@ -45,7 +47,6 @@ export async function GET(request: NextRequest, { params }: { params: { receiver
     if (!response.ok) {
       const errorText = await response.text().catch(() => "Unknown error")
       console.log("[v0] Error response body:", errorText)
-      logError(`Blindpay API error: ${response.status} ${response.statusText} - ${errorText}`, "virtual-accounts-api")
 
       if (response.status === 401) {
         return NextResponse.json({ error: "API authentication failed" }, { status: 500 })
@@ -63,7 +64,6 @@ export async function GET(request: NextRequest, { params }: { params: { receiver
       virtualAccountData = JSON.parse(responseText)
     } catch (parseError) {
       console.log("[v0] JSON parse error:", parseError)
-      logError("Failed to parse JSON response from Blindpay", "virtual-accounts-api")
       return NextResponse.json({ error: "Invalid JSON response from API" }, { status: 500 })
     }
 
@@ -85,7 +85,7 @@ export async function GET(request: NextRequest, { params }: { params: { receiver
     }
 
     if (!virtualAccountData?.id || !virtualAccountData?.us) {
-      logError("Unexpected response format from Blindpay virtual accounts API", "virtual-accounts-api")
+      console.error("[v0] Unexpected response format from Blindpay virtual accounts API")
       console.log(
         "[v0] Full response structure:",
         virtualAccountData ? Object.keys(virtualAccountData) : "null response",
@@ -121,28 +121,7 @@ export async function GET(request: NextRequest, { params }: { params: { receiver
 
     return NextResponse.json(transformedData)
   } catch (error) {
-    console.log("[v0] Caught error:", error)
-    console.log("[v0] Error type:", typeof error)
-    console.log("[v0] Error constructor:", error?.constructor?.name)
-    logError(error, "virtual-accounts-api")
-    const apiError = handleApiError(error)
-
-    if (error instanceof ValidationError) {
-      return NextResponse.json({ error: apiError.message, field: error.field }, { status: 400 })
-    }
-
-    if (error instanceof ApiError && error.code === "MISSING_ENV_VARS") {
-      return NextResponse.json(
-        {
-          error: "Configuration Error",
-          message:
-            "The BLINDPAY_API_KEY environment variable is not configured. Please add it in your Vercel project settings.",
-          code: "MISSING_ENV_VARS",
-        },
-        { status: 500 },
-      )
-    }
-
-    return NextResponse.json({ error: "Internal server error" }, { status: apiError.status })
+    console.error("[v0] Caught error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

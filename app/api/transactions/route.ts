@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { getAuthenticatedUserEmail } from "@/lib/auth-middleware"
 
 export const runtime = "nodejs"
 
@@ -53,9 +54,11 @@ function toUi(tx: RawTx, idx: number): UiTx {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userEmail } = await request.json()
-    if (!userEmail) {
-      return NextResponse.json({ error: "User email is required" }, { status: 400 })
+    // Validar autenticación y obtener email del token
+    const { email: userEmail, error: authError } = await getAuthenticatedUserEmail(request)
+    
+    if (authError || !userEmail) {
+      return NextResponse.json({ error: authError || "Authentication required" }, { status: 401 })
     }
 
     // Normalizar email a lowercase para que no sea case sensitive

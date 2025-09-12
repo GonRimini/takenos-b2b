@@ -6,9 +6,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { RefreshCw, Download } from "lucide-react"
-import { useAuth } from "@/components/auth-wrapper"
+import { useAuth } from "@/components/auth-provider"
 import { downloadTransactionReceipt } from "@/lib/pdf-generator"
 import { useDataCache, useCacheInvalidator } from "@/hooks/use-data-cache"
+import { useAuthenticatedFetch } from "@/hooks/use-authenticated-fetch"
 
 
 
@@ -17,15 +18,14 @@ export default function Dashboard() {
   const [startDate, setStartDate] = useState<string>("")
   const [endDate, setEndDate] = useState<string>("")
   const { invalidateKeys } = useCacheInvalidator()
+  const { authenticatedFetch } = useAuthenticatedFetch()
 
   // Función para obtener el balance
   const fetchBalanceData = async (): Promise<{ balance: number; source: string }> => {
     if (!user?.email) throw new Error("Usuario no autenticado")
     
-    const response = await fetch("/api/balance", {
+    const response = await authenticatedFetch("/api/balance", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userEmail: user.email }),
     })
 
     const data = await response.json()
@@ -38,10 +38,8 @@ export default function Dashboard() {
   const fetchMovementsData = async (): Promise<any[]> => {
     if (!user?.email) throw new Error("Usuario no autenticado")
     
-    const response = await fetch("/api/transactions", {
+    const response = await authenticatedFetch("/api/transactions", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userEmail: user.email }),
     })
 
     const data = await response.json()
@@ -54,7 +52,9 @@ export default function Dashboard() {
   const fetchPendingWithdrawalsData = async (): Promise<any[]> => {
     if (!user?.email) throw new Error("Usuario no autenticado")
     
-    const response = await fetch(`/api/withdrawals/pending?userEmail=${encodeURIComponent(user.email)}`)
+    const response = await authenticatedFetch("/api/withdrawals/pending", {
+      method: "GET",
+    })
     const data = await response.json()
     
     if (!response.ok) throw new Error(data.error || "Error al cargar retiros pendientes")
@@ -373,57 +373,65 @@ export default function Dashboard() {
         </CardHeader>
         <CardContent>
           <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Descripción</TableHead>
-                  <TableHead className="text-right">Monto</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead className="text-center">Comprobante</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {movementsCache.loading ? (
+            <div className="max-h-[400px] overflow-y-auto">
+              <Table>
+                <TableHeader className="sticky top-0 bg-white z-10">
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-gray-500">
-                      Cargando...
-                    </TableCell>
+                    <TableHead className="bg-white">Fecha</TableHead>
+                    <TableHead className="bg-white">Descripción</TableHead>
+                    <TableHead className="text-right bg-white">Monto</TableHead>
+                    <TableHead className="bg-white">Estado</TableHead>
+                    <TableHead className="text-center bg-white">Comprobante</TableHead>
                   </TableRow>
-                ) : !movementsCache.data || filterMovementsByDate(movementsCache.data).length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-gray-500">
-                      {startDate || endDate ? "No hay movimientos en el rango de fechas seleccionado" : "No hay movimientos registrados"}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filterMovementsByDate(movementsCache.data).map((m) => (
-                    <TableRow key={m.id}>
-                      <TableCell className="font-medium">{formatDate(m.date)}</TableCell>
-                      <TableCell>{m.description}</TableCell>
-                      <TableCell className={`text-right font-medium ${m.amount > 0 ? "text-green-600" : "text-red-600"}`}>
-                        {formatCurrency(m.amount)}
-                      </TableCell>
-                      <TableCell>{getStatusBadge(m.status)}</TableCell>
-                      <TableCell className="text-center">
-                        <Button
-                          onClick={() => downloadTransactionReceipt({
-                            ...m,
-                            userEmail: user?.email || ""
-                          })}
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 hover:bg-blue-50"
-                          title="Descargar comprobante"
-                        >
-                          <Download className="h-4 w-4 text-blue-600" />
-                        </Button>
+                </TableHeader>
+                <TableBody>
+                  {movementsCache.loading ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                        Cargando...
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : !movementsCache.data || filterMovementsByDate(movementsCache.data).length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                        {startDate || endDate ? "No hay movimientos en el rango de fechas seleccionado" : "No hay movimientos registrados"}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filterMovementsByDate(movementsCache.data).map((m) => (
+                      <TableRow key={m.id}>
+                        <TableCell className="font-medium">{formatDate(m.date)}</TableCell>
+                        <TableCell>{m.description}</TableCell>
+                        <TableCell className={`text-right font-medium ${m.amount > 0 ? "text-green-600" : "text-red-600"}`}>
+                          {formatCurrency(m.amount)}
+                        </TableCell>
+                        <TableCell>{getStatusBadge(m.status)}</TableCell>
+                        <TableCell className="text-center">
+                          <Button
+                            onClick={() => downloadTransactionReceipt({
+                              ...m,
+                              userEmail: user?.email || ""
+                            })}
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 hover:bg-blue-50"
+                            title="Descargar comprobante"
+                          >
+                            <Download className="h-4 w-4 text-blue-600" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            {/* Mostrar indicador de scroll */}
+            {movementsCache.data && filterMovementsByDate(movementsCache.data).length > 8 && (
+              <div className="text-center py-2 text-sm text-gray-500 bg-gray-50 border-t">
+                {filterMovementsByDate(movementsCache.data).length} movimientos - Desplázate para ver todos
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
