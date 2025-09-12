@@ -18,15 +18,9 @@ export default function DepositarPage() {
   // Obtener usuario desde Supabase
   const { user } = useAuth()
   
-  // Función para mapear emails (duplicada del middleware para evitar dependencias)
-  const getApiEmailForUser = (displayEmail: string): string => {
-    if (displayEmail === "fermin@takenos.com") {
-      return "geraldinebrisa2017@gmail.com"
-    }
-    return displayEmail
-  }
-  
-  const apiEmail = user?.email ? getApiEmailForUser(user.email) : ""
+  // Para datos de depósito, usar el email real del usuario (sin mapeo)
+  // El mapeo solo debe aplicarse en el backend para APIs externas
+  const userDisplayEmail = user?.email || ""
 
   // Google Sheets state (ACH)
   const [sheetRows, setSheetRows] = useState<any[][] | null>(null)
@@ -62,7 +56,7 @@ export default function DepositarPage() {
     if (!selectedMethod) return null
 
     const isSwift = selectedMethod === "swift"
-    const sheetMatch = selectedMethod === 'ach' && sheetRows ? findRowByEmail(sheetRows, apiEmail) : null
+    const sheetMatch = selectedMethod === 'ach' && sheetRows ? findRowByEmail(sheetRows, userDisplayEmail) : null
 
     return (
       <Card className="rounded-lg shadow-sm">
@@ -85,7 +79,7 @@ export default function DepositarPage() {
           ) : selectedMethod === 'ach' && sheetRows && !sheetMatch ? (
             <div className="flex items-center space-x-2 text-sm text-muted-foreground">
               <AlertCircle className="h-4 w-4" />
-              <span>No se encontraron datos para {apiEmail}</span>
+              <span>No se encontraron datos para {userDisplayEmail}</span>
             </div>
           ) : selectedMethod === 'ach' && sheetMatch ? (
             <>
