@@ -6,14 +6,14 @@ Add these to your `.env.local` file:
 
 ```bash
 # Retool API Keys
-RETOOL_API_KEY=retool_wk_d9ad90ef3bab430d81a76f632a0544bb
+RETOOL_API_KEY=your_retool_api_key_here
 
 # Email Service (Resend)
-RESEND_API_KEY=re_RnKdazdv_EVhepzWEK6wVwDeMPZxFdZ9b
+RESEND_API_KEY=your_resend_api_key_here
 
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=https://nqhzaiuumlaqkszxikcz.supabase.co
-SUPABASE_SERVICE_ROLE=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xaHphaXV1bWxhcWtzenhpa2N6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NjE0NzM4OSwiZXhwIjoyMDcxNzIzMzg5fQ.uSi0XqxyJHjsXes6gvQXwapKziFcBO5EhvTRSanYA6U
+SUPABASE_SERVICE_ROLE=your_supabase_service_role_key_here
 ```
 
 ## 2. Database Migration

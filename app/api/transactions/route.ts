@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
     // Normalizar email a lowercase para que no sea case sensitive
     const normalizedEmail = userEmail.toLowerCase().trim()
 
-    const key = "retool_wk_d9ad90ef3bab430d81a76f632a0544bb"
+    const key = process.env.RETOOL_TRANSACTIONS_API_KEY
     if (!key) {
       return NextResponse.json({ error: "Server configuration error" }, { status: 500 })
     }
