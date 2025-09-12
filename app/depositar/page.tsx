@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { AccountField } from "@/components/account-field"
 import { Download, AlertCircle, Loader2, RefreshCw } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { useAuth } from "@/components/auth-provider"
+import { useAuth } from "@/components/auth"
 import { getSheetDataByGid, findRowByEmail } from "@/lib/google-sheets"
 
 export type DepositMethod = "ach" | "wire" | "swift"

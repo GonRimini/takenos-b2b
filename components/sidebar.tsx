@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { clearUserSession, getUserSession } from "@/lib/auth"
+import { useAuth } from "@/components/auth"
 import { toast } from "@/hooks/use-toast"
 import { useEffect, useState } from "react"
 
@@ -66,21 +67,55 @@ export function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const [userEmail, setUserEmail] = useState<string>("")
+  const { signOut, user } = useAuth()
 
   useEffect(() => {
-    const user = getUserSession()
+    const sessionUser = getUserSession()
+    if (sessionUser) {
+      setUserEmail(sessionUser.email)
+    }
+    // También usar el usuario del nuevo sistema si existe
     if (user) {
       setUserEmail(user.email)
     }
-  }, [])
+  }, [user])
 
-  const handleLogout = () => {
-    clearUserSession()
-    toast({
-      title: "Sesión cerrada",
-      description: "Has cerrado sesión exitosamente",
-    })
-    router.push("/login")
+  const handleLogout = async () => {
+    console.log("🚪🚪🚪 SIDEBAR LOGOUT CLICKED!")
+    console.log("🚪 Current userEmail from sidebar:", userEmail)
+    console.log("🚪 Current user from auth:", user?.email)
+    console.log("🚪 SignOut function type:", typeof signOut)
+    alert("SIDEBAR LOGOUT CLICKED! Check console for logs")
+    
+    try {
+      console.log("🔥 Calling signOut function...")
+      const result = await signOut()
+      console.log("🔥 SignOut result:", result)
+      
+      // También limpiar la sesión antigua por si acaso
+      clearUserSession()
+      
+      toast({
+        title: "Sesión cerrada",
+        description: "Has cerrado sesión exitosamente",
+      })
+      
+      alert("Logout completed! Result: " + JSON.stringify(result))
+      
+      // Forzar recarga completa
+      window.location.href = "/login"
+    } catch (error) {
+      console.error("🔥 Error in sidebar logout:", error)
+      alert("Error in logout: " + error)
+      
+      // Fallback al método antiguo
+      clearUserSession()
+      toast({
+        title: "Sesión cerrada (fallback)",
+        description: "Has cerrado sesión exitosamente",
+      })
+      router.push("/login")
+    }
   }
 
   return (

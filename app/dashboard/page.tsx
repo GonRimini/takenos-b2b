@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { RefreshCw, Download } from "lucide-react"
-import { useAuth } from "@/components/auth-provider"
+import { useAuth } from "@/components/auth"
 import { downloadTransactionReceipt } from "@/lib/pdf-generator"
 import { useDataCache, useCacheInvalidator } from "@/hooks/use-data-cache"
 import { useAuthenticatedFetch } from "@/hooks/use-authenticated-fetch"

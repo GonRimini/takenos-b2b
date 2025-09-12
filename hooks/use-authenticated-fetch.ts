@@ -1,4 +1,4 @@
-import { useAuth } from "@/components/auth-provider"
+import { useAuth } from "@/components/auth"
 import { useCallback } from "react"
 
 export function useAuthenticatedFetch() {
