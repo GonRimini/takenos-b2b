@@ -27,6 +27,11 @@ export default function DepositarPage() {
   const [sheetLoading, setSheetLoading] = useState<boolean>(false)
   const [sheetError, setSheetError] = useState<string | null>(null)
 
+  // Google Sheets state (SWIFT)
+  const [swiftRows, setSwiftRows] = useState<any[][] | null>(null)
+  const [swiftLoading, setSwiftLoading] = useState<boolean>(false)
+  const [swiftError, setSwiftError] = useState<string | null>(null)
+
   async function loadSheet() {
     try {
       setSheetLoading(true)
@@ -40,9 +45,24 @@ export default function DepositarPage() {
     }
   }
 
+  async function loadSwiftSheet() {
+    try {
+      setSwiftLoading(true)
+      setSwiftError(null)
+      const rows = await getSheetDataByGid(1293040889) // SWIFT GID
+      setSwiftRows(rows)
+    } catch (e: any) {
+      setSwiftError(e?.message || 'Error cargando Google Sheet SWIFT')
+    } finally {
+      setSwiftLoading(false)
+    }
+  }
+
   useEffect(() => {
     if (selectedMethod === 'ach') {
       loadSheet()
+    } else if (selectedMethod === 'swift') {
+      loadSwiftSheet()
     }
   }, [selectedMethod])
   
@@ -57,6 +77,7 @@ export default function DepositarPage() {
 
     const isSwift = selectedMethod === "swift"
     const sheetMatch = selectedMethod === 'ach' && sheetRows ? findRowByEmail(sheetRows, userDisplayEmail) : null
+    const swiftMatch = selectedMethod === 'swift' && swiftRows ? findRowByEmail(swiftRows, userDisplayEmail) : null
 
     return (
       <Card className="rounded-lg shadow-sm">
@@ -65,29 +86,41 @@ export default function DepositarPage() {
           <CardDescription>Utiliza estos datos para realizar tu depósito</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {/* Preferir datos de Google Sheet si hay match en ACH; si no, placeholders */}
-          {selectedMethod === 'ach' && sheetLoading ? (
+          {/* Preferir datos de Google Sheet si hay match; si no, placeholders */}
+          {(selectedMethod === 'ach' && sheetLoading) || (selectedMethod === 'swift' && swiftLoading) ? (
             <div className="flex items-center space-x-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span>Cargando desde Google Sheets...</span>
             </div>
-          ) : selectedMethod === 'ach' && sheetError ? (
+          ) : (selectedMethod === 'ach' && sheetError) || (selectedMethod === 'swift' && swiftError) ? (
             <div className="flex items-center space-x-2 text-sm text-destructive">
               <AlertCircle className="h-4 w-4" />
-              <span>Error cargando datos: {sheetError}</span>
+              <span>Error cargando datos: {selectedMethod === 'ach' ? sheetError : swiftError}</span>
             </div>
-          ) : selectedMethod === 'ach' && sheetRows && !sheetMatch ? (
+          ) : (selectedMethod === 'ach' && sheetRows && !sheetMatch) || (selectedMethod === 'swift' && swiftRows && !swiftMatch) ? (
             <div className="flex items-center space-x-2 text-sm text-muted-foreground">
               <AlertCircle className="h-4 w-4" />
               <span>No se encontraron datos para {userDisplayEmail}</span>
             </div>
-          ) : selectedMethod === 'ach' && sheetMatch ? (
+          ) : (selectedMethod === 'ach' && sheetMatch) || (selectedMethod === 'swift' && swiftMatch) ? (
             <>
-              <AccountField label="Routing Number" value={String(sheetMatch[3] || "")} />
-              <AccountField label="Número de cuenta" value={String(sheetMatch[2] || "")} maskable />
-              <AccountField label="Nombre del beneficiario" value={String(sheetMatch[4] || "")} />
-              <AccountField label="Banco receptor" value={String(sheetMatch[5] || "")} />
-              <AccountField label="Tipo de cuenta" value={String(sheetMatch[6] || "")} />
+              {selectedMethod === 'ach' && sheetMatch ? (
+                <>
+                  <AccountField label="Routing Number" value={String(sheetMatch[3] || "")} />
+                  <AccountField label="Número de cuenta" value={String(sheetMatch[2] || "")} maskable />
+                  <AccountField label="Nombre del beneficiario" value={String(sheetMatch[4] || "")} />
+                  <AccountField label="Banco receptor" value={String(sheetMatch[5] || "")} />
+                  <AccountField label="Tipo de cuenta" value={String(sheetMatch[6] || "")} />
+                </>
+              ) : selectedMethod === 'swift' && swiftMatch ? (
+                <>
+                  <AccountField label="SWIFT/BIC Code" value={String(swiftMatch[2] || "")} />
+                  <AccountField label="Número de cuenta" value={String(swiftMatch[3] || "")} maskable />
+                  <AccountField label="Nombre del beneficiario" value={String(swiftMatch[4] || "")} />
+                  <AccountField label="Banco receptor" value={String(swiftMatch[5] || "")} />
+                  <AccountField label="Tipo de cuenta" value={String(swiftMatch[6] || "")} />
+                </>
+              ) : null}
             </>
           ) : (
             <>
@@ -113,7 +146,9 @@ export default function DepositarPage() {
               <div className="text-sm font-medium text-foreground">Dirección del beneficiario</div>
               <div className="p-2 bg-muted/50 rounded border text-xs">
                 <div className="text-muted-foreground">
-                  {selectedMethod === 'ach' && sheetMatch ? (sheetMatch[7] || "No disponible") : "Temporalmente no disponible"}
+                  {(selectedMethod === 'ach' && sheetMatch) ? (sheetMatch[7] || "No disponible") 
+                   : (selectedMethod === 'swift' && swiftMatch) ? (swiftMatch[7] || "No disponible")
+                   : "Temporalmente no disponible"}
                 </div>
               </div>
             </div>
@@ -122,7 +157,9 @@ export default function DepositarPage() {
               <div className="text-sm font-medium text-foreground">Dirección del banco receptor</div>
               <div className="p-2 bg-muted/50 rounded border text-xs">
                 <div className="text-muted-foreground">
-                  {selectedMethod === 'ach' && sheetMatch ? (sheetMatch[8] || "No disponible") : "Temporalmente no disponible"}
+                  {(selectedMethod === 'ach' && sheetMatch) ? (sheetMatch[8] || "No disponible") 
+                   : (selectedMethod === 'swift' && swiftMatch) ? (swiftMatch[8] || "No disponible")
+                   : "Temporalmente no disponible"}
                 </div>
               </div>
             </div>
