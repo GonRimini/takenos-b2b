@@ -31,7 +31,8 @@ export const getLogoBase64 = (): Promise<string> => {
     }
     
     // Cargar el logo desde la carpeta public
-    img.src = '/logo-takenos-transparent.png'
+    // Usar el nuevo logo blanco de Takenos
+    img.src = '/logo_takenos_blanco.png'
   })
 }
 
