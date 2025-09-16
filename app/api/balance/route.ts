@@ -101,6 +101,27 @@ export async function POST(request: NextRequest) {
     const data = await response.json()
     console.log("[v0] Retool API response:", JSON.stringify(data, null, 2))
 
+    // Handle error response indicating no balance (treat as $0.00)
+    if (data.error === true && data.message && data.message.includes("parsing the JSON body")) {
+      console.log("[v0] User has no balance data, setting to $0.00")
+      const zeroBalance = "0.00"
+      
+      // Cache the zero balance
+      try {
+        balanceCache.set(userEmail, { balance: zeroBalance, timestamp: Date.now() })
+        console.log(`[v0] Cached zero balance for ${userEmail}: ${zeroBalance}`)
+      } catch (e) {
+        console.log("[v0] Could not cache zero balance:", e)
+      }
+
+      return NextResponse.json({
+        message: "No balance data found, defaulting to $0.00",
+        email: userEmail,
+        balance: zeroBalance,
+        source: "default",
+      })
+    }
+
     // NEW: handle direct data payloads from Retool (e.g., { "data": "160.44" } or { data: { balance: ... } })
     const directBalance = extractBalanceFromRetool(data)
     if (directBalance !== null) {

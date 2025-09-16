@@ -18,7 +18,7 @@ type UiTx = {
   description: string
   amount: number      // + credit / - debit
   type: "credit" | "debit"
-  status: "completed" | "pending" | "failed"
+  status: "completed" | "pending" | "failed" | "cancelled" | "awaiting"
 }
 
 function toUi(tx: RawTx, idx: number): UiTx {
@@ -28,10 +28,29 @@ function toUi(tx: RawTx, idx: number): UiTx {
   const amount = isCredit ? amountAbs : -amountAbs
 
   // status map
-  const status =
-    tx.estado === "processed" || tx.estado === "completed" ? "completed" :
-    tx.estado === "failed" || tx.estado === "declined" ? "failed" :
-    "pending"
+  const status = (() => {
+    switch(tx.estado) {
+      case "processed":
+      case "completed":
+        return "completed"
+      
+      case "failed":
+      case "declined": 
+      case "rejected":
+        return "failed"
+      
+      case "cancelled":
+      case "canceled":
+        return "cancelled"
+      
+      case "awaitingPayment":
+        return "awaiting"
+      
+      case "pending":
+      default:
+        return "pending"
+    }
+  })()
 
   // descripción legible
   const descBase =

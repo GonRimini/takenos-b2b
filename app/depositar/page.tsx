@@ -9,6 +9,7 @@ import { Download, AlertCircle, Loader2, RefreshCw } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/components/auth"
 import { getSheetDataByGid, findRowByEmail } from "@/lib/google-sheets"
+import { downloadDepositInstructions } from "@/lib/pdf-generator"
 
 export type DepositMethod = "ach" | "wire" | "swift"
 
@@ -67,6 +68,68 @@ export default function DepositarPage() {
   }, [selectedMethod])
   
   // PDF deshabilitado temporalmente
+
+  // Función para generar PDF con las instrucciones de depósito
+  const generatePDFData = () => {
+    if (!selectedMethod || !userDisplayEmail) return null
+
+    const sheetMatch = selectedMethod === 'ach' && sheetRows ? findRowByEmail(sheetRows, userDisplayEmail) : null
+    const swiftMatch = selectedMethod === 'swift' && swiftRows ? findRowByEmail(swiftRows, userDisplayEmail) : null
+
+    // Si no hay datos disponibles, no generar PDF
+    if ((selectedMethod === 'ach' && !sheetMatch) || (selectedMethod === 'swift' && !swiftMatch)) {
+      return null
+    }
+
+    const fields: { label: string; value: string; maskable?: boolean }[] = []
+    let addresses: { beneficiary?: string; bank?: string } | undefined
+
+    if (selectedMethod === 'ach' && sheetMatch) {
+      fields.push(
+        { label: "Routing Number", value: String(sheetMatch[3] || "") },
+        { label: "Número de cuenta", value: String(sheetMatch[2] || ""), maskable: true },
+        { label: "Nombre del beneficiario", value: String(sheetMatch[4] || "") },
+        { label: "Banco receptor", value: String(sheetMatch[5] || "") },
+        { label: "Tipo de cuenta", value: String(sheetMatch[6] || "") }
+      )
+      addresses = {
+        beneficiary: String(sheetMatch[7] || ""),
+        bank: String(sheetMatch[8] || "")
+      }
+    } else if (selectedMethod === 'swift' && swiftMatch) {
+      fields.push(
+        { label: "SWIFT/BIC Code", value: String(swiftMatch[2] || "") },
+        { label: "Número de cuenta", value: String(swiftMatch[3] || ""), maskable: true },
+        { label: "Nombre del beneficiario", value: String(swiftMatch[4] || "") },
+        { label: "Banco receptor", value: String(swiftMatch[5] || "") },
+        { label: "Tipo de cuenta", value: String(swiftMatch[6] || "") }
+      )
+      addresses = {
+        beneficiary: String(swiftMatch[7] || ""),
+        bank: String(swiftMatch[8] || "")
+      }
+    }
+
+    return {
+      method: selectedMethod,
+      userEmail: userDisplayEmail,
+      fields,
+      addresses
+    }
+  }
+
+  // Función para descargar el PDF
+  const handleDownloadPDF = async () => {
+    const pdfData = generatePDFData()
+    if (pdfData) {
+      try {
+        await downloadDepositInstructions(pdfData)
+      } catch (error) {
+        console.error('Error generando PDF:', error)
+        alert('Error al generar el PDF. Por favor, inténtelo de nuevo.')
+      }
+    }
+  }
 
   // Loading se maneja a nivel de sección según método seleccionado
 
@@ -165,7 +228,22 @@ export default function DepositarPage() {
             </div>
           </div>
 
-          {/* PDF deshabilitado */}
+          {/* Botón de descarga de PDF */}
+          {((selectedMethod === 'ach' && sheetMatch) || (selectedMethod === 'swift' && swiftMatch)) && (
+            <div className="mt-6 pt-4 border-t">
+              <Button
+                onClick={handleDownloadPDF}
+                variant="outline"
+                className="w-full sm:w-auto"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Descargar Instrucciones PDF
+              </Button>
+              <p className="text-xs text-muted-foreground mt-2">
+                Descarga un PDF con toda la información de depósito para conservar
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
     )

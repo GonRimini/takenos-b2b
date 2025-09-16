@@ -160,6 +160,18 @@ export default function Dashboard() {
             Pendiente
           </Badge>
         )
+      case "awaiting":
+        return (
+          <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+            Esperando Pago
+          </Badge>
+        )
+      case "cancelled":
+        return (
+          <Badge variant="secondary" className="bg-gray-100 text-gray-800">
+            Cancelado
+          </Badge>
+        )
       case "failed":
         return <Badge variant="destructive">Fallido</Badge>
       default:
