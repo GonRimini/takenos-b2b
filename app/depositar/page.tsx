@@ -111,7 +111,7 @@ export default function DepositarPage() {
     }
 
     return {
-      method: selectedMethod,
+      method: selectedMethod === 'ach' ? 'ACH/Wire' : selectedMethod,
       userEmail: userDisplayEmail,
       fields,
       addresses
@@ -145,7 +145,7 @@ export default function DepositarPage() {
     return (
       <Card className="rounded-lg shadow-sm">
         <CardHeader className="pb-4">
-          <CardTitle className="text-lg">Información para {selectedMethod.toUpperCase()}</CardTitle>
+          <CardTitle className="text-lg">Información para {selectedMethod === 'ach' ? 'ACH/WIRE' : selectedMethod.toUpperCase()}</CardTitle>
           <CardDescription>Utiliza estos datos para realizar tu depósito</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -284,8 +284,7 @@ export default function DepositarPage() {
                 <SelectValue placeholder="Selecciona un método de depósito" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ach">ACH (Automated Clearing House)</SelectItem>
-                <SelectItem value="wire">Wire Transfer</SelectItem>
+                <SelectItem value="ach">ACH/Wire</SelectItem>
                 <SelectItem value="swift">SWIFT (Internacional)</SelectItem>
               </SelectContent>
             </Select>
