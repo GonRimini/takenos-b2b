@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       const resend = new Resend(resendApiKey)
       
       try {
-        const recipients = ["fermin@takenos.com"]
+        const recipients = ["grimini@takenos.com"]
         const emailResults = []
         
         // Enviar emails por separado para debug
