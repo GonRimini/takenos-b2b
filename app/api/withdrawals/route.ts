@@ -39,22 +39,48 @@ export async function POST(request: NextRequest) {
       const resend = new Resend(resendApiKey)
       
       try {
-        const { data, error } = await resend.emails.send({
-          from: "onboarding@resend.dev",
-          to: ["grimini@takenos.com", "fermin@takenos.com"],
-          subject: `Withdrawal Request de ${userEmail} - ${formatAmount(validatedData.amount)}`,
-          html: emailHtml,
-        })
+        const recipients = ["grimini@takenos.com", "fermin@takenos.com"]
+        const emailResults = []
         
-        if (error) {
-          console.error("Error sending email:", error)
+        // Enviar emails por separado para debug
+        for (const recipient of recipients) {
+          console.log(`Sending email to: ${recipient}`)
+          
+          const { data, error } = await resend.emails.send({
+            from: "onboarding@resend.dev",
+            to: [recipient],
+            subject: `Withdrawal Request de ${userEmail} - ${formatAmount(validatedData.amount)}`,
+            html: emailHtml,
+          })
+          
+          if (error) {
+            console.error(`Error sending email to ${recipient}:`, error)
+            emailResults.push({ recipient, success: false, error })
+          } else {
+            console.log(`Email sent successfully to ${recipient}:`, data)
+            emailResults.push({ recipient, success: true, data })
+          }
+        }
+        
+        // Verificar si al menos uno se envió exitosamente
+        const successfulEmails = emailResults.filter(result => result.success)
+        const failedEmails = emailResults.filter(result => !result.success)
+        
+        console.log(`Email summary: ${successfulEmails.length} successful, ${failedEmails.length} failed`)
+        
+        if (successfulEmails.length === 0) {
+          console.error("All emails failed:", failedEmails)
           return NextResponse.json({ 
             success: false, 
-            message: "Error al enviar la notificación por email" 
+            message: "Error al enviar todas las notificaciones por email",
+            emailResults 
           }, { status: 500 })
         }
         
-        console.log("Email sent successfully:", data)
+        if (failedEmails.length > 0) {
+          console.warn("Some emails failed:", failedEmails)
+        }
+        
       } catch (emailError) {
         console.error("Error sending email:", emailError)
         return NextResponse.json({ 
