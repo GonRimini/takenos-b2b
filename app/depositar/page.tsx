@@ -37,6 +37,7 @@ export default function DepositarPage() {
   const [cryptoRows, setCryptoRows] = useState<any[][] | null>(null)
   const [cryptoLoading, setCryptoLoading] = useState<boolean>(false)
   const [cryptoError, setCryptoError] = useState<string | null>(null)
+  const [selectedCryptoWallet, setSelectedCryptoWallet] = useState<number>(0) // Index of selected wallet
 
   async function loadSheet() {
     try {
@@ -68,6 +69,7 @@ export default function DepositarPage() {
     try {
       setCryptoLoading(true)
       setCryptoError(null)
+      setSelectedCryptoWallet(0) // Reset selection when loading
       const rows = await getSheetDataByGid(0) // Crypto GID
       setCryptoRows(rows)
     } catch (e: any) {
@@ -96,7 +98,7 @@ export default function DepositarPage() {
     const sheetMatch = selectedMethod === 'ach' && sheetRows ? findRowByEmail(sheetRows, userDisplayEmail) : null
     const swiftMatch = selectedMethod === 'swift' && swiftRows ? findRowByEmail(swiftRows, userDisplayEmail) : null
     const cryptoMatches = selectedMethod === 'crypto' && cryptoRows ? findAllRowsByEmail(cryptoRows, userDisplayEmail) : []
-    const cryptoMatch = cryptoMatches.length > 0 ? cryptoMatches[0] : null // Use first wallet for PDF
+    const cryptoMatch = cryptoMatches.length > 0 ? cryptoMatches[selectedCryptoWallet] || cryptoMatches[0] : null // Use selected wallet for PDF
 
     // Si no hay datos disponibles, no generar PDF
     if ((selectedMethod === 'ach' && !sheetMatch) || (selectedMethod === 'swift' && !swiftMatch) || (selectedMethod === 'crypto' && !cryptoMatch)) {
@@ -132,6 +134,7 @@ export default function DepositarPage() {
       }
     } else if (selectedMethod === 'crypto' && cryptoMatch) {
       fields.push(
+        { label: "Wallet", value: String(cryptoMatch[0] || "") },
         { label: "Dirección de depósito", value: String(cryptoMatch[2] || "") },
         { label: "Red/Network", value: String(cryptoMatch[3] || "") }
       )
@@ -215,18 +218,39 @@ export default function DepositarPage() {
                 </>
               ) : selectedMethod === 'crypto' && cryptoMatches.length > 0 ? (
                 <>
-                  {cryptoMatches.map((cryptoMatch, index) => (
-                    <div key={index} className="space-y-3">
-                      {cryptoMatches.length > 1 && (
-                        <div className="text-sm font-medium text-foreground border-b pb-2">
-                          {String(cryptoMatch[0] || `Wallet ${index + 1}`)}
-                        </div>
-                      )}
-                      <AccountField label="Dirección de depósito" value={String(cryptoMatch[2] || "")} />
-                      <AccountField label="Red/Network" value={String(cryptoMatch[3] || "")} />
-                      {index < cryptoMatches.length - 1 && <div className="border-t pt-4 mt-4"></div>}
+                  {cryptoMatches.length > 1 && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground">Selecciona tu wallet</label>
+                      <Select 
+                        value={selectedCryptoWallet.toString()} 
+                        onValueChange={(value) => setSelectedCryptoWallet(parseInt(value))}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Selecciona una wallet" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {cryptoMatches.map((cryptoMatch, index) => (
+                            <SelectItem key={index} value={index.toString()}>
+                              {String(cryptoMatch[0] || `Wallet ${index + 1}`)} - {String(cryptoMatch[3] || "")}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                  ))}
+                  )}
+                  
+                  {cryptoMatches[selectedCryptoWallet] && (
+                    <>
+                      <AccountField 
+                        label="Dirección de depósito" 
+                        value={String(cryptoMatches[selectedCryptoWallet][2] || "")} 
+                      />
+                      <AccountField 
+                        label="Red/Network" 
+                        value={String(cryptoMatches[selectedCryptoWallet][3] || "")} 
+                      />
+                    </>
+                  )}
                 </>
               ) : null}
             </>
