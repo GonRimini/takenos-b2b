@@ -68,8 +68,7 @@ export default function DepositarPage() {
     try {
       setCryptoLoading(true)
       setCryptoError(null)
-      // TODO: Necesitamos el GID de la pestaña Crypto
-      const rows = await getSheetDataByGid(0) // Placeholder - necesitamos el GID real
+      const rows = await getSheetDataByGid(0) // Crypto GID
       setCryptoRows(rows)
     } catch (e: any) {
       setCryptoError(e?.message || 'Error cargando Google Sheet Crypto')
