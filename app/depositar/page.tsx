@@ -11,7 +11,7 @@ import { useAuth } from "@/components/auth"
 import { getSheetDataByGid, findRowByEmail, findAllRowsByEmail } from "@/lib/google-sheets"
 import { downloadDepositInstructions } from "@/lib/pdf-generator"
 
-export type DepositMethod = "ach" | "wire" | "swift" | "crypto"
+export type DepositMethod = "ach" | "wire" | "swift" | "crypto" | "local"
 
 export default function DepositarPage() {
   const [selectedMethod, setSelectedMethod] = useState<DepositMethod | "">("")
@@ -38,6 +38,11 @@ export default function DepositarPage() {
   const [cryptoLoading, setCryptoLoading] = useState<boolean>(false)
   const [cryptoError, setCryptoError] = useState<string | null>(null)
   const [selectedCryptoWallet, setSelectedCryptoWallet] = useState<number>(0) // Index of selected wallet
+
+  // Google Sheets state (Local Currency)
+  const [localRows, setLocalRows] = useState<any[][] | null>(null)
+  const [localLoading, setLocalLoading] = useState<boolean>(false)
+  const [localError, setLocalError] = useState<string | null>(null)
 
   async function loadSheet() {
     try {
@@ -79,6 +84,19 @@ export default function DepositarPage() {
     }
   }
 
+  async function loadLocalSheet() {
+    try {
+      setLocalLoading(true)
+      setLocalError(null)
+      const rows = await getSheetDataByGid(1068163223) // Local Currency GID
+      setLocalRows(rows)
+    } catch (e: any) {
+      setLocalError(e?.message || 'Error cargando Google Sheet Local')
+    } finally {
+      setLocalLoading(false)
+    }
+  }
+
   useEffect(() => {
     if (selectedMethod === 'ach') {
       loadSheet()
@@ -86,6 +104,8 @@ export default function DepositarPage() {
       loadSwiftSheet()
     } else if (selectedMethod === 'crypto') {
       loadCryptoSheet()
+    } else if (selectedMethod === 'local') {
+      loadLocalSheet()
     }
   }, [selectedMethod])
   
@@ -99,9 +119,10 @@ export default function DepositarPage() {
     const swiftMatch = selectedMethod === 'swift' && swiftRows ? findRowByEmail(swiftRows, userDisplayEmail) : null
     const cryptoMatches = selectedMethod === 'crypto' && cryptoRows ? findAllRowsByEmail(cryptoRows, userDisplayEmail) : []
     const cryptoMatch = cryptoMatches.length > 0 ? cryptoMatches[selectedCryptoWallet] || cryptoMatches[0] : null // Use selected wallet for PDF
+    const localMatch = selectedMethod === 'local' && localRows ? findRowByEmail(localRows, userDisplayEmail) : null
 
     // Si no hay datos disponibles, no generar PDF
-    if ((selectedMethod === 'ach' && !sheetMatch) || (selectedMethod === 'swift' && !swiftMatch) || (selectedMethod === 'crypto' && !cryptoMatch)) {
+    if ((selectedMethod === 'ach' && !sheetMatch) || (selectedMethod === 'swift' && !swiftMatch) || (selectedMethod === 'crypto' && !cryptoMatch) || (selectedMethod === 'local' && !localMatch)) {
       return null
     }
 
@@ -139,10 +160,18 @@ export default function DepositarPage() {
         { label: "Red/Network", value: String(cryptoMatch[3] || "") }
       )
       // Para crypto no necesitamos direcciones adicionales
+    } else if (selectedMethod === 'local' && localMatch) {
+      fields.push(
+        { label: "Beneficiario", value: String(localMatch[1] || "") },
+        { label: "Banco", value: String(localMatch[2] || "") },
+        { label: "Número de cuenta", value: String(localMatch[3] || ""), maskable: true },
+        { label: "NIT o Carnet", value: String(localMatch[4] || "") }
+      )
+      // Para moneda local no necesitamos direcciones adicionales
     }
 
     return {
-      method: selectedMethod === 'ach' ? 'ACH/Wire' : selectedMethod === 'crypto' ? 'Crypto' : selectedMethod,
+      method: selectedMethod === 'ach' ? 'ACH/Wire' : selectedMethod === 'crypto' ? 'Crypto' : selectedMethod === 'local' ? 'Moneda Local' : selectedMethod,
       userEmail: userDisplayEmail,
       fields,
       addresses
@@ -171,34 +200,36 @@ export default function DepositarPage() {
 
     const isSwift = selectedMethod === "swift"
     const isCrypto = selectedMethod === "crypto"
+    const isLocal = selectedMethod === "local"
     const sheetMatch = selectedMethod === 'ach' && sheetRows ? findRowByEmail(sheetRows, userDisplayEmail) : null
     const swiftMatch = selectedMethod === 'swift' && swiftRows ? findRowByEmail(swiftRows, userDisplayEmail) : null
     const cryptoMatches = selectedMethod === 'crypto' && cryptoRows ? findAllRowsByEmail(cryptoRows, userDisplayEmail) : []
+    const localMatch = selectedMethod === 'local' && localRows ? findRowByEmail(localRows, userDisplayEmail) : null
 
     return (
       <Card className="rounded-lg shadow-sm">
         <CardHeader className="pb-4">
-          <CardTitle className="text-lg">Información para {selectedMethod === 'ach' ? 'ACH/WIRE' : selectedMethod === 'crypto' ? 'CRYPTO' : selectedMethod.toUpperCase()}</CardTitle>
+          <CardTitle className="text-lg">Información para {selectedMethod === 'ach' ? 'ACH/WIRE' : selectedMethod === 'crypto' ? 'CRYPTO' : selectedMethod === 'local' ? 'MONEDA LOCAL' : selectedMethod.toUpperCase()}</CardTitle>
           <CardDescription>Utiliza estos datos para realizar tu depósito</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {/* Preferir datos de Google Sheet si hay match; si no, placeholders */}
-          {(selectedMethod === 'ach' && sheetLoading) || (selectedMethod === 'swift' && swiftLoading) || (selectedMethod === 'crypto' && cryptoLoading) ? (
+          {(selectedMethod === 'ach' && sheetLoading) || (selectedMethod === 'swift' && swiftLoading) || (selectedMethod === 'crypto' && cryptoLoading) || (selectedMethod === 'local' && localLoading) ? (
             <div className="flex items-center space-x-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span>Cargando desde Google Sheets...</span>
             </div>
-          ) : (selectedMethod === 'ach' && sheetError) || (selectedMethod === 'swift' && swiftError) || (selectedMethod === 'crypto' && cryptoError) ? (
+          ) : (selectedMethod === 'ach' && sheetError) || (selectedMethod === 'swift' && swiftError) || (selectedMethod === 'crypto' && cryptoError) || (selectedMethod === 'local' && localError) ? (
             <div className="flex items-center space-x-2 text-sm text-destructive">
               <AlertCircle className="h-4 w-4" />
-              <span>Error cargando datos: {selectedMethod === 'ach' ? sheetError : selectedMethod === 'swift' ? swiftError : cryptoError}</span>
+              <span>Error cargando datos: {selectedMethod === 'ach' ? sheetError : selectedMethod === 'swift' ? swiftError : selectedMethod === 'crypto' ? cryptoError : localError}</span>
             </div>
-          ) : (selectedMethod === 'ach' && sheetRows && !sheetMatch) || (selectedMethod === 'swift' && swiftRows && !swiftMatch) || (selectedMethod === 'crypto' && cryptoRows && cryptoMatches.length === 0) ? (
+          ) : (selectedMethod === 'ach' && sheetRows && !sheetMatch) || (selectedMethod === 'swift' && swiftRows && !swiftMatch) || (selectedMethod === 'crypto' && cryptoRows && cryptoMatches.length === 0) || (selectedMethod === 'local' && localRows && !localMatch) ? (
             <div className="flex items-center space-x-2 text-sm text-muted-foreground">
               <AlertCircle className="h-4 w-4" />
               <span>No se encontraron datos para {userDisplayEmail}</span>
             </div>
-          ) : (selectedMethod === 'ach' && sheetMatch) || (selectedMethod === 'swift' && swiftMatch) || (selectedMethod === 'crypto' && cryptoMatches.length > 0) ? (
+          ) : (selectedMethod === 'ach' && sheetMatch) || (selectedMethod === 'swift' && swiftMatch) || (selectedMethod === 'crypto' && cryptoMatches.length > 0) || (selectedMethod === 'local' && localMatch) ? (
             <>
               {selectedMethod === 'ach' && sheetMatch ? (
                 <>
@@ -252,11 +283,25 @@ export default function DepositarPage() {
                     </>
                   )}
                 </>
+              ) : selectedMethod === 'local' && localMatch ? (
+                <>
+                  <AccountField label="Beneficiario" value={String(localMatch[1] || "")} />
+                  <AccountField label="Banco" value={String(localMatch[2] || "")} />
+                  <AccountField label="Número de cuenta" value={String(localMatch[3] || "")} maskable />
+                  <AccountField label="NIT o Carnet" value={String(localMatch[4] || "")} />
+                </>
               ) : null}
             </>
           ) : (
             <>
-              {isCrypto ? (
+              {isLocal ? (
+                <>
+                  <AccountField label="Beneficiario" value="Temporalmente no disponible" />
+                  <AccountField label="Banco" value="Temporalmente no disponible" />
+                  <AccountField label="Número de cuenta" value="Temporalmente no disponible" />
+                  <AccountField label="NIT o Carnet" value="Temporalmente no disponible" />
+                </>
+              ) : isCrypto ? (
                 <>
                   <AccountField label="Dirección de depósito" value="Temporalmente no disponible" />
                   <AccountField label="Red/Network" value="Temporalmente no disponible" />
@@ -272,7 +317,7 @@ export default function DepositarPage() {
                   <AccountField label="Número de cuenta" value="Temporalmente no disponible" />
                 </>
               )}
-              {!isCrypto && (
+              {!isCrypto && !isLocal && (
                 <>
                   <AccountField label="Nombre del beneficiario" value="Temporalmente no disponible" />
                   <AccountField label="Banco receptor" value="Temporalmente no disponible" />
@@ -282,23 +327,23 @@ export default function DepositarPage() {
             </>
           )}
 
-          {/* Solo mostrar direcciones para ACH y SWIFT, no para crypto */}
-          {!isCrypto && (
-            <div className="grid md:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <div className="text-sm font-medium text-foreground">Dirección del beneficiario</div>
-                <div className="p-2 bg-muted/50 rounded border text-xs">
+          {/* Solo mostrar direcciones para ACH y SWIFT, no para crypto ni local */}
+          {!isCrypto && !isLocal && (
+          <div className="grid md:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <div className="text-sm font-medium text-foreground">Dirección del beneficiario</div>
+              <div className="p-2 bg-muted/50 rounded border text-xs">
                   <div className="text-muted-foreground">
                     {(selectedMethod === 'ach' && sheetMatch) ? (sheetMatch[7] || "No disponible") 
                      : (selectedMethod === 'swift' && swiftMatch) ? (swiftMatch[7] || "No disponible")
                      : "Temporalmente no disponible"}
                   </div>
                 </div>
-              </div>
+            </div>
 
-              <div className="space-y-1">
-                <div className="text-sm font-medium text-foreground">Dirección del banco receptor</div>
-                <div className="p-2 bg-muted/50 rounded border text-xs">
+            <div className="space-y-1">
+              <div className="text-sm font-medium text-foreground">Dirección del banco receptor</div>
+              <div className="p-2 bg-muted/50 rounded border text-xs">
                   <div className="text-muted-foreground">
                     {(selectedMethod === 'ach' && sheetMatch) ? (sheetMatch[8] || "No disponible") 
                      : (selectedMethod === 'swift' && swiftMatch) ? (swiftMatch[8] || "No disponible")
@@ -310,7 +355,7 @@ export default function DepositarPage() {
           )}
 
           {/* Botón de descarga de PDF */}
-          {((selectedMethod === 'ach' && sheetMatch) || (selectedMethod === 'swift' && swiftMatch) || (selectedMethod === 'crypto' && cryptoMatches.length > 0)) && (
+          {((selectedMethod === 'ach' && sheetMatch) || (selectedMethod === 'swift' && swiftMatch) || (selectedMethod === 'crypto' && cryptoMatches.length > 0) || (selectedMethod === 'local' && localMatch)) && (
             <div className="mt-6 pt-4 border-t">
               <Button
                 onClick={handleDownloadPDF}
@@ -319,11 +364,11 @@ export default function DepositarPage() {
               >
                 <Download className="w-4 h-4 mr-2" />
                 Descargar Instrucciones PDF
-              </Button>
+            </Button>
               <p className="text-xs text-muted-foreground mt-2">
                 Descarga un PDF con toda la información de depósito para conservar
               </p>
-            </div>
+          </div>
           )}
         </CardContent>
       </Card>
@@ -368,6 +413,7 @@ export default function DepositarPage() {
                 <SelectItem value="ach">ACH/Wire</SelectItem>
                 <SelectItem value="swift">SWIFT (Internacional)</SelectItem>
                 <SelectItem value="crypto">Crypto</SelectItem>
+                <SelectItem value="local">Moneda Local</SelectItem>
               </SelectContent>
             </Select>
           </CardContent>
