@@ -8,7 +8,7 @@ import { AccountField } from "@/components/account-field"
 import { Download, AlertCircle, Loader2, RefreshCw } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/components/auth"
-import { getSheetDataByGid, findRowByEmail, findAllRowsByEmail } from "@/lib/google-sheets"
+import { getSheetDataByGid, findRowByEmail, findAllRowsByEmail, findRowByEmailInColumn0 } from "@/lib/google-sheets"
 import { downloadDepositInstructions } from "@/lib/pdf-generator"
 
 export type DepositMethod = "ach" | "wire" | "swift" | "crypto" | "local"
@@ -119,7 +119,7 @@ export default function DepositarPage() {
     const swiftMatch = selectedMethod === 'swift' && swiftRows ? findRowByEmail(swiftRows, userDisplayEmail) : null
     const cryptoMatches = selectedMethod === 'crypto' && cryptoRows ? findAllRowsByEmail(cryptoRows, userDisplayEmail) : []
     const cryptoMatch = cryptoMatches.length > 0 ? cryptoMatches[selectedCryptoWallet] || cryptoMatches[0] : null // Use selected wallet for PDF
-    const localMatch = selectedMethod === 'local' && localRows ? findRowByEmail(localRows, userDisplayEmail) : null
+    const localMatch = selectedMethod === 'local' && localRows ? findRowByEmailInColumn0(localRows, userDisplayEmail) : null
 
     // Si no hay datos disponibles, no generar PDF
     if ((selectedMethod === 'ach' && !sheetMatch) || (selectedMethod === 'swift' && !swiftMatch) || (selectedMethod === 'crypto' && !cryptoMatch) || (selectedMethod === 'local' && !localMatch)) {
@@ -204,7 +204,7 @@ export default function DepositarPage() {
     const sheetMatch = selectedMethod === 'ach' && sheetRows ? findRowByEmail(sheetRows, userDisplayEmail) : null
     const swiftMatch = selectedMethod === 'swift' && swiftRows ? findRowByEmail(swiftRows, userDisplayEmail) : null
     const cryptoMatches = selectedMethod === 'crypto' && cryptoRows ? findAllRowsByEmail(cryptoRows, userDisplayEmail) : []
-    const localMatch = selectedMethod === 'local' && localRows ? findRowByEmail(localRows, userDisplayEmail) : null
+    const localMatch = selectedMethod === 'local' && localRows ? findRowByEmailInColumn0(localRows, userDisplayEmail) : null
 
     return (
       <Card className="rounded-lg shadow-sm">

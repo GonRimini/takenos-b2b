@@ -61,3 +61,24 @@ export function findAllRowsByEmail(rows: any[][], email: string) {
   
   return matches
 }
+
+export function findRowByEmailInColumn0(rows: any[][], email: string) {
+  const target = email?.toLowerCase().trim()
+  if (!target) return null
+  
+  const match = rows.find(r => (String(r[0] || "").toLowerCase().trim()) === target) || null
+  
+  // Debug: log the found row to see the data structure
+  if (match) {
+    console.log('🔍 Local Currency row found for', email, ':', match)
+    console.log('🔍 Row indices:')
+    match.forEach((val, idx) => {
+      console.log(`  [${idx}]: "${val}"`)
+    })
+  } else {
+    console.log('❌ No local currency match found for email:', email)
+    console.log('Available emails in column 0:', rows.slice(0, 5).map(r => r[0])) // Show first 5 emails for reference
+  }
+  
+  return match
+}
