@@ -11,7 +11,7 @@ import { useAuth } from "@/components/auth"
 import { getSheetDataByGid, findRowByEmail } from "@/lib/google-sheets"
 import { downloadDepositInstructions } from "@/lib/pdf-generator"
 
-export type DepositMethod = "ach" | "wire" | "swift"
+export type DepositMethod = "ach" | "wire" | "swift" | "crypto"
 
 export default function DepositarPage() {
   const [selectedMethod, setSelectedMethod] = useState<DepositMethod | "">("")
@@ -32,6 +32,11 @@ export default function DepositarPage() {
   const [swiftRows, setSwiftRows] = useState<any[][] | null>(null)
   const [swiftLoading, setSwiftLoading] = useState<boolean>(false)
   const [swiftError, setSwiftError] = useState<string | null>(null)
+
+  // Google Sheets state (Crypto)
+  const [cryptoRows, setCryptoRows] = useState<any[][] | null>(null)
+  const [cryptoLoading, setCryptoLoading] = useState<boolean>(false)
+  const [cryptoError, setCryptoError] = useState<string | null>(null)
 
   async function loadSheet() {
     try {
@@ -59,11 +64,27 @@ export default function DepositarPage() {
     }
   }
 
+  async function loadCryptoSheet() {
+    try {
+      setCryptoLoading(true)
+      setCryptoError(null)
+      // TODO: Necesitamos el GID de la pestaña Crypto
+      const rows = await getSheetDataByGid(0) // Placeholder - necesitamos el GID real
+      setCryptoRows(rows)
+    } catch (e: any) {
+      setCryptoError(e?.message || 'Error cargando Google Sheet Crypto')
+    } finally {
+      setCryptoLoading(false)
+    }
+  }
+
   useEffect(() => {
     if (selectedMethod === 'ach') {
       loadSheet()
     } else if (selectedMethod === 'swift') {
       loadSwiftSheet()
+    } else if (selectedMethod === 'crypto') {
+      loadCryptoSheet()
     }
   }, [selectedMethod])
   
@@ -75,9 +96,10 @@ export default function DepositarPage() {
 
     const sheetMatch = selectedMethod === 'ach' && sheetRows ? findRowByEmail(sheetRows, userDisplayEmail) : null
     const swiftMatch = selectedMethod === 'swift' && swiftRows ? findRowByEmail(swiftRows, userDisplayEmail) : null
+    const cryptoMatch = selectedMethod === 'crypto' && cryptoRows ? findRowByEmail(cryptoRows, userDisplayEmail) : null
 
     // Si no hay datos disponibles, no generar PDF
-    if ((selectedMethod === 'ach' && !sheetMatch) || (selectedMethod === 'swift' && !swiftMatch)) {
+    if ((selectedMethod === 'ach' && !sheetMatch) || (selectedMethod === 'swift' && !swiftMatch) || (selectedMethod === 'crypto' && !cryptoMatch)) {
       return null
     }
 
@@ -108,10 +130,16 @@ export default function DepositarPage() {
         beneficiary: String(swiftMatch[7] || ""),
         bank: String(swiftMatch[8] || "")
       }
+    } else if (selectedMethod === 'crypto' && cryptoMatch) {
+      fields.push(
+        { label: "Dirección de depósito", value: String(cryptoMatch[1] || "") },
+        { label: "Red/Network", value: String(cryptoMatch[2] || "") }
+      )
+      // Para crypto no necesitamos direcciones adicionales
     }
 
     return {
-      method: selectedMethod === 'ach' ? 'ACH/Wire' : selectedMethod,
+      method: selectedMethod === 'ach' ? 'ACH/Wire' : selectedMethod === 'crypto' ? 'Criptomonedas' : selectedMethod,
       userEmail: userDisplayEmail,
       fields,
       addresses
@@ -139,33 +167,35 @@ export default function DepositarPage() {
     if (!selectedMethod) return null
 
     const isSwift = selectedMethod === "swift"
+    const isCrypto = selectedMethod === "crypto"
     const sheetMatch = selectedMethod === 'ach' && sheetRows ? findRowByEmail(sheetRows, userDisplayEmail) : null
     const swiftMatch = selectedMethod === 'swift' && swiftRows ? findRowByEmail(swiftRows, userDisplayEmail) : null
+    const cryptoMatch = selectedMethod === 'crypto' && cryptoRows ? findRowByEmail(cryptoRows, userDisplayEmail) : null
 
     return (
       <Card className="rounded-lg shadow-sm">
         <CardHeader className="pb-4">
-          <CardTitle className="text-lg">Información para {selectedMethod === 'ach' ? 'ACH/WIRE' : selectedMethod.toUpperCase()}</CardTitle>
+          <CardTitle className="text-lg">Información para {selectedMethod === 'ach' ? 'ACH/WIRE' : selectedMethod === 'crypto' ? 'CRIPTOMONEDAS' : selectedMethod.toUpperCase()}</CardTitle>
           <CardDescription>Utiliza estos datos para realizar tu depósito</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {/* Preferir datos de Google Sheet si hay match; si no, placeholders */}
-          {(selectedMethod === 'ach' && sheetLoading) || (selectedMethod === 'swift' && swiftLoading) ? (
+          {(selectedMethod === 'ach' && sheetLoading) || (selectedMethod === 'swift' && swiftLoading) || (selectedMethod === 'crypto' && cryptoLoading) ? (
             <div className="flex items-center space-x-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span>Cargando desde Google Sheets...</span>
             </div>
-          ) : (selectedMethod === 'ach' && sheetError) || (selectedMethod === 'swift' && swiftError) ? (
+          ) : (selectedMethod === 'ach' && sheetError) || (selectedMethod === 'swift' && swiftError) || (selectedMethod === 'crypto' && cryptoError) ? (
             <div className="flex items-center space-x-2 text-sm text-destructive">
               <AlertCircle className="h-4 w-4" />
-              <span>Error cargando datos: {selectedMethod === 'ach' ? sheetError : swiftError}</span>
+              <span>Error cargando datos: {selectedMethod === 'ach' ? sheetError : selectedMethod === 'swift' ? swiftError : cryptoError}</span>
             </div>
-          ) : (selectedMethod === 'ach' && sheetRows && !sheetMatch) || (selectedMethod === 'swift' && swiftRows && !swiftMatch) ? (
+          ) : (selectedMethod === 'ach' && sheetRows && !sheetMatch) || (selectedMethod === 'swift' && swiftRows && !swiftMatch) || (selectedMethod === 'crypto' && cryptoRows && !cryptoMatch) ? (
             <div className="flex items-center space-x-2 text-sm text-muted-foreground">
               <AlertCircle className="h-4 w-4" />
               <span>No se encontraron datos para {userDisplayEmail}</span>
             </div>
-          ) : (selectedMethod === 'ach' && sheetMatch) || (selectedMethod === 'swift' && swiftMatch) ? (
+          ) : (selectedMethod === 'ach' && sheetMatch) || (selectedMethod === 'swift' && swiftMatch) || (selectedMethod === 'crypto' && cryptoMatch) ? (
             <>
               {selectedMethod === 'ach' && sheetMatch ? (
                 <>
@@ -183,11 +213,21 @@ export default function DepositarPage() {
                   <AccountField label="Banco receptor" value={String(swiftMatch[5] || "")} />
                   <AccountField label="Tipo de cuenta" value={String(swiftMatch[6] || "")} />
                 </>
+              ) : selectedMethod === 'crypto' && cryptoMatch ? (
+                <>
+                  <AccountField label="Dirección de depósito" value={String(cryptoMatch[1] || "")} />
+                  <AccountField label="Red/Network" value={String(cryptoMatch[2] || "")} />
+                </>
               ) : null}
             </>
           ) : (
             <>
-              {isSwift ? (
+              {isCrypto ? (
+                <>
+                  <AccountField label="Dirección de depósito" value="Temporalmente no disponible" />
+                  <AccountField label="Red/Network" value="Temporalmente no disponible" />
+                </>
+              ) : isSwift ? (
                 <>
                   <AccountField label="SWIFT/BIC Code" value="Temporalmente no disponible" />
                   <AccountField label="Número de cuenta" value="Temporalmente no disponible" />
@@ -198,38 +238,45 @@ export default function DepositarPage() {
                   <AccountField label="Número de cuenta" value="Temporalmente no disponible" />
                 </>
               )}
-              <AccountField label="Nombre del beneficiario" value="Temporalmente no disponible" />
-              <AccountField label="Banco receptor" value="Temporalmente no disponible" />
-              <AccountField label="Tipo de cuenta" value="Temporalmente no disponible" />
+              {!isCrypto && (
+                <>
+                  <AccountField label="Nombre del beneficiario" value="Temporalmente no disponible" />
+                  <AccountField label="Banco receptor" value="Temporalmente no disponible" />
+                  <AccountField label="Tipo de cuenta" value="Temporalmente no disponible" />
+                </>
+              )}
             </>
           )}
 
-          <div className="grid md:grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <div className="text-sm font-medium text-foreground">Dirección del beneficiario</div>
-              <div className="p-2 bg-muted/50 rounded border text-xs">
-                <div className="text-muted-foreground">
-                  {(selectedMethod === 'ach' && sheetMatch) ? (sheetMatch[7] || "No disponible") 
-                   : (selectedMethod === 'swift' && swiftMatch) ? (swiftMatch[7] || "No disponible")
-                   : "Temporalmente no disponible"}
+          {/* Solo mostrar direcciones para ACH y SWIFT, no para crypto */}
+          {!isCrypto && (
+            <div className="grid md:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <div className="text-sm font-medium text-foreground">Dirección del beneficiario</div>
+                <div className="p-2 bg-muted/50 rounded border text-xs">
+                  <div className="text-muted-foreground">
+                    {(selectedMethod === 'ach' && sheetMatch) ? (sheetMatch[7] || "No disponible") 
+                     : (selectedMethod === 'swift' && swiftMatch) ? (swiftMatch[7] || "No disponible")
+                     : "Temporalmente no disponible"}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="space-y-1">
-              <div className="text-sm font-medium text-foreground">Dirección del banco receptor</div>
-              <div className="p-2 bg-muted/50 rounded border text-xs">
-                <div className="text-muted-foreground">
-                  {(selectedMethod === 'ach' && sheetMatch) ? (sheetMatch[8] || "No disponible") 
-                   : (selectedMethod === 'swift' && swiftMatch) ? (swiftMatch[8] || "No disponible")
-                   : "Temporalmente no disponible"}
+              <div className="space-y-1">
+                <div className="text-sm font-medium text-foreground">Dirección del banco receptor</div>
+                <div className="p-2 bg-muted/50 rounded border text-xs">
+                  <div className="text-muted-foreground">
+                    {(selectedMethod === 'ach' && sheetMatch) ? (sheetMatch[8] || "No disponible") 
+                     : (selectedMethod === 'swift' && swiftMatch) ? (swiftMatch[8] || "No disponible")
+                     : "Temporalmente no disponible"}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Botón de descarga de PDF */}
-          {((selectedMethod === 'ach' && sheetMatch) || (selectedMethod === 'swift' && swiftMatch)) && (
+          {((selectedMethod === 'ach' && sheetMatch) || (selectedMethod === 'swift' && swiftMatch) || (selectedMethod === 'crypto' && cryptoMatch)) && (
             <div className="mt-6 pt-4 border-t">
               <Button
                 onClick={handleDownloadPDF}
@@ -286,6 +333,7 @@ export default function DepositarPage() {
               <SelectContent>
                 <SelectItem value="ach">ACH/Wire</SelectItem>
                 <SelectItem value="swift">SWIFT (Internacional)</SelectItem>
+                <SelectItem value="crypto">Criptomonedas</SelectItem>
               </SelectContent>
             </Select>
           </CardContent>
