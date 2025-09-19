@@ -1,13 +1,98 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Footer } from "@/components/footer"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { HelpCircle, Mail, Phone, Clock, CreditCard, Banknote, AlertTriangle } from "lucide-react"
+import { Progress } from "@/components/ui/progress"
+import { HelpCircle, Mail, Phone, Clock, CreditCard, Banknote, AlertTriangle, TrendingUp, Loader2 } from "lucide-react"
+import { useAuth } from "@/components/auth"
+import { getSheetDataByGid, findRowByEmailInColumn0 } from "@/lib/google-sheets"
 
 export default function AyudaPage() {
+  const { user } = useAuth()
+  const userDisplayEmail = user?.email || ""
+
+  // Estado para datos de límites
+  const [limitsData, setLimitsData] = useState<any>(null)
+  const [limitsLoading, setLimitsLoading] = useState<boolean>(false)
+  const [limitsError, setLimitsError] = useState<string | null>(null)
+
+  // Cargar datos de límites
+  useEffect(() => {
+    async function loadLimits() {
+      if (!userDisplayEmail) return
+
+      try {
+        setLimitsLoading(true)
+        setLimitsError(null)
+        const rows = await getSheetDataByGid(1530389295) // Límites GID
+        const userLimits = findRowByEmailInColumn0(rows, userDisplayEmail)
+        
+        if (userLimits) {
+          setLimitsData({
+            email: userLimits[0],
+            limit: parseFloat(userLimits[1]) || 0,
+            consumido: parseFloat(userLimits[2]) || 0,
+            restante: parseFloat(userLimits[3]) || 0
+          })
+        }
+      } catch (e: any) {
+        setLimitsError(e?.message || 'Error cargando límites')
+      } finally {
+        setLimitsLoading(false)
+      }
+    }
+
+    loadLimits()
+  }, [userDisplayEmail])
+
+  // Componente para mostrar la barra de límites
+  const LimitsBar = () => {
+    if (limitsLoading) {
+      return (
+        <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span>Cargando límites...</span>
+        </div>
+      )
+    }
+
+    if (limitsError || !limitsData) {
+      return (
+        <div className="text-sm text-muted-foreground">
+          No se pudieron cargar los datos de límites.
+        </div>
+      )
+    }
+
+    const { limit, consumido } = limitsData
+    const percentage = limit > 0 ? (consumido / limit) * 100 : 0
+
+    return (
+      <div className="space-y-3">
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">Límite mensual</span>
+          <span className="font-medium">${limit.toLocaleString()}</span>
+        </div>
+        
+        <div className="space-y-2">
+          <Progress value={percentage} className="h-3" />
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>Consumido: ${consumido.toLocaleString()}</span>
+            <span>Restante: ${(limit - consumido).toLocaleString()}</span>
+          </div>
+        </div>
+        
+        <div className="text-center text-xs text-muted-foreground">
+          {percentage.toFixed(1)}% utilizado
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       <main className="flex-1 py-8">
@@ -165,7 +250,31 @@ export default function AyudaPage() {
                 </CardContent>
               </Card>
 
+              <Card className="rounded-2xl">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-green-600" />
+                    Preguntas sobre Límites
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="limits-1">
+                      <AccordionTrigger>¿Cuál es mi límite mensual?</AccordionTrigger>
+                      <AccordionContent>
+                        <LimitsBar />
+                      </AccordionContent>
+                    </AccordionItem>
 
+                    <AccordionItem value="limits-2">
+                      <AccordionTrigger>¿Puedo extender mi límite?</AccordionTrigger>
+                      <AccordionContent>
+                        Puedes extender tu límite iniciando una solicitud con soporte.
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                </CardContent>
+              </Card>
 
               <Alert>
                 <AlertTriangle className="h-4 w-4" />
