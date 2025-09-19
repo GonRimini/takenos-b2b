@@ -42,3 +42,22 @@ export function findRowByEmail(rows: any[][], email: string) {
   
   return match
 }
+
+export function findAllRowsByEmail(rows: any[][], email: string) {
+  const target = email?.toLowerCase().trim()
+  if (!target) return []
+  
+  const matches = rows.filter(r => (String(r[1] || "").toLowerCase().trim()) === target)
+  
+  // Debug: log all found rows
+  if (matches.length > 0) {
+    console.log(`🔍 Found ${matches.length} crypto wallets for ${email}:`)
+    matches.forEach((match, idx) => {
+      console.log(`  Wallet ${idx + 1}:`, match)
+    })
+  } else {
+    console.log('❌ No crypto wallets found for email:', email)
+  }
+  
+  return matches
+}

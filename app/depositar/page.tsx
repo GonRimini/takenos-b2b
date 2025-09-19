@@ -8,7 +8,7 @@ import { AccountField } from "@/components/account-field"
 import { Download, AlertCircle, Loader2, RefreshCw } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/components/auth"
-import { getSheetDataByGid, findRowByEmail } from "@/lib/google-sheets"
+import { getSheetDataByGid, findRowByEmail, findAllRowsByEmail } from "@/lib/google-sheets"
 import { downloadDepositInstructions } from "@/lib/pdf-generator"
 
 export type DepositMethod = "ach" | "wire" | "swift" | "crypto"
@@ -95,7 +95,8 @@ export default function DepositarPage() {
 
     const sheetMatch = selectedMethod === 'ach' && sheetRows ? findRowByEmail(sheetRows, userDisplayEmail) : null
     const swiftMatch = selectedMethod === 'swift' && swiftRows ? findRowByEmail(swiftRows, userDisplayEmail) : null
-    const cryptoMatch = selectedMethod === 'crypto' && cryptoRows ? findRowByEmail(cryptoRows, userDisplayEmail) : null
+    const cryptoMatches = selectedMethod === 'crypto' && cryptoRows ? findAllRowsByEmail(cryptoRows, userDisplayEmail) : []
+    const cryptoMatch = cryptoMatches.length > 0 ? cryptoMatches[0] : null // Use first wallet for PDF
 
     // Si no hay datos disponibles, no generar PDF
     if ((selectedMethod === 'ach' && !sheetMatch) || (selectedMethod === 'swift' && !swiftMatch) || (selectedMethod === 'crypto' && !cryptoMatch)) {
@@ -131,14 +132,14 @@ export default function DepositarPage() {
       }
     } else if (selectedMethod === 'crypto' && cryptoMatch) {
       fields.push(
-        { label: "Dirección de depósito", value: String(cryptoMatch[1] || "") },
-        { label: "Red/Network", value: String(cryptoMatch[2] || "") }
+        { label: "Dirección de depósito", value: String(cryptoMatch[2] || "") },
+        { label: "Red/Network", value: String(cryptoMatch[3] || "") }
       )
       // Para crypto no necesitamos direcciones adicionales
     }
 
     return {
-      method: selectedMethod === 'ach' ? 'ACH/Wire' : selectedMethod === 'crypto' ? 'Criptomonedas' : selectedMethod,
+      method: selectedMethod === 'ach' ? 'ACH/Wire' : selectedMethod === 'crypto' ? 'Crypto' : selectedMethod,
       userEmail: userDisplayEmail,
       fields,
       addresses
@@ -169,12 +170,12 @@ export default function DepositarPage() {
     const isCrypto = selectedMethod === "crypto"
     const sheetMatch = selectedMethod === 'ach' && sheetRows ? findRowByEmail(sheetRows, userDisplayEmail) : null
     const swiftMatch = selectedMethod === 'swift' && swiftRows ? findRowByEmail(swiftRows, userDisplayEmail) : null
-    const cryptoMatch = selectedMethod === 'crypto' && cryptoRows ? findRowByEmail(cryptoRows, userDisplayEmail) : null
+    const cryptoMatches = selectedMethod === 'crypto' && cryptoRows ? findAllRowsByEmail(cryptoRows, userDisplayEmail) : []
 
     return (
       <Card className="rounded-lg shadow-sm">
         <CardHeader className="pb-4">
-          <CardTitle className="text-lg">Información para {selectedMethod === 'ach' ? 'ACH/WIRE' : selectedMethod === 'crypto' ? 'CRIPTOMONEDAS' : selectedMethod.toUpperCase()}</CardTitle>
+          <CardTitle className="text-lg">Información para {selectedMethod === 'ach' ? 'ACH/WIRE' : selectedMethod === 'crypto' ? 'CRYPTO' : selectedMethod.toUpperCase()}</CardTitle>
           <CardDescription>Utiliza estos datos para realizar tu depósito</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -189,12 +190,12 @@ export default function DepositarPage() {
               <AlertCircle className="h-4 w-4" />
               <span>Error cargando datos: {selectedMethod === 'ach' ? sheetError : selectedMethod === 'swift' ? swiftError : cryptoError}</span>
             </div>
-          ) : (selectedMethod === 'ach' && sheetRows && !sheetMatch) || (selectedMethod === 'swift' && swiftRows && !swiftMatch) || (selectedMethod === 'crypto' && cryptoRows && !cryptoMatch) ? (
+          ) : (selectedMethod === 'ach' && sheetRows && !sheetMatch) || (selectedMethod === 'swift' && swiftRows && !swiftMatch) || (selectedMethod === 'crypto' && cryptoRows && cryptoMatches.length === 0) ? (
             <div className="flex items-center space-x-2 text-sm text-muted-foreground">
               <AlertCircle className="h-4 w-4" />
               <span>No se encontraron datos para {userDisplayEmail}</span>
             </div>
-          ) : (selectedMethod === 'ach' && sheetMatch) || (selectedMethod === 'swift' && swiftMatch) || (selectedMethod === 'crypto' && cryptoMatch) ? (
+          ) : (selectedMethod === 'ach' && sheetMatch) || (selectedMethod === 'swift' && swiftMatch) || (selectedMethod === 'crypto' && cryptoMatches.length > 0) ? (
             <>
               {selectedMethod === 'ach' && sheetMatch ? (
                 <>
@@ -212,10 +213,20 @@ export default function DepositarPage() {
                   <AccountField label="Banco receptor" value={String(swiftMatch[5] || "")} />
                   <AccountField label="Tipo de cuenta" value={String(swiftMatch[6] || "")} />
                 </>
-              ) : selectedMethod === 'crypto' && cryptoMatch ? (
+              ) : selectedMethod === 'crypto' && cryptoMatches.length > 0 ? (
                 <>
-                  <AccountField label="Dirección de depósito" value={String(cryptoMatch[1] || "")} />
-                  <AccountField label="Red/Network" value={String(cryptoMatch[2] || "")} />
+                  {cryptoMatches.map((cryptoMatch, index) => (
+                    <div key={index} className="space-y-3">
+                      {cryptoMatches.length > 1 && (
+                        <div className="text-sm font-medium text-foreground border-b pb-2">
+                          {String(cryptoMatch[0] || `Wallet ${index + 1}`)}
+                        </div>
+                      )}
+                      <AccountField label="Dirección de depósito" value={String(cryptoMatch[2] || "")} />
+                      <AccountField label="Red/Network" value={String(cryptoMatch[3] || "")} />
+                      {index < cryptoMatches.length - 1 && <div className="border-t pt-4 mt-4"></div>}
+                    </div>
+                  ))}
                 </>
               ) : null}
             </>
@@ -275,7 +286,7 @@ export default function DepositarPage() {
           )}
 
           {/* Botón de descarga de PDF */}
-          {((selectedMethod === 'ach' && sheetMatch) || (selectedMethod === 'swift' && swiftMatch) || (selectedMethod === 'crypto' && cryptoMatch)) && (
+          {((selectedMethod === 'ach' && sheetMatch) || (selectedMethod === 'swift' && swiftMatch) || (selectedMethod === 'crypto' && cryptoMatches.length > 0)) && (
             <div className="mt-6 pt-4 border-t">
               <Button
                 onClick={handleDownloadPDF}
@@ -332,7 +343,7 @@ export default function DepositarPage() {
               <SelectContent>
                 <SelectItem value="ach">ACH/Wire</SelectItem>
                 <SelectItem value="swift">SWIFT (Internacional)</SelectItem>
-                <SelectItem value="crypto">Criptomonedas</SelectItem>
+                <SelectItem value="crypto">Crypto</SelectItem>
               </SelectContent>
             </Select>
           </CardContent>
