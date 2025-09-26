@@ -10,6 +10,7 @@ import { useAuth } from "@/components/auth"
 import { downloadTransactionReceipt } from "@/lib/pdf-generator"
 import { useDataCache, useCacheInvalidator } from "@/hooks/use-data-cache"
 import { useAuthenticatedFetch } from "@/hooks/use-authenticated-fetch"
+import { useCompanyName } from "@/hooks/use-company-name"
 
 
 
@@ -19,6 +20,7 @@ export default function Dashboard() {
   const [endDate, setEndDate] = useState<string>("")
   const { invalidateKeys } = useCacheInvalidator()
   const { authenticatedFetch } = useAuthenticatedFetch()
+  const { companyName, loading: companyLoading } = useCompanyName()
 
   // Función para obtener el balance
   const fetchBalanceData = async (): Promise<{ balance: number; source: string }> => {
@@ -266,7 +268,15 @@ export default function Dashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600 mt-1">Bienvenido, {user?.email}</p>
+          <p className="text-gray-600 mt-1">
+            Bienvenido, {companyLoading ? (
+              <span className="inline-flex items-center">
+                <span className="animate-pulse">Cargando...</span>
+              </span>
+            ) : (
+              companyName || user?.email
+            )}
+          </p>
         </div>
         
         {/* Controles de actualización */}
@@ -420,10 +430,16 @@ export default function Dashboard() {
                         <TableCell>{getStatusBadge(m.status)}</TableCell>
                         <TableCell className="text-center">
                           <Button
-                            onClick={() => downloadTransactionReceipt({
-                              ...m,
-                              userEmail: user?.email || ""
-                            })}
+                            onClick={async () => {
+                              try {
+                                await downloadTransactionReceipt({
+                                  ...m,
+                                  userEmail: user?.email || ""
+                                })
+                              } catch (error) {
+                                console.error('Error generating PDF:', error)
+                              }
+                            }}
                             variant="ghost"
                             size="sm"
                             className="h-8 w-8 p-0 hover:bg-blue-50"

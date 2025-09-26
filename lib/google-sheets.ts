@@ -82,3 +82,32 @@ export function findRowByEmailInColumn0(rows: any[][], email: string) {
   
   return match
 }
+
+// Nueva función para obtener datos de empresas (GID: 1540111949)
+export async function getCompanyData() {
+  return getSheetDataByGid(1540111949)
+}
+
+// Nueva función para buscar empresa por email
+export function findCompanyByEmail(rows: any[][], email: string) {
+  const target = email?.toLowerCase().trim()
+  if (!target) return null
+  
+  // Asumiendo que Email está en columna 0 y Empresa en columna 1
+  const match = rows.find(r => (String(r[0] || "").toLowerCase().trim()) === target) || null
+  
+  // Debug: log the found row to see the data structure
+  if (match) {
+    console.log('🏢 Company row found for', email, ':', match)
+    console.log('🏢 Company name:', match[1])
+    console.log('🔍 Row indices:')
+    match.forEach((val, idx) => {
+      console.log(`  [${idx}]: "${val}"`)
+    })
+  } else {
+    console.log('❌ No company found for email:', email)
+    console.log('Available emails in company sheet:', rows.slice(0, 5).map(r => r[0])) // Show first 5 emails for reference
+  }
+  
+  return match
+}

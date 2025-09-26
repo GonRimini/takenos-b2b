@@ -9,6 +9,7 @@ import { clearUserSession, getUserSession } from "@/lib/auth"
 import { useAuth } from "@/components/auth"
 import { toast } from "@/hooks/use-toast"
 import { useEffect, useState } from "react"
+import { useCompanyName } from "@/hooks/use-company-name"
 
 const DepositIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -68,6 +69,7 @@ export function Sidebar() {
   const router = useRouter()
   const [userEmail, setUserEmail] = useState<string>("")
   const { signOut, user } = useAuth()
+  const { companyName, loading: companyLoading } = useCompanyName()
 
   useEffect(() => {
     const sessionUser = getUserSession()
@@ -75,7 +77,7 @@ export function Sidebar() {
       setUserEmail(sessionUser.email)
     }
     // También usar el usuario del nuevo sistema si existe
-    if (user) {
+    if (user?.email) {
       setUserEmail(user.email)
     }
   }, [user])
@@ -166,7 +168,13 @@ export function Sidebar() {
       <div className="border-t border-gray-200 p-4">
         <div className="mb-3">
           <p className="text-xs text-gray-500 mb-1">Usuario conectado:</p>
-          <p className="text-sm font-medium text-gray-900 truncate">{userEmail}</p>
+          <p className="text-sm font-medium text-gray-900 truncate">
+            {companyLoading ? (
+              <span className="animate-pulse">Cargando...</span>
+            ) : (
+              companyName || userEmail
+            )}
+          </p>
         </div>
         <Button
           onClick={handleLogout}

@@ -1,6 +1,143 @@
 import { jsPDF } from "jspdf"
 import { getLogoBase64Safe } from "./logo-helper"
 
+// Tema central para consistencia visual
+const theme = {
+  primary: "#6d37d5",
+  text: "#0F172A",
+  muted: "#6B7280",
+  line: "#ECECEC",
+  cardBg: "#FAFBFC",
+  success: "#166534",
+  successBg: "#E9F9EF",
+  warning: "#92400E",
+  warningBg: "#FEF3C7",
+  error: "#991B1B",
+  errorBg: "#FEE2E2",
+  creditColor: "#22C55E",
+  debitColor: "#EF4444",
+  radius: 3
+}
+
+// Helpers para formateo y utilidades
+function nowEs() { 
+  return new Date() 
+}
+
+function fmtMoneyUSD(n: number) { 
+  return Math.abs(n).toLocaleString("es-AR", { 
+    style: "currency", 
+    currency: "USD" 
+  }) 
+}
+
+function fmtDateTimeEs(d: Date) { 
+  return d.toLocaleString("es-ES", { 
+    day: "2-digit", 
+    month: "long", 
+    year: "numeric", 
+    hour: "2-digit", 
+    minute: "2-digit" 
+  }) 
+}
+
+function ensureSpace(doc: jsPDF, currentY: number, needed = 24) { 
+  if (currentY + needed > 280) { 
+    doc.addPage()
+    return 20 
+  } 
+  return currentY 
+}
+
+function drawCard(doc: jsPDF, x: number, y: number, w: number, h: number) { 
+  // Fondo de la tarjeta
+  doc.setFillColor(theme.cardBg)
+  doc.roundedRect(x, y, w, h, theme.radius, theme.radius, "F")
+  
+  // Borde de la tarjeta
+  doc.setDrawColor(theme.line)
+  doc.setLineWidth(0.3)
+  doc.roundedRect(x, y, w, h, theme.radius, theme.radius, "S")
+}
+
+function label(doc: jsPDF, txt: string, x: number, y: number) { 
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(10)
+  doc.setTextColor(theme.muted)
+  doc.text(txt.toUpperCase(), x, y)
+}
+
+function value(doc: jsPDF, txt: string, x: number, y: number, maxWidth = 160) { 
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(12)
+  doc.setTextColor(theme.text)
+  const lines = doc.splitTextToSize(String(txt), maxWidth)
+  doc.text(lines, x, y)
+  return y + (lines.length * 5)
+}
+
+function chip(doc: jsPDF, txt: string, x: number, y: number, fg: string, bg: string) { 
+  doc.setFillColor(bg)
+  doc.setTextColor(fg)
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(10)
+  const w = doc.getTextWidth(txt) + 8
+  doc.roundedRect(x, y - 5, w, 8, 3, 3, "F")
+  doc.text(txt, x + 4, y + 1)
+  return w + 4 // Retorna el ancho usado para posicionamiento
+}
+
+function sectionTitle(doc: jsPDF, txt: string, x: number, y: number) {
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(14)
+  doc.setTextColor(theme.text)
+  doc.text(txt.toUpperCase(), x, y)
+  return y + 8
+}
+
+function drawHeader(doc: jsPDF, title: string, subtitle: string) {
+  // Franja superior de color primario
+  doc.setFillColor(theme.primary)
+  doc.rect(0, 0, 210, 32, "F")
+  
+  // Intentar cargar el logo real
+  const logoPromise = getLogoBase64Safe()
+  
+  return logoPromise.then(logoBase64 => {
+    if (logoBase64) {
+      try {
+        // Agregar logo real
+        doc.addImage(logoBase64, 'PNG', 20, 6, 35, 20)
+      } catch (error) {
+        console.warn('Error agregando logo al PDF:', error)
+        // Fallback a texto
+        doc.setTextColor(255, 255, 255)
+        doc.setFontSize(24)
+        doc.setFont("helvetica", "bold")
+        doc.text("TAKENOS", 20, 20)
+      }
+    } else {
+      // Fallback a texto si no se puede cargar el logo
+      doc.setTextColor(255, 255, 255)
+      doc.setFontSize(24)
+      doc.setFont("helvetica", "bold")
+      doc.text("TAKENOS", 20, 20)
+    }
+    
+    // Bloque de información a la derecha
+    doc.setTextColor(255, 255, 255)
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(16)
+    doc.text(title, 140, 16)
+    
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(12)
+    doc.text(subtitle, 140, 24)
+    
+    return doc
+  })
+}
+
 interface TransactionReceipt {
   id: string
   date: string
@@ -11,103 +148,123 @@ interface TransactionReceipt {
   userEmail: string
 }
 
-export const generateTransactionReceipt = (transaction: TransactionReceipt) => {
+export const generateTransactionReceipt = async (transaction: TransactionReceipt) => {
   const doc = new jsPDF()
+  const now = nowEs()
   
-  // Configuración de colores de Takenos
-  const primaryColor = "#6d37d5"
-  const secondaryColor = "#f8f9fa"
+  // Header moderno con logo
+  await drawHeader(doc, "COMPROBANTE", `ID: ${transaction.id}`)
   
-  // Header con logo y branding
-  doc.setFillColor(primaryColor)
-  doc.rect(0, 0, 210, 30, "F")
+  let currentY = 45
   
-  // Logo placeholder (texto por ahora)
-  doc.setTextColor(255, 255, 255)
-  doc.setFontSize(24)
+  // Título principal
+  currentY = sectionTitle(doc, "Comprobante de Transacción", 20, currentY)
+  currentY += 10
+  
+  // Card principal con detalles de la transacción
+  const cardHeight = 85
+  currentY = ensureSpace(doc, currentY, cardHeight)
+  drawCard(doc, 20, currentY, 170, cardHeight)
+  
+  let cardY = currentY + 12
+  
+  // Fecha y hora
+  label(doc, "Fecha y Hora", 30, cardY)
+  cardY = value(doc, fmtDateTimeEs(new Date(transaction.date)), 30, cardY + 6, 140)
+  cardY += 8
+  
+  // Descripción con wrap
+  label(doc, "Descripción", 30, cardY)
+  cardY = value(doc, transaction.description, 30, cardY + 6, 140)
+  cardY += 8
+  
+  // Estado como chip
+  label(doc, "Estado", 30, cardY)
+  cardY += 6
+  
+  let statusText: string
+  let statusFg: string
+  let statusBg: string
+  
+  switch (transaction.status) {
+    case "completed":
+      statusText = "COMPLETADO"
+      statusFg = theme.success
+      statusBg = theme.successBg
+      break
+    case "pending":
+      statusText = "PENDIENTE"
+      statusFg = theme.warning
+      statusBg = theme.warningBg
+      break
+    case "failed":
+      statusText = "FALLIDO"
+      statusFg = theme.error
+      statusBg = theme.errorBg
+      break
+    default:
+      statusText = "DESCONOCIDO"
+      statusFg = theme.muted
+      statusBg = "#F3F4F6"
+  }
+  
+  chip(doc, statusText, 30, cardY + 4, statusFg, statusBg)
+  cardY += 12
+  
+  // Usuario con wrap
+  label(doc, "Usuario", 30, cardY)
+  cardY = value(doc, transaction.userEmail, 30, cardY + 6, 140)
+  
+  currentY += cardHeight + 20
+  
+  // Card destacada para el monto
+  const amountCardHeight = 45
+  currentY = ensureSpace(doc, currentY, amountCardHeight)
+  drawCard(doc, 20, currentY, 170, amountCardHeight)
+  
+  // Monto con formato y color
+  const amountColor = transaction.type === "credit" ? theme.creditColor : theme.debitColor
+  const amountPrefix = transaction.type === "credit" ? "+" : "-"
+  
   doc.setFont("helvetica", "bold")
-  doc.text("TAKENOS", 20, 20)
-  
-  // Subtítulo
   doc.setFontSize(12)
-  doc.setFont("helvetica", "normal")
-  doc.text("Portal Financiero", 20, 28)
+  doc.setTextColor(theme.muted)
+  doc.text("MONTO", 30, currentY + 18)
   
-  // Información del comprobante
-  doc.setTextColor(0, 0, 0)
-  doc.setFontSize(16)
   doc.setFont("helvetica", "bold")
-  doc.text("COMPROBANTE DE TRANSACCIÓN", 20, 50)
+  doc.setFontSize(28)
+  doc.setTextColor(amountColor)
+  doc.text(`${amountPrefix}${fmtMoneyUSD(transaction.amount)}`, 30, currentY + 35)
+  
+  currentY += amountCardHeight + 30
+  
+  // Footer moderno
+  currentY = ensureSpace(doc, currentY, 40)
   
   // Línea separadora
-  doc.setDrawColor(primaryColor)
-  doc.setLineWidth(0.5)
-  doc.line(20, 55, 190, 55)
+  doc.setDrawColor(theme.line)
+  doc.setLineWidth(0.3)
+  doc.line(20, currentY, 190, currentY)
+  currentY += 10
   
-  // Detalles de la transacción
-  doc.setFontSize(12)
+  // Información del footer
+  doc.setTextColor(theme.muted)
+  doc.setFontSize(9)
   doc.setFont("helvetica", "normal")
   
-  const startY = 70
-  const lineHeight = 8
+  doc.text("Este documento contiene información confidencial. Manténgalo seguro.", 20, currentY)
+  currentY += 6
   
-  // Fecha
-  doc.setFont("helvetica", "bold")
-  doc.text("Fecha:", 20, startY)
-  doc.setFont("helvetica", "normal")
-  doc.text(new Date(transaction.date).toLocaleDateString("es-ES", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit"
-  }), 80, startY)
+  doc.text(`Generado el: ${fmtDateTimeEs(now)}`, 20, currentY)
+  currentY += 6
   
-  // Descripción
-  doc.setFont("helvetica", "bold")
-  doc.text("Descripción:", 20, startY + lineHeight)
-  doc.setFont("helvetica", "normal")
-  doc.text(transaction.description, 80, startY + lineHeight)
-  
-  // Estado
-  doc.setFont("helvetica", "bold")
-  doc.text("Estado:", 20, startY + lineHeight * 2)
-  doc.setFont("helvetica", "normal")
-  const statusText = transaction.status === "completed" ? "Completado" : 
-                    transaction.status === "pending" ? "Pendiente" : "Fallido"
-  doc.text(statusText, 80, startY + lineHeight * 2)
-  
-  // Email del usuario
-  doc.setFont("helvetica", "bold")
-  doc.text("Usuario:", 20, startY + lineHeight * 3)
-  doc.setFont("helvetica", "normal")
-  doc.text(transaction.userEmail, 80, startY + lineHeight * 3)
-  
-  // Monto destacado
-  doc.setFontSize(18)
-  doc.setFont("helvetica", "bold")
-  doc.text("MONTO:", 20, startY + lineHeight * 5)
-  
-  const amountColor = transaction.amount > 0 ? "#22c55e" : "#ef4444"
-  doc.setTextColor(amountColor)
-  doc.setFontSize(24)
-  doc.text(`$${Math.abs(transaction.amount).toFixed(2)} USD`, 80, startY + lineHeight * 5)
-  
-  // Footer
-  doc.setTextColor(100, 100, 100)
-  doc.setFontSize(10)
-  doc.setFont("helvetica", "normal")
-  doc.text("Este documento es generado automáticamente por el sistema de Takenos.", 20, 270)
-  doc.text("Para consultas, contacte a soporte@takenos.com", 20, 275)
-  
-  // Fecha de generación
-  doc.text(`Generado el: ${new Date().toLocaleDateString("es-ES")} a las ${new Date().toLocaleTimeString("es-ES")}`, 20, 280)
+  doc.text("© 2025 Takenos – soporte@takenos.com", 20, currentY)
   
   return doc
 }
 
-export const downloadTransactionReceipt = (transaction: TransactionReceipt) => {
-  const doc = generateTransactionReceipt(transaction)
+export const downloadTransactionReceipt = async (transaction: TransactionReceipt) => {
+  const doc = await generateTransactionReceipt(transaction)
   const fileName = `comprobante_${transaction.id}_${new Date().toISOString().split('T')[0]}.pdf`
   doc.save(fileName)
 }
@@ -125,151 +282,281 @@ interface DepositInstructions {
 
 export const generateDepositInstructionsPDF = async (instructions: DepositInstructions) => {
   const doc = new jsPDF()
+  const now = nowEs()
   
-  // Configuración de colores de Takenos
-  const primaryColor = "#6d37d5"
+  // Fondo blanco completo
+  doc.setFillColor("#FFFFFF")
+  doc.rect(0, 0, 210, 297, "F")
   
-  // Header con logo y branding
-  doc.setFillColor(primaryColor)
-  doc.rect(0, 0, 210, 35, "F")
+  let currentY = 20
   
-  // Intentar cargar el logo real
+  // Logo de Takenos arriba a la izquierda
   const logoBase64 = await getLogoBase64Safe()
   
   if (logoBase64) {
     try {
-      // Agregar logo real más grande y centrado
-      doc.addImage(logoBase64, 'PNG', 20, 5, 40, 25)
+      // Ajustar proporciones del logo - más ancho y menos alto para evitar aplastamiento
+      doc.addImage(logoBase64, 'PNG', 20, currentY, 45, 15)
     } catch (error) {
       console.warn('Error agregando logo al PDF:', error)
-      // Fallback a texto simple
-      doc.setTextColor(255, 255, 255)
-      doc.setFontSize(32)
+      // Fallback a texto
+      doc.setTextColor(theme.primary)
+      doc.setFontSize(16)
       doc.setFont("helvetica", "bold")
-      doc.text("TAKENOS", 20, 22)
+      doc.text("TAKENOS", 20, currentY + 12)
     }
   } else {
     // Fallback a texto si no se puede cargar el logo
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(32)
+    doc.setTextColor(theme.primary)
+    doc.setFontSize(16)
     doc.setFont("helvetica", "bold")
-    doc.text("TAKENOS", 20, 22)
+    doc.text("TAKENOS", 20, currentY + 12)
   }
   
-  // Título principal
-  doc.setTextColor(0, 0, 0)
+  currentY += 35
+  
+  // BANDA 1 — Encabezado de empresa
+  // Nombre de la empresa en grande y negrita
+  const companyName = instructions.fields.find(field => 
+    field.label.toLowerCase().includes('empresa') || 
+    field.label.toLowerCase().includes('company') ||
+    field.label.toLowerCase().includes('beneficiary name') ||
+    field.label.toLowerCase().includes('nombre del beneficiario')
+  )?.value || instructions.method.toUpperCase()
+  
+  doc.setTextColor(theme.text)
   doc.setFontSize(18)
   doc.setFont("helvetica", "bold")
-  doc.text(`INSTRUCCIONES DE DEPÓSITO - ${instructions.method.toUpperCase()}`, 20, 55)
+  doc.text(companyName, 20, currentY)
   
-  // Línea separadora
-  doc.setDrawColor(primaryColor)
-  doc.setLineWidth(0.8)
-  doc.line(20, 60, 190, 60)
+  // Texto explicativo a la derecha
+  const explanationText = instructions.method.toLowerCase() === 'ach' ?
+    "Utiliza estos datos para realizar transferencias\ndomésticas y ACH a tu cuenta de Takenos." :
+    instructions.method.toLowerCase() === 'swift' ?
+    "Utiliza estos datos para realizar transferencias\ninternacionales a tu cuenta de Takenos." :
+    "Utiliza estos datos para realizar transferencias\na tu cuenta de Takenos."
   
-  // Usuario
-  doc.setFontSize(12)
+  doc.setTextColor(theme.text)
+  doc.setFontSize(11)
   doc.setFont("helvetica", "normal")
-  doc.setTextColor(100, 100, 100)
-  doc.text(`Usuario: ${instructions.userEmail}`, 20, 70)
-  doc.text(`Fecha: ${new Date().toLocaleDateString("es-ES", { 
-    year: "numeric", 
-    month: "long", 
-    day: "numeric" 
-  })}`, 20, 78)
+  const explanationLines = explanationText.split('\n')
+  explanationLines.forEach((line, index) => {
+    doc.text(line, 110, currentY - 8 + (index * 6))
+  })
   
-  // Información bancaria
-  doc.setTextColor(0, 0, 0)
+  currentY += 20
+  
+  // Separador horizontal
+  doc.setDrawColor(theme.line)
+  doc.setLineWidth(0.3)
+  doc.line(20, currentY, 190, currentY)
+  currentY += 20
+  
+  // BANDA 2 — Banco receptor
+  doc.setTextColor(theme.primary)
   doc.setFontSize(14)
   doc.setFont("helvetica", "bold")
-  doc.text("INFORMACIÓN PARA EL DEPÓSITO:", 20, 95)
+  doc.text("Banco Receptor", 20, currentY)
+  currentY += 15
   
-  let currentY = 110
-  const lineHeight = 12
+  // Buscar campos específicos del banco
+  const routingField = instructions.fields.find(field => 
+    field.label.toLowerCase().includes('routing') ||
+    field.label.toLowerCase().includes('aba') ||
+    field.label.toLowerCase().includes('swift') ||
+    field.label.toLowerCase().includes('bic') ||
+    field.label.toLowerCase().includes('swift/bic code')
+  )
   
-  // Campos principales
-  instructions.fields.forEach((field) => {
-    doc.setFontSize(11)
-    doc.setFont("helvetica", "bold")
-    doc.text(`${field.label}:`, 25, currentY)
-    
-    doc.setFont("helvetica", "normal")
-    let displayValue = field.value
-    if (field.maskable && field.value.length > 8) {
-      // Mostrar solo los últimos 4 dígitos para campos enmascarables
-      displayValue = `****${field.value.slice(-4)}`
-    }
-    doc.text(displayValue, 25, currentY + 6)
-    
-    currentY += lineHeight + 3
-  })
+  // Debug específico para SWIFT
+  console.log('🔍 PDF Debug - routingField encontrado:', routingField)
+  console.log('🔍 PDF Debug - Método:', instructions.method)
   
-  // Direcciones si están disponibles
-  if (instructions.addresses) {
-    currentY += 10
-    doc.setFontSize(14)
-    doc.setFont("helvetica", "bold")
-    doc.text("DIRECCIONES:", 20, currentY)
-    currentY += 15
-    
-    if (instructions.addresses.beneficiary) {
-      doc.setFontSize(11)
-      doc.setFont("helvetica", "bold")
-      doc.text("Dirección del Beneficiario:", 25, currentY)
-      doc.setFont("helvetica", "normal")
-      // Dividir texto largo en múltiples líneas
-      const beneficiaryLines = doc.splitTextToSize(instructions.addresses.beneficiary, 160)
-      doc.text(beneficiaryLines, 25, currentY + 6)
-      currentY += 6 + (beneficiaryLines.length * 5) + 8
-    }
-    
-    if (instructions.addresses.bank) {
-      doc.setFontSize(11)
-      doc.setFont("helvetica", "bold")
-      doc.text("Dirección del Banco:", 25, currentY)
-      doc.setFont("helvetica", "normal")
-      const bankLines = doc.splitTextToSize(instructions.addresses.bank, 160)
-      doc.text(bankLines, 25, currentY + 6)
-      currentY += 6 + (bankLines.length * 5) + 8
-    }
+  // Si no encontramos routingField, buscar específicamente "SWIFT/BIC Code"
+  if (!routingField && instructions.method.toLowerCase() === 'swift') {
+    const swiftField = instructions.fields.find(field => 
+      field.label === "SWIFT/BIC Code"
+    )
+    console.log('🔍 PDF Debug - swiftField específico:', swiftField)
   }
   
-  // Instrucciones importantes
+  const bankNameField = instructions.fields.find(field => 
+    field.label.toLowerCase().includes('bank name') ||
+    field.label.toLowerCase().includes('nombre del banco') ||
+    field.label.toLowerCase().includes('receiver bank') ||
+    field.label.toLowerCase().includes('banco receptor')
+  )
+  
+  const bankAddressField = instructions.addresses?.bank
+  
+  // Debug: mostrar todos los campos disponibles
+  console.log('🔍 PDF Debug - Todos los campos disponibles:', instructions.fields.map(f => f.label))
+  console.log('🔍 PDF Debug - Direcciones:', instructions.addresses)
+  
+  // Buscar también específicamente "SWIFT/BIC Code" si no encontramos routingField
+  const swiftBicField = !routingField ? instructions.fields.find(field => 
+    field.label === "SWIFT/BIC Code"
+  ) : null
+  
+  const finalRoutingField = routingField || swiftBicField
+  
+  // Tabla de dos columnas para banco receptor
+  if (finalRoutingField) {
+    const label = finalRoutingField.label.toLowerCase().includes('swift') || finalRoutingField.label.includes('SWIFT') ? "SWIFT/BIC Code" : "Routing Number"
+    doc.setTextColor(theme.muted)
+    doc.setFontSize(10)
+    doc.setFont("helvetica", "normal")
+    doc.text(label, 30, currentY)
+    
+    doc.setTextColor(theme.text)
+    doc.setFontSize(11)
+    doc.setFont("helvetica", "normal")
+    // Asegurarse de que el valor no esté vacío
+    const routingValue = finalRoutingField.value || "N/A"
+    doc.text(routingValue, 120, currentY)
+    currentY += 12
+  }
+  
+  if (bankNameField) {
+    doc.setTextColor(theme.muted)
+    doc.setFontSize(10)
+    doc.setFont("helvetica", "normal")
+    doc.text("Nombre del Banco", 30, currentY)
+    
+    doc.setTextColor(theme.text)
+    doc.setFontSize(11)
+    doc.setFont("helvetica", "normal")
+    const bankNameLines = doc.splitTextToSize(bankNameField.value, 70)
+    doc.text(bankNameLines, 120, currentY)
+    currentY += (bankNameLines.length * 5) + 7
+  }
+  
+  if (bankAddressField) {
+    doc.setTextColor(theme.muted)
+    doc.setFontSize(10)
+    doc.setFont("helvetica", "normal")
+    doc.text("Dirección del Banco", 30, currentY)
+    
+    doc.setTextColor(theme.text)
+    doc.setFontSize(11)
+    doc.setFont("helvetica", "normal")
+    const addressLines = doc.splitTextToSize(bankAddressField, 70)
+    doc.text(addressLines, 120, currentY)
+    currentY += (addressLines.length * 5) + 7
+  }
+  
+  // Fallback: si no encontramos campos específicos, mostrar todos los que no sean del beneficiario
+  if (!finalRoutingField && !bankNameField) {
+    const otherBankFields = instructions.fields.filter(field => 
+      !field.label.toLowerCase().includes('cuenta') &&
+      !field.label.toLowerCase().includes('account') &&
+      !field.label.toLowerCase().includes('beneficiario') &&
+      !field.label.toLowerCase().includes('beneficiary') &&
+      !field.label.toLowerCase().includes('tipo')
+    )
+    
+    otherBankFields.forEach((field) => {
+      doc.setTextColor(theme.muted)
+      doc.setFontSize(10)
+      doc.setFont("helvetica", "normal")
+      doc.text(field.label, 30, currentY)
+      
+      doc.setTextColor(theme.text)
+      doc.setFontSize(11)
+      doc.setFont("helvetica", "normal")
+      const lines = doc.splitTextToSize(field.value, 70)
+      doc.text(lines, 120, currentY)
+      currentY += (lines.length * 5) + 7
+    })
+  }
+  
+  currentY += 10
+  
+  // Separador horizontal
+  doc.setDrawColor(theme.line)
+  doc.setLineWidth(0.3)
+  doc.line(20, currentY, 190, currentY)
   currentY += 20
-  doc.setFontSize(12)
+  
+  // BANDA 3 — Beneficiario
+  doc.setTextColor(theme.primary)
+  doc.setFontSize(14)
   doc.setFont("helvetica", "bold")
-  doc.setTextColor(primaryColor)
-  doc.text("INSTRUCCIONES IMPORTANTES:", 20, currentY)
-  
-  doc.setTextColor(0, 0, 0)
-  doc.setFontSize(10)
-  doc.setFont("helvetica", "normal")
+  doc.text("Beneficiario", 20, currentY)
   currentY += 15
   
-  const instructions_text = [
-    "• Utilice exactamente la información proporcionada arriba para realizar su depósito.",
-    "• Conserve el comprobante de transferencia como respaldo de su transacción.",
-    "• Los depósitos pueden tardar entre 1-3 días hábiles en procesarse.",
-    "• Para consultas sobre su depósito, contacte a soporte@takenos.com.",
-    "• Incluya su email de usuario como referencia en la transferencia si es posible."
-  ]
+  // Buscar campos específicos del beneficiario
+  const beneficiaryNameField = instructions.fields.find(field => 
+    field.label.toLowerCase().includes('beneficiary name') ||
+    field.label.toLowerCase().includes('nombre del beneficiario')
+  )
   
-  instructions_text.forEach((instruction) => {
-    const lines = doc.splitTextToSize(instruction, 170)
-    doc.text(lines, 20, currentY)
-    currentY += lines.length * 5 + 4  // Más espaciado entre líneas
-  })
+  const accountNumberField = instructions.fields.find(field => 
+    field.label.toLowerCase().includes('account number') ||
+    field.label.toLowerCase().includes('número de cuenta')
+  )
   
-  // Separación antes del footer
-  currentY += 15
+  const accountTypeField = instructions.fields.find(field => 
+    field.label.toLowerCase().includes('account type') ||
+    field.label.toLowerCase().includes('tipo de cuenta') ||
+    field.label.toLowerCase().includes('type of account')
+  )
   
-  // Footer con mejor espaciado
-  doc.setTextColor(100, 100, 100)
-  doc.setFontSize(9)
-  doc.setFont("helvetica", "italic")
-  doc.text("Este documento contiene información confidencial. Manténgalo seguro.", 20, currentY)
-  doc.text(`Generado el: ${new Date().toLocaleDateString("es-ES")} a las ${new Date().toLocaleTimeString("es-ES")}`, 20, currentY + 8)
-  doc.text("© 2025 Takenos", 20, currentY + 16)
+  const beneficiaryAddressField = instructions.addresses?.beneficiary
+  
+  // Tabla de dos columnas para beneficiario
+  if (beneficiaryNameField) {
+    doc.setTextColor(theme.muted)
+    doc.setFontSize(10)
+    doc.setFont("helvetica", "normal")
+    doc.text("Nombre del Beneficiario", 30, currentY)
+    
+    doc.setTextColor(theme.text)
+    doc.setFontSize(11)
+    doc.setFont("helvetica", "normal")
+    doc.text(beneficiaryNameField.value, 120, currentY)
+    currentY += 12
+  }
+  
+  if (accountNumberField) {
+    doc.setTextColor(theme.muted)
+    doc.setFontSize(10)
+    doc.setFont("helvetica", "normal")
+    doc.text("Número de Cuenta", 30, currentY)
+    
+    doc.setTextColor(theme.text)
+    doc.setFontSize(11)
+    doc.setFont("helvetica", "bold") // Número de cuenta en bold
+    doc.text(accountNumberField.value, 120, currentY)
+    currentY += 12
+  }
+  
+  if (accountTypeField) {
+    doc.setTextColor(theme.muted)
+    doc.setFontSize(10)
+    doc.setFont("helvetica", "normal")
+    doc.text("Tipo de Cuenta", 30, currentY)
+    
+    doc.setTextColor(theme.text)
+    doc.setFontSize(11)
+    doc.setFont("helvetica", "normal")
+    doc.text(accountTypeField.value, 120, currentY)
+    currentY += 12
+  }
+  
+  if (beneficiaryAddressField) {
+    doc.setTextColor(theme.muted)
+    doc.setFontSize(10)
+    doc.setFont("helvetica", "normal")
+    doc.text("Dirección del Beneficiario", 30, currentY)
+    
+    doc.setTextColor(theme.text)
+    doc.setFontSize(11)
+    doc.setFont("helvetica", "normal")
+    const addressLines = doc.splitTextToSize(beneficiaryAddressField, 70)
+    doc.text(addressLines, 120, currentY)
+    currentY += (addressLines.length * 5) + 7
+  }
   
   return doc
 }
