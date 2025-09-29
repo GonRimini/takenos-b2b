@@ -1,0 +1,17 @@
+{
+  "name": "Takenos Portal",
+  "short_name": "Takenos",
+  "description": "Portal financiero de Takenos para depósitos y retiros",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#6d37d5",
+  "icons": [
+    {
+      "src": "/isotipo_color_takenos.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
