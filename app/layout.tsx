@@ -21,17 +21,17 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: '/isotipo_color_takenos.png',
+        url: '/isotipo_color_02.jpg',
         sizes: 'any',
-        type: 'image/png',
+        type: 'image/jpeg',
       },
     ],
-    shortcut: '/isotipo_color_takenos.png',
+    shortcut: '/isotipo_color_02.jpg',
     apple: [
       {
-        url: '/isotipo_color_takenos.png',
+        url: '/isotipo_color_02.jpg',
         sizes: '180x180',
-        type: 'image/png',
+        type: 'image/jpeg',
       },
     ],
   },

@@ -8,9 +8,9 @@
   "theme_color": "#6d37d5",
   "icons": [
     {
-      "src": "/isotipo_color_takenos.png",
+      "src": "/isotipo_color_02.jpg",
       "sizes": "any",
-      "type": "image/png",
+      "type": "image/jpeg",
       "purpose": "any maskable"
     }
   ]
