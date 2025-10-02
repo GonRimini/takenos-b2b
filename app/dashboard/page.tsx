@@ -267,8 +267,7 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-3xl font-bold text-gray-900">
             Bienvenido, {companyLoading ? (
               <span className="inline-flex items-center">
                 <span className="animate-pulse">Cargando...</span>
@@ -276,7 +275,8 @@ export default function Dashboard() {
             ) : (
               companyName || user?.email
             )}
-          </p>
+          </h1>
+          <p className="text-gray-600 mt-1">Dashboard</p>
         </div>
         
         {/* Controles de actualización */}
