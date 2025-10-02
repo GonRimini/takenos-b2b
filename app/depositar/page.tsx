@@ -216,7 +216,7 @@ export default function DepositarPage() {
           {(method === 'ach' && sheetLoading) || (method === 'swift' && swiftLoading) || (method === 'crypto' && cryptoLoading) || (method === 'local' && localLoading) ? (
             <div className="flex items-center space-x-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Cargando desde Google Sheets...</span>
+              <span>Cargando...</span>
             </div>
           ) : (method === 'ach' && sheetError) || (method === 'swift' && swiftError) || (method === 'crypto' && cryptoError) || (method === 'local' && localError) ? (
             <div className="flex items-center space-x-2 text-sm text-destructive">
