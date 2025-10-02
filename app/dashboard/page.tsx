@@ -5,9 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { RefreshCw, Download } from "lucide-react"
+import { RefreshCw } from "lucide-react"
 import { useAuth } from "@/components/auth"
-import { downloadTransactionReceipt } from "@/lib/pdf-generator"
 import { useDataCache, useCacheInvalidator } from "@/hooks/use-data-cache"
 import { useAuthenticatedFetch } from "@/hooks/use-authenticated-fetch"
 import { useCompanyName } from "@/hooks/use-company-name"
@@ -403,19 +402,18 @@ export default function Dashboard() {
                     <TableHead className="bg-white">Descripción</TableHead>
                     <TableHead className="text-right bg-white">Monto</TableHead>
                     <TableHead className="bg-white">Estado</TableHead>
-                    <TableHead className="text-center bg-white">Comprobante</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {movementsCache.loading ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                      <TableCell colSpan={4} className="text-center py-8 text-gray-500">
                         Cargando...
                       </TableCell>
                     </TableRow>
                   ) : !movementsCache.data || filterMovementsByDate(movementsCache.data).length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                      <TableCell colSpan={4} className="text-center py-8 text-gray-500">
                         {startDate || endDate ? "No hay movimientos en el rango de fechas seleccionado" : "No hay movimientos registrados"}
                       </TableCell>
                     </TableRow>
@@ -428,26 +426,6 @@ export default function Dashboard() {
                           {formatCurrency(m.amount)}
                         </TableCell>
                         <TableCell>{getStatusBadge(m.status)}</TableCell>
-                        <TableCell className="text-center">
-                          <Button
-                            onClick={async () => {
-                              try {
-                                await downloadTransactionReceipt({
-                                  ...m,
-                                  userEmail: user?.email || ""
-                                })
-                              } catch (error) {
-                                console.error('Error generating PDF:', error)
-                              }
-                            }}
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 hover:bg-blue-50"
-                            title="Descargar comprobante"
-                          >
-                            <Download className="h-4 w-4 text-blue-600" />
-                          </Button>
-                        </TableCell>
                       </TableRow>
                     ))
                   )}
