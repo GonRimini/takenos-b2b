@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { AccountField } from "@/components/account-field"
@@ -14,7 +15,7 @@ import { downloadDepositInstructions } from "@/lib/pdf-generator"
 export type DepositMethod = "ach" | "wire" | "swift" | "crypto" | "local"
 
 export default function DepositarPage() {
-  const [selectedMethod, setSelectedMethod] = useState<DepositMethod | "">("")
+  const [selectedMethod, setSelectedMethod] = useState<DepositMethod>("ach")
   
   // Obtener usuario desde Supabase
   const { user } = useAuth()
@@ -195,43 +196,41 @@ export default function DepositarPage() {
 
   // No devolvemos temprano en caso de error: mostramos aviso pero permitimos elegir método
 
-  const renderDepositInfo = () => {
-    if (!selectedMethod) return null
-
-    const isSwift = selectedMethod === "swift"
-    const isCrypto = selectedMethod === "crypto"
-    const isLocal = selectedMethod === "local"
-    const sheetMatch = selectedMethod === 'ach' && sheetRows ? findRowByEmail(sheetRows, userDisplayEmail) : null
-    const swiftMatch = selectedMethod === 'swift' && swiftRows ? findRowByEmail(swiftRows, userDisplayEmail) : null
-    const cryptoMatches = selectedMethod === 'crypto' && cryptoRows ? findAllRowsByEmail(cryptoRows, userDisplayEmail) : []
-    const localMatch = selectedMethod === 'local' && localRows ? findRowByEmailInColumn0(localRows, userDisplayEmail) : null
+  const renderDepositContent = (method: DepositMethod) => {
+    const isSwift = method === "swift"
+    const isCrypto = method === "crypto"
+    const isLocal = method === "local"
+    const sheetMatch = method === 'ach' && sheetRows ? findRowByEmail(sheetRows, userDisplayEmail) : null
+    const swiftMatch = method === 'swift' && swiftRows ? findRowByEmail(swiftRows, userDisplayEmail) : null
+    const cryptoMatches = method === 'crypto' && cryptoRows ? findAllRowsByEmail(cryptoRows, userDisplayEmail) : []
+    const localMatch = method === 'local' && localRows ? findRowByEmailInColumn0(localRows, userDisplayEmail) : null
 
     return (
       <Card className="rounded-lg shadow-sm">
         <CardHeader className="pb-4">
-          <CardTitle className="text-lg">Información para {selectedMethod === 'ach' ? 'ACH/WIRE' : selectedMethod === 'crypto' ? 'CRYPTO' : selectedMethod === 'local' ? 'MONEDA LOCAL' : selectedMethod.toUpperCase()}</CardTitle>
+          <CardTitle className="text-lg">Información para {method === 'ach' ? 'ACH/WIRE' : method === 'crypto' ? 'CRYPTO' : method === 'local' ? 'MONEDA LOCAL' : method.toUpperCase()}</CardTitle>
           <CardDescription>Utiliza estos datos para realizar tu depósito</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {/* Preferir datos de Google Sheet si hay match; si no, placeholders */}
-          {(selectedMethod === 'ach' && sheetLoading) || (selectedMethod === 'swift' && swiftLoading) || (selectedMethod === 'crypto' && cryptoLoading) || (selectedMethod === 'local' && localLoading) ? (
+          {(method === 'ach' && sheetLoading) || (method === 'swift' && swiftLoading) || (method === 'crypto' && cryptoLoading) || (method === 'local' && localLoading) ? (
             <div className="flex items-center space-x-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span>Cargando desde Google Sheets...</span>
             </div>
-          ) : (selectedMethod === 'ach' && sheetError) || (selectedMethod === 'swift' && swiftError) || (selectedMethod === 'crypto' && cryptoError) || (selectedMethod === 'local' && localError) ? (
+          ) : (method === 'ach' && sheetError) || (method === 'swift' && swiftError) || (method === 'crypto' && cryptoError) || (method === 'local' && localError) ? (
             <div className="flex items-center space-x-2 text-sm text-destructive">
               <AlertCircle className="h-4 w-4" />
-              <span>Error cargando datos: {selectedMethod === 'ach' ? sheetError : selectedMethod === 'swift' ? swiftError : selectedMethod === 'crypto' ? cryptoError : localError}</span>
+              <span>Error cargando datos: {method === 'ach' ? sheetError : method === 'swift' ? swiftError : method === 'crypto' ? cryptoError : localError}</span>
             </div>
-          ) : (selectedMethod === 'ach' && sheetRows && !sheetMatch) || (selectedMethod === 'swift' && swiftRows && !swiftMatch) || (selectedMethod === 'crypto' && cryptoRows && cryptoMatches.length === 0) || (selectedMethod === 'local' && localRows && !localMatch) ? (
+          ) : (method === 'ach' && sheetRows && !sheetMatch) || (method === 'swift' && swiftRows && !swiftMatch) || (method === 'crypto' && cryptoRows && cryptoMatches.length === 0) || (method === 'local' && localRows && !localMatch) ? (
             <div className="flex items-center space-x-2 text-sm text-muted-foreground">
               <AlertCircle className="h-4 w-4" />
               <span>No se encontraron datos para {userDisplayEmail}</span>
             </div>
-          ) : (selectedMethod === 'ach' && sheetMatch) || (selectedMethod === 'swift' && swiftMatch) || (selectedMethod === 'crypto' && cryptoMatches.length > 0) || (selectedMethod === 'local' && localMatch) ? (
+          ) : (method === 'ach' && sheetMatch) || (method === 'swift' && swiftMatch) || (method === 'crypto' && cryptoMatches.length > 0) || (method === 'local' && localMatch) ? (
             <>
-              {selectedMethod === 'ach' && sheetMatch ? (
+              {method === 'ach' && sheetMatch ? (
                 <>
                   <AccountField label="Routing Number" value={String(sheetMatch[3] || "")} />
                   <AccountField label="Número de cuenta" value={String(sheetMatch[2] || "")} maskable />
@@ -404,22 +403,55 @@ export default function DepositarPage() {
             <CardTitle className="text-base">Método de depósito</CardTitle>
             <CardDescription>Elige el tipo de transferencia que utilizarás</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Select value={selectedMethod} onValueChange={setSelectedMethod}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Selecciona un método de depósito" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ach">ACH/Wire</SelectItem>
-                <SelectItem value="swift">SWIFT (Internacional)</SelectItem>
-                <SelectItem value="crypto">Crypto</SelectItem>
-                <SelectItem value="local">Moneda Local</SelectItem>
-              </SelectContent>
-            </Select>
+          <CardContent className="p-0">
+            <Tabs value={selectedMethod} onValueChange={(value) => setSelectedMethod(value as DepositMethod)} className="w-full">
+              <TabsList className="grid w-full grid-cols-4 rounded-none border-b bg-transparent p-0">
+                <TabsTrigger 
+                  value="ach" 
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#6d37d5] data-[state=active]:bg-transparent data-[state=active]:text-[#6d37d5] data-[state=active]:shadow-none"
+                >
+                  ACH/Wire
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="swift" 
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#6d37d5] data-[state=active]:bg-transparent data-[state=active]:text-[#6d37d5] data-[state=active]:shadow-none"
+                >
+                  SWIFT
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="crypto" 
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#6d37d5] data-[state=active]:bg-transparent data-[state=active]:text-[#6d37d5] data-[state=active]:shadow-none"
+                >
+                  Crypto
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="local" 
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#6d37d5] data-[state=active]:bg-transparent data-[state=active]:text-[#6d37d5] data-[state=active]:shadow-none"
+                >
+                  Moneda Local
+                </TabsTrigger>
+              </TabsList>
+              
+              <div className="p-6">
+                <TabsContent value="ach" className="mt-0">
+                  {renderDepositContent("ach")}
+                </TabsContent>
+                
+                <TabsContent value="swift" className="mt-0">
+                  {renderDepositContent("swift")}
+                </TabsContent>
+                
+                <TabsContent value="crypto" className="mt-0">
+                  {renderDepositContent("crypto")}
+                </TabsContent>
+                
+                <TabsContent value="local" className="mt-0">
+                  {renderDepositContent("local")}
+                </TabsContent>
+              </div>
+            </Tabs>
           </CardContent>
         </Card>
-
-        {renderDepositInfo()}
 
         <Alert>
           <AlertCircle className="h-4 w-4" />
