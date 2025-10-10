@@ -170,7 +170,6 @@ export default function DepositarPage() {
       )
       // Para moneda local no necesitamos direcciones adicionales
     }
-
     return {
       method: selectedMethod === 'ach' ? 'ACH/Wire' : selectedMethod === 'crypto' ? 'Crypto' : selectedMethod === 'local' ? 'Moneda Local' : selectedMethod,
       userEmail: userDisplayEmail,
@@ -182,6 +181,7 @@ export default function DepositarPage() {
   // Función para descargar el PDF
   const handleDownloadPDF = async () => {
     const pdfData = generatePDFData()
+    console.log('PDF DATOS', pdfData)
     if (pdfData) {
       try {
         await downloadDepositInstructions(pdfData)
