@@ -555,6 +555,7 @@ export const downloadDepositInstructions = async (instructions: any) => {
     document.body.appendChild(container);
 
     // 2️⃣ Adaptar los datos según el método
+    console.log(instructions)
     const normalized = adaptInstructions(instructions);
 
     // 3️⃣ Renderizar el comprobante
@@ -669,7 +670,7 @@ function adaptInstructions(instructions: any) {
     method: normalizeMethod(instructions.method),
     data: {
       bankName: findValue(instructions.fields, "Banco receptor"),
-      routingNumber: findValue(instructions.fields, "Routing Number"),
+      routingNumber: findValue(instructions.fields, "SWIFT/BIC Code"),
       bankAddress: instructions.addresses?.bank || "",
       beneficiaryName: findValue(instructions.fields, "Nombre del beneficiario"),
       accountNumber: findValue(instructions.fields, "Número de cuenta"),
