@@ -642,7 +642,9 @@ function adaptInstructions(instructions: any) {
         beneficiaryName: findValue(instructions.fields, "Beneficiario"),
         accountNumber: findValue(instructions.fields, "Número de cuenta"),
         accountType: "Cuenta local",
-        beneficiaryAddress: `NIT/Carnet: ${findValue(instructions.fields, "NIT o Carnet")}`,
+        nitOrCuit: findValue(instructions.fields, "NIT o Carnet o CUIT"),
+        alias: findValue(instructions.fields, "Alias"),
+        cbu: findValue(instructions.fields, "CBU"),
       },
     };
   }
