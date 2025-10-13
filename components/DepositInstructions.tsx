@@ -13,6 +13,9 @@ interface DepositInstructionsProps {
     accountNumber?: string;
     accountType?: string;
     beneficiaryAddress?: string;
+    alias?: string;
+    cbu?: string;
+    nitOrCuit?: string;
   };
 }
 
@@ -30,6 +33,22 @@ const DepositInstructions: React.FC<DepositInstructionsProps> = ({
   };
 
   const isCrypto = method === "CRYPTO";
+
+  const renderRow = (
+    label: string,
+    value: string | undefined,
+    extraStyle: React.CSSProperties = {}
+  ) => {
+    if (!value) return null; // no renderiza si está vacío
+    return (
+      <tr style={{ borderBottom: "1px solid #ECECEC" }}>
+        <td style={{ ...labelCell }}>{label}</td>
+        <td style={{ ...valueCell, ...extraStyle }}>{value}</td>
+      </tr>
+    );
+  };
+
+  console.log(data);
 
   return (
     <div
@@ -117,84 +136,45 @@ const DepositInstructions: React.FC<DepositInstructionsProps> = ({
               {/* 🪙 CRYPTO */}
               {method === "CRYPTO" && (
                 <>
-                  <tr style={{ borderBottom: "1px solid #ECECEC" }}>
-                    <td style={{ ...labelCell }}>Wallet</td>
-                    <td style={{ ...valueCell }}>{data.accountType}</td>
-                  </tr>
-                  <tr style={{ borderBottom: "1px solid #ECECEC" }}>
-                    <td style={{ ...labelCell }}>Dirección de depósito</td>
-                    <td style={{ ...valueCell, wordBreak: "break-all" }}>
-                      {data.accountNumber}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style={{ ...labelCell }}>Red / Network</td>
-                    <td style={{ ...valueCell }}>{data.bankName}</td>
-                  </tr>
+                  {renderRow("Wallet", data.accountType)}
+                  {renderRow("Dirección de depósito", data.accountNumber, {
+                    wordBreak: "break-all",
+                  })}
+                  {renderRow("Red / Network", data.bankName)}
                 </>
               )}
 
               {/* 💵 MONEDA LOCAL */}
               {method === "LOCAL" && (
                 <>
-                  <tr style={{ borderBottom: "1px solid #ECECEC" }}>
-                    <td style={{ ...labelCell }}>Beneficiario</td>
-                    <td style={{ ...valueCell }}>{data.beneficiaryName}</td>
-                  </tr>
-                  <tr style={{ borderBottom: "1px solid #ECECEC" }}>
-                    <td style={{ ...labelCell }}>Banco</td>
-                    <td style={{ ...valueCell }}>{data.bankName}</td>
-                  </tr>
-                  <tr style={{ borderBottom: "1px solid #ECECEC" }}>
-                    <td style={{ ...labelCell }}>Número de Cuenta</td>
-                    <td style={{ ...valueCell }}>{data.accountNumber}</td>
-                  </tr>
-                  <tr>
-                    <td style={{ ...labelCell }}>NIT o Carnet</td>
-                    <td style={{ ...valueCell }}>{data.beneficiaryAddress}</td>
-                  </tr>
+                  {renderRow("Beneficiario", data.beneficiaryName)}
+                  {renderRow("Banco", data.bankName)}
+                  {renderRow("Número de Cuenta", data.accountNumber)}
+                  {renderRow("NIT o Carnet", data.nitOrCuit)}
+                  {renderRow("CBU", data.cbu)}
+                  {renderRow("Alias", data.alias)}
                 </>
               )}
 
               {/* 🌐 SWIFT */}
               {method === "SWIFT" && (
                 <>
-                  <tr style={{ borderBottom: "1px solid #ECECEC" }}>
-                    <td style={{ ...labelCell }}>SWIFT/BIC Code</td>
-                    <td style={{ ...valueCell }}>
-                      {data.routingNumber || "Solicitar"}
-                    </td>
-                  </tr>
-                  <tr style={{ borderBottom: "1px solid #ECECEC" }}>
-                    <td style={{ ...labelCell }}>Nombre del Banco</td>
-                    <td style={{ ...valueCell }}>{data.bankName}</td>
-                  </tr>
-                  <tr>
-                    <td style={{ ...labelCell }}>Dirección del Banco</td>
-                    <td style={{ ...valueCell, whiteSpace: "pre-line" }}>
-                      {data.bankAddress}
-                    </td>
-                  </tr>
+                  {renderRow("SWIFT/BIC Code", data.routingNumber)}
+                  {renderRow("Nombre del Banco", data.bankName)}
+                  {renderRow("Dirección del Banco", data.bankAddress, {
+                    whiteSpace: "pre-line",
+                  })}
                 </>
               )}
 
               {/* 🇺🇸 ACH */}
               {method === "ACH" && (
                 <>
-                  <tr style={{ borderBottom: "1px solid #ECECEC" }}>
-                    <td style={{ ...labelCell }}>Routing Number</td>
-                    <td style={{ ...valueCell }}>{data.routingNumber}</td>
-                  </tr>
-                  <tr style={{ borderBottom: "1px solid #ECECEC" }}>
-                    <td style={{ ...labelCell }}>Nombre del Banco</td>
-                    <td style={{ ...valueCell }}>{data.bankName}</td>
-                  </tr>
-                  <tr>
-                    <td style={{ ...labelCell }}>Dirección del Banco</td>
-                    <td style={{ ...valueCell, whiteSpace: "pre-line" }}>
-                      {data.bankAddress}
-                    </td>
-                  </tr>
+                  {renderRow("Routing Number", data.routingNumber)}
+                  {renderRow("Nombre del Banco", data.bankName)}
+                  {renderRow("Dirección del Banco", data.bankAddress, {
+                    whiteSpace: "pre-line",
+                  })}
                 </>
               )}
             </tbody>
@@ -202,16 +182,16 @@ const DepositInstructions: React.FC<DepositInstructionsProps> = ({
         </section>
 
         {/* BENEFICIARIO */}
-        {!isCrypto && (
+        {!isCrypto && method !== "LOCAL" && (
           <section style={{ marginBottom: 36 }}>
             <h2
               style={{
-              fontSize: 14,
-              fontWeight: 600,
-              color: "rgb(109, 55, 213)",
-              textTransform: "uppercase",
-              marginBottom: 10,
-              letterSpacing: ".6px",
+                fontSize: 14,
+                fontWeight: 600,
+                color: "rgb(109, 55, 213)",
+                textTransform: "uppercase",
+                marginBottom: 10,
+                letterSpacing: ".6px",
               }}
             >
               Beneficiario
@@ -227,27 +207,15 @@ const DepositInstructions: React.FC<DepositInstructionsProps> = ({
               }}
             >
               <tbody>
-                <tr style={{ borderBottom: "1px solid #ECECEC" }}>
-                  <td style={{ ...labelCell }}>Nombre del Beneficiario</td>
-                  <td style={{ ...valueCell }}>{data.beneficiaryName}</td>
-                </tr>
+                {renderRow("Nombre del Beneficiario", data.beneficiaryName)}
 
-                {/* Solo para métodos no CRYPTO */}
-                <>
-                  <tr style={{ borderBottom: "1px solid #ECECEC" }}>
-                    <td style={{ ...labelCell }}>Número de Cuenta</td>
-                    <td style={{ ...valueCell }}>{data.accountNumber}</td>
-                  </tr>
-                  <tr style={{ borderBottom: "1px solid #ECECEC" }}>
-                    <td style={{ ...labelCell }}>Tipo de Cuenta</td>
-                    <td style={{ ...valueCell }}>{data.accountType}</td>
-                  </tr>
-                </>
+                {renderRow("Número de Cuenta", data.accountNumber)}
+                {renderRow("Tipo de Cuenta", data.accountType)}
 
-                <tr>
-                  <td style={{ ...labelCell }}>Dirección del Beneficiario</td>
-                  <td style={{ ...valueCell }}>{data.beneficiaryAddress}</td>
-                </tr>
+                {renderRow(
+                  "Dirección del Beneficiario",
+                  data.beneficiaryAddress
+                )}
               </tbody>
             </table>
           </section>

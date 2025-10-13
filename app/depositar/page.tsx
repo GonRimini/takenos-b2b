@@ -331,8 +331,8 @@ export default function DepositarPage() {
                   <AccountField label="Banco" value={localData.banco || ""} />
                   <AccountField label="Número de cuenta" value={localData.nro_de_cuenta || ""} maskable />
                   <AccountField label="Identificación" value={localData.identificacion || ""} />
-                  <AccountField label="CBU" value={localData.cbu || ""} />
-                  <AccountField label="Alias" value={localData.alias || ""} />
+                  {localData.cbu && <AccountField label="CBU" value={localData.cbu || ""} />} 
+                  {localData.alias && <AccountField label="Alias" value={localData.alias || ""} />}
                 </>
               ) : null}
             </>

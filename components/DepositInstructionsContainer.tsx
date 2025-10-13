@@ -76,7 +76,10 @@ export default function DepositInstructionsContainer({ pdfData }: DepositInstruc
               beneficiaryName: findValue(pdfData.fields, "Nombre del beneficiario"),
               accountNumber: findValue(pdfData.fields, "Número de cuenta"),
               accountType: findValue(pdfData.fields, "Tipo de cuenta"),
-              beneficiaryAddress: pdfData.addresses?.beneficiary
+              beneficiaryAddress: pdfData.addresses?.beneficiary,
+              alias: findValue(pdfData.fields, "Alias"),
+              cbu: findValue(pdfData.fields, "CBU"),
+              nitOrCuit: findValue(pdfData.fields, "NIT o Carnet o CUIT"),
             }}
           />
         </div>
