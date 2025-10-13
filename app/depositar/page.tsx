@@ -9,7 +9,7 @@ import { AccountField } from "@/components/account-field"
 import { Download, AlertCircle, Loader2, RefreshCw } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/components/auth"
-import { getSheetDataByGid, findRowByEmail, findAllRowsByEmail, findRowByEmailInColumn0 } from "@/lib/google-sheets"
+import { getDepositoACH, getDepositoSWIFT, getDepositosCrypto, getDepositoLocal, DepositoACH, DepositoSWIFT, DepositoCrypto, DepositoLocal } from "@/lib/depositos"
 import { downloadDepositInstructions } from "@/lib/pdf-generator"
 
 export type DepositMethod = "ach" | "wire" | "swift" | "crypto" | "local"
@@ -24,91 +24,137 @@ export default function DepositarPage() {
   // El mapeo solo debe aplicarse en el backend para APIs externas
   const userDisplayEmail = user?.email || ""
 
-  // Google Sheets state (ACH)
-  const [sheetRows, setSheetRows] = useState<any[][] | null>(null)
-  const [sheetLoading, setSheetLoading] = useState<boolean>(false)
-  const [sheetError, setSheetError] = useState<string | null>(null)
+  // Supabase state (ACH)
+  const [achData, setAchData] = useState<DepositoACH | null>(null)
+  const [achLoading, setAchLoading] = useState<boolean>(false)
+  const [achError, setAchError] = useState<string | null>(null)
 
-  // Google Sheets state (SWIFT)
-  const [swiftRows, setSwiftRows] = useState<any[][] | null>(null)
+  // Supabase state (SWIFT)
+  const [swiftData, setSwiftData] = useState<DepositoSWIFT | null>(null)
   const [swiftLoading, setSwiftLoading] = useState<boolean>(false)
   const [swiftError, setSwiftError] = useState<string | null>(null)
 
-  // Google Sheets state (Crypto)
-  const [cryptoRows, setCryptoRows] = useState<any[][] | null>(null)
+  // Supabase state (Crypto)
+  const [cryptoData, setCryptoData] = useState<DepositoCrypto[]>([])
   const [cryptoLoading, setCryptoLoading] = useState<boolean>(false)
   const [cryptoError, setCryptoError] = useState<string | null>(null)
   const [selectedCryptoWallet, setSelectedCryptoWallet] = useState<number>(0) // Index of selected wallet
 
-  // Google Sheets state (Local Currency)
-  const [localRows, setLocalRows] = useState<any[][] | null>(null)
+  // Supabase state (Local Currency)
+  const [localData, setLocalData] = useState<DepositoLocal | null>(null)
   const [localLoading, setLocalLoading] = useState<boolean>(false)
   const [localError, setLocalError] = useState<string | null>(null)
 
-  async function loadSheet() {
+  async function loadACH() {
+    if (!userDisplayEmail) return
     try {
-      setSheetLoading(true)
-      setSheetError(null)
-      const rows = await getSheetDataByGid(400616177)
-      setSheetRows(rows)
+      setAchLoading(true)
+      setAchError(null)
+      setAchData(null) // Limpiar datos anteriores
+      const data = await getDepositoACH(userDisplayEmail)
+      setAchData(data)
+      if (!data) {
+        setAchError('No se encontraron datos ACH para este usuario')
+      }
     } catch (e: any) {
-      setSheetError(e?.message || 'Error cargando Google Sheet')
+      setAchError(e?.message || 'Error cargando datos ACH')
+      setAchData(null)
     } finally {
-      setSheetLoading(false)
+      setAchLoading(false)
     }
   }
 
-  async function loadSwiftSheet() {
+  async function loadSWIFT() {
+    if (!userDisplayEmail) return
     try {
       setSwiftLoading(true)
       setSwiftError(null)
-      const rows = await getSheetDataByGid(1293040889) // SWIFT GID
-      setSwiftRows(rows)
+      setSwiftData(null) // Limpiar datos anteriores
+      const data = await getDepositoSWIFT(userDisplayEmail)
+      setSwiftData(data)
+      if (!data) {
+        setSwiftError('No se encontraron datos SWIFT para este usuario')
+      }
     } catch (e: any) {
-      setSwiftError(e?.message || 'Error cargando Google Sheet SWIFT')
+      setSwiftError(e?.message || 'Error cargando datos SWIFT')
+      setSwiftData(null)
     } finally {
       setSwiftLoading(false)
     }
   }
 
-  async function loadCryptoSheet() {
+  async function loadCrypto() {
+    if (!userDisplayEmail) return
     try {
       setCryptoLoading(true)
       setCryptoError(null)
+      setCryptoData([]) // Limpiar datos anteriores
       setSelectedCryptoWallet(0) // Reset selection when loading
-      const rows = await getSheetDataByGid(0) // Crypto GID
-      setCryptoRows(rows)
+      const data = await getDepositosCrypto(userDisplayEmail)
+      setCryptoData(data)
+      if (data.length === 0) {
+        setCryptoError('No se encontraron wallets crypto para este usuario')
+      }
     } catch (e: any) {
-      setCryptoError(e?.message || 'Error cargando Google Sheet Crypto')
+      setCryptoError(e?.message || 'Error cargando datos Crypto')
+      setCryptoData([])
     } finally {
       setCryptoLoading(false)
     }
   }
 
-  async function loadLocalSheet() {
+  async function loadLocal() {
+    if (!userDisplayEmail) return
     try {
       setLocalLoading(true)
       setLocalError(null)
-      const rows = await getSheetDataByGid(1068163223) // Local Currency GID
-      setLocalRows(rows)
+      setLocalData(null) // Limpiar datos anteriores
+      const data = await getDepositoLocal(userDisplayEmail)
+      setLocalData(data)
+      if (!data) {
+        setLocalError('No se encontraron datos de moneda local para este usuario')
+      }
     } catch (e: any) {
-      setLocalError(e?.message || 'Error cargando Google Sheet Local')
+      setLocalError(e?.message || 'Error cargando datos de moneda local')
+      setLocalData(null)
     } finally {
       setLocalLoading(false)
     }
   }
 
   useEffect(() => {
-    if (selectedMethod === 'ach') {
-      loadSheet()
-    } else if (selectedMethod === 'swift') {
-      loadSwiftSheet()
-    } else if (selectedMethod === 'crypto') {
-      loadCryptoSheet()
-    } else if (selectedMethod === 'local') {
-      loadLocalSheet()
+    if (!userDisplayEmail) return
+    
+    // Limpiar datos de otros métodos cuando cambias de tab (para evitar mostrar datos viejos)
+    if (selectedMethod !== 'ach') {
+      setAchData(null)
+      setAchError(null)
     }
-  }, [selectedMethod])
+    if (selectedMethod !== 'swift') {
+      setSwiftData(null)
+      setSwiftError(null)
+    }
+    if (selectedMethod !== 'crypto') {
+      setCryptoData([])
+      setCryptoError(null)
+      setSelectedCryptoWallet(0)
+    }
+    if (selectedMethod !== 'local') {
+      setLocalData(null)
+      setLocalError(null)
+    }
+    
+    // Cargar datos del método seleccionado
+    if (selectedMethod === 'ach') {
+      loadACH()
+    } else if (selectedMethod === 'swift') {
+      loadSWIFT()
+    } else if (selectedMethod === 'crypto') {
+      loadCrypto()
+    } else if (selectedMethod === 'local') {
+      loadLocal()
+    }
+  }, [selectedMethod, userDisplayEmail])
   
   // PDF deshabilitado temporalmente
 
@@ -116,57 +162,54 @@ export default function DepositarPage() {
   const generatePDFData = () => {
     if (!selectedMethod || !userDisplayEmail) return null
 
-    const sheetMatch = selectedMethod === 'ach' && sheetRows ? findRowByEmail(sheetRows, userDisplayEmail) : null
-    const swiftMatch = selectedMethod === 'swift' && swiftRows ? findRowByEmail(swiftRows, userDisplayEmail) : null
-    const cryptoMatches = selectedMethod === 'crypto' && cryptoRows ? findAllRowsByEmail(cryptoRows, userDisplayEmail) : []
-    const cryptoMatch = cryptoMatches.length > 0 ? cryptoMatches[selectedCryptoWallet] || cryptoMatches[0] : null // Use selected wallet for PDF
-    const localMatch = selectedMethod === 'local' && localRows ? findRowByEmailInColumn0(localRows, userDisplayEmail) : null
-
     // Si no hay datos disponibles, no generar PDF
-    if ((selectedMethod === 'ach' && !sheetMatch) || (selectedMethod === 'swift' && !swiftMatch) || (selectedMethod === 'crypto' && !cryptoMatch) || (selectedMethod === 'local' && !localMatch)) {
+    if ((selectedMethod === 'ach' && !achData) || (selectedMethod === 'swift' && !swiftData) || (selectedMethod === 'crypto' && cryptoData.length === 0) || (selectedMethod === 'local' && !localData)) {
       return null
     }
 
     const fields: { label: string; value: string; maskable?: boolean }[] = []
     let addresses: { beneficiary?: string; bank?: string } | undefined
 
-    if (selectedMethod === 'ach' && sheetMatch) {
+    if (selectedMethod === 'ach' && achData) {
       fields.push(
-        { label: "Routing Number", value: String(sheetMatch[3] || "") },
-        { label: "Número de cuenta", value: String(sheetMatch[2] || ""), maskable: true },
-        { label: "Nombre del beneficiario", value: String(sheetMatch[4] || "") },
-        { label: "Banco receptor", value: String(sheetMatch[5] || "") },
-        { label: "Tipo de cuenta", value: String(sheetMatch[6] || "") }
+        { label: "Routing Number", value: achData.routing_number || "" },
+        { label: "Número de cuenta", value: achData.account_number || "", maskable: true },
+        { label: "Nombre del beneficiario", value: achData.beneficiary_name || "" },
+        { label: "Banco receptor", value: achData.receiver_bank || "" },
+        { label: "Tipo de cuenta", value: achData.account_type || "" }
       )
       addresses = {
-        beneficiary: String(sheetMatch[7] || ""),
-        bank: String(sheetMatch[8] || "")
+        beneficiary: achData.beneficiary_address || "",
+        bank: achData.beneficiary_bank_address || ""
       }
-    } else if (selectedMethod === 'swift' && swiftMatch) {
+    } else if (selectedMethod === 'swift' && swiftData) {
       fields.push(
-        { label: "SWIFT/BIC Code", value: String(swiftMatch[2] || "") },
-        { label: "Número de cuenta", value: String(swiftMatch[3] || ""), maskable: true },
-        { label: "Nombre del beneficiario", value: String(swiftMatch[4] || "") },
-        { label: "Banco receptor", value: String(swiftMatch[5] || "") },
-        { label: "Tipo de cuenta", value: String(swiftMatch[6] || "") }
+        { label: "SWIFT/BIC Code", value: swiftData.swift_bic_code || "" },
+        { label: "Número de cuenta", value: swiftData.account_number || "", maskable: true },
+        { label: "Nombre del beneficiario", value: swiftData.beneficiary_name || "" },
+        { label: "Banco receptor", value: swiftData.receiver_bank || "" },
+        { label: "Tipo de cuenta", value: swiftData.account_type || "" }
       )
       addresses = {
-        beneficiary: String(swiftMatch[7] || ""),
-        bank: String(swiftMatch[8] || "")
+        beneficiary: swiftData.beneficiary_address || "",
+        bank: swiftData.beneficiary_bank_address || ""
       }
-    } else if (selectedMethod === 'crypto' && cryptoMatch) {
+    } else if (selectedMethod === 'crypto' && cryptoData.length > 0) {
+      const selectedWallet = cryptoData[selectedCryptoWallet] || cryptoData[0]
       fields.push(
-        { label: "Wallet", value: String(cryptoMatch[0] || "") },
-        { label: "Dirección de depósito", value: String(cryptoMatch[2] || "") },
-        { label: "Red/Network", value: String(cryptoMatch[3] || "") }
+        { label: "Wallet", value: selectedWallet.title || "" },
+        { label: "Dirección de depósito", value: selectedWallet.deposit_address || "" },
+        { label: "Red/Network", value: selectedWallet.network || "" }
       )
       // Para crypto no necesitamos direcciones adicionales
-    } else if (selectedMethod === 'local' && localMatch) {
+    } else if (selectedMethod === 'local' && localData) {
       fields.push(
-        { label: "Beneficiario", value: String(localMatch[1] || "") },
-        { label: "Banco", value: String(localMatch[2] || "") },
-        { label: "Número de cuenta", value: String(localMatch[3] || ""), maskable: true },
-        { label: "NIT o Carnet", value: String(localMatch[4] || "") }
+        { label: "Beneficiario", value: localData.beneficiario || "" },
+        { label: "Banco", value: localData.banco || "" },
+        { label: "Número de cuenta", value: localData.nro_de_cuenta || "", maskable: true },
+        { label: "Identificación", value: localData.identificacion || "" },
+        { label: "CBU", value: localData.cbu || "" },
+        { label: "Alias", value: localData.alias || "" }
       )
       // Para moneda local no necesitamos direcciones adicionales
     }
@@ -200,10 +243,10 @@ export default function DepositarPage() {
     const isSwift = method === "swift"
     const isCrypto = method === "crypto"
     const isLocal = method === "local"
-    const sheetMatch = method === 'ach' && sheetRows ? findRowByEmail(sheetRows, userDisplayEmail) : null
-    const swiftMatch = method === 'swift' && swiftRows ? findRowByEmail(swiftRows, userDisplayEmail) : null
-    const cryptoMatches = method === 'crypto' && cryptoRows ? findAllRowsByEmail(cryptoRows, userDisplayEmail) : []
-    const localMatch = method === 'local' && localRows ? findRowByEmailInColumn0(localRows, userDisplayEmail) : null
+    const hasACHData = method === 'ach' && achData !== null
+    const hasSWIFTData = method === 'swift' && swiftData !== null
+    const hasCryptoData = method === 'crypto' && cryptoData.length > 0
+    const hasLocalData = method === 'local' && localData !== null
 
     return (
       <Card className="rounded-lg shadow-sm">
@@ -212,43 +255,43 @@ export default function DepositarPage() {
           <CardDescription>Utiliza estos datos para realizar tu depósito</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {/* Preferir datos de Google Sheet si hay match; si no, placeholders */}
-          {(method === 'ach' && sheetLoading) || (method === 'swift' && swiftLoading) || (method === 'crypto' && cryptoLoading) || (method === 'local' && localLoading) ? (
+          {/* Mostrar loading, error o datos según el estado */}
+          {(method === 'ach' && achLoading) || (method === 'swift' && swiftLoading) || (method === 'crypto' && cryptoLoading) || (method === 'local' && localLoading) ? (
             <div className="flex items-center space-x-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span>Cargando...</span>
             </div>
-          ) : (method === 'ach' && sheetError) || (method === 'swift' && swiftError) || (method === 'crypto' && cryptoError) || (method === 'local' && localError) ? (
+          ) : (method === 'ach' && achError) || (method === 'swift' && swiftError) || (method === 'crypto' && cryptoError) || (method === 'local' && localError) ? (
             <div className="flex items-center space-x-2 text-sm text-destructive">
               <AlertCircle className="h-4 w-4" />
-              <span>Error cargando datos: {method === 'ach' ? sheetError : method === 'swift' ? swiftError : method === 'crypto' ? cryptoError : localError}</span>
+              <span>Error cargando datos: {method === 'ach' ? achError : method === 'swift' ? swiftError : method === 'crypto' ? cryptoError : localError}</span>
             </div>
-          ) : (method === 'ach' && sheetRows && !sheetMatch) || (method === 'swift' && swiftRows && !swiftMatch) || (method === 'crypto' && cryptoRows && cryptoMatches.length === 0) || (method === 'local' && localRows && !localMatch) ? (
+          ) : !hasACHData && !hasSWIFTData && !hasCryptoData && !hasLocalData ? (
             <div className="flex items-center space-x-2 text-sm text-muted-foreground">
               <AlertCircle className="h-4 w-4" />
               <span>No se encontraron datos para {userDisplayEmail}</span>
             </div>
-          ) : (method === 'ach' && sheetMatch) || (method === 'swift' && swiftMatch) || (method === 'crypto' && cryptoMatches.length > 0) || (method === 'local' && localMatch) ? (
+          ) : (hasACHData || hasSWIFTData || hasCryptoData || hasLocalData) ? (
             <>
-              {method === 'ach' && sheetMatch ? (
+              {method === 'ach' && achData ? (
                 <>
-                  <AccountField label="Routing Number" value={String(sheetMatch[3] || "")} />
-                  <AccountField label="Número de cuenta" value={String(sheetMatch[2] || "")} maskable />
-                  <AccountField label="Nombre del beneficiario" value={String(sheetMatch[4] || "")} />
-                  <AccountField label="Banco receptor" value={String(sheetMatch[5] || "")} />
-                  <AccountField label="Tipo de cuenta" value={String(sheetMatch[6] || "")} />
+                  <AccountField label="Routing Number" value={achData.routing_number || ""} />
+                  <AccountField label="Número de cuenta" value={achData.account_number || ""} maskable />
+                  <AccountField label="Nombre del beneficiario" value={achData.beneficiary_name || ""} />
+                  <AccountField label="Banco receptor" value={achData.receiver_bank || ""} />
+                  <AccountField label="Tipo de cuenta" value={achData.account_type || ""} />
                 </>
-              ) : selectedMethod === 'swift' && swiftMatch ? (
+              ) : selectedMethod === 'swift' && swiftData ? (
                 <>
-                  <AccountField label="SWIFT/BIC Code" value={String(swiftMatch[2] || "")} />
-                  <AccountField label="Número de cuenta" value={String(swiftMatch[3] || "")} maskable />
-                  <AccountField label="Nombre del beneficiario" value={String(swiftMatch[4] || "")} />
-                  <AccountField label="Banco receptor" value={String(swiftMatch[5] || "")} />
-                  <AccountField label="Tipo de cuenta" value={String(swiftMatch[6] || "")} />
+                  <AccountField label="SWIFT/BIC Code" value={swiftData.swift_bic_code || ""} />
+                  <AccountField label="Número de cuenta" value={swiftData.account_number || ""} maskable />
+                  <AccountField label="Nombre del beneficiario" value={swiftData.beneficiary_name || ""} />
+                  <AccountField label="Banco receptor" value={swiftData.receiver_bank || ""} />
+                  <AccountField label="Tipo de cuenta" value={swiftData.account_type || ""} />
                 </>
-              ) : selectedMethod === 'crypto' && cryptoMatches.length > 0 ? (
+              ) : selectedMethod === 'crypto' && cryptoData.length > 0 ? (
                 <>
-                  {cryptoMatches.length > 1 && (
+                  {cryptoData.length > 1 && (
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-foreground">Selecciona tu wallet</label>
                       <Select 
@@ -259,9 +302,9 @@ export default function DepositarPage() {
                           <SelectValue placeholder="Selecciona una wallet" />
                         </SelectTrigger>
                         <SelectContent>
-                          {cryptoMatches.map((cryptoMatch, index) => (
+                          {cryptoData.map((wallet, index) => (
                             <SelectItem key={index} value={index.toString()}>
-                              {String(cryptoMatch[0] || `Wallet ${index + 1}`)} - {String(cryptoMatch[3] || "")}
+                              {wallet.title || `Wallet ${index + 1}`} - {wallet.network || ""}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -269,25 +312,27 @@ export default function DepositarPage() {
                     </div>
                   )}
                   
-                  {cryptoMatches[selectedCryptoWallet] && (
+                  {cryptoData[selectedCryptoWallet] && (
                     <>
                       <AccountField 
                         label="Dirección de depósito" 
-                        value={String(cryptoMatches[selectedCryptoWallet][2] || "")} 
+                        value={cryptoData[selectedCryptoWallet].deposit_address || ""} 
                       />
                       <AccountField 
                         label="Red/Network" 
-                        value={String(cryptoMatches[selectedCryptoWallet][3] || "")} 
+                        value={cryptoData[selectedCryptoWallet].network || ""} 
                       />
                     </>
                   )}
                 </>
-              ) : selectedMethod === 'local' && localMatch ? (
+              ) : selectedMethod === 'local' && localData ? (
                 <>
-                  <AccountField label="Beneficiario" value={String(localMatch[1] || "")} />
-                  <AccountField label="Banco" value={String(localMatch[2] || "")} />
-                  <AccountField label="Número de cuenta" value={String(localMatch[3] || "")} maskable />
-                  <AccountField label="NIT o Carnet" value={String(localMatch[4] || "")} />
+                  <AccountField label="Beneficiario" value={localData.beneficiario || ""} />
+                  <AccountField label="Banco" value={localData.banco || ""} />
+                  <AccountField label="Número de cuenta" value={localData.nro_de_cuenta || ""} maskable />
+                  <AccountField label="Identificación" value={localData.identificacion || ""} />
+                  <AccountField label="CBU" value={localData.cbu || ""} />
+                  <AccountField label="Alias" value={localData.alias || ""} />
                 </>
               ) : null}
             </>
@@ -333,8 +378,8 @@ export default function DepositarPage() {
               <div className="text-sm font-medium text-foreground">Dirección del beneficiario</div>
               <div className="p-2 bg-muted/50 rounded border text-xs">
                   <div className="text-muted-foreground">
-                    {(selectedMethod === 'ach' && sheetMatch) ? (sheetMatch[7] || "No disponible") 
-                     : (selectedMethod === 'swift' && swiftMatch) ? (swiftMatch[7] || "No disponible")
+                    {(selectedMethod === 'ach' && achData) ? (achData.beneficiary_address || "No disponible") 
+                     : (selectedMethod === 'swift' && swiftData) ? (swiftData.beneficiary_address || "No disponible")
                      : "Temporalmente no disponible"}
                   </div>
                 </div>
@@ -344,8 +389,8 @@ export default function DepositarPage() {
               <div className="text-sm font-medium text-foreground">Dirección del banco receptor</div>
               <div className="p-2 bg-muted/50 rounded border text-xs">
                   <div className="text-muted-foreground">
-                    {(selectedMethod === 'ach' && sheetMatch) ? (sheetMatch[8] || "No disponible") 
-                     : (selectedMethod === 'swift' && swiftMatch) ? (swiftMatch[8] || "No disponible")
+                    {(selectedMethod === 'ach' && achData) ? (achData.beneficiary_bank_address || "No disponible") 
+                     : (selectedMethod === 'swift' && swiftData) ? (swiftData.beneficiary_bank_address || "No disponible")
                      : "Temporalmente no disponible"}
                   </div>
                 </div>
@@ -354,7 +399,7 @@ export default function DepositarPage() {
           )}
 
           {/* Botón de descarga de PDF */}
-          {((selectedMethod === 'ach' && sheetMatch) || (selectedMethod === 'swift' && swiftMatch) || (selectedMethod === 'crypto' && cryptoMatches.length > 0) || (selectedMethod === 'local' && localMatch)) && (
+          {((selectedMethod === 'ach' && achData) || (selectedMethod === 'swift' && swiftData) || (selectedMethod === 'crypto' && cryptoData.length > 0) || (selectedMethod === 'local' && localData)) && (
             <div className="mt-6 pt-4 border-t">
               <Button
                 onClick={handleDownloadPDF}
@@ -384,15 +429,20 @@ export default function DepositarPage() {
           </p>
         </div>
         
-        {/* Botón de actualización: recarga Google Sheets si aplica */}
+        {/* Botón de actualización */}
         <Button
           variant="outline"
           size="sm"
-          onClick={() => { if (selectedMethod === 'ach') { loadSheet() } }}
-          disabled={selectedMethod !== 'ach' || sheetLoading}
+          onClick={() => { 
+            if (selectedMethod === 'ach') loadACH()
+            else if (selectedMethod === 'swift') loadSWIFT()
+            else if (selectedMethod === 'crypto') loadCrypto()
+            else if (selectedMethod === 'local') loadLocal()
+          }}
+          disabled={achLoading || swiftLoading || cryptoLoading || localLoading}
           className="flex items-center space-x-2"
         >
-          <RefreshCw className={`h-4 w-4 ${sheetLoading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-4 w-4 ${(achLoading || swiftLoading || cryptoLoading || localLoading) ? 'animate-spin' : ''}`} />
           <span>Actualizar</span>
         </Button>
       </div>
