@@ -9,18 +9,18 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Progress } from "@/components/ui/progress"
 import { HelpCircle, Mail, Phone, Clock, CreditCard, Banknote, AlertTriangle, TrendingUp, Loader2 } from "lucide-react"
 import { useAuth } from "@/components/auth"
-import { getSheetDataByGid, findRowByEmailInColumn0 } from "@/lib/google-sheets"
+import { getLimitesByEmail, LimitesData } from "@/lib/limites"
 
 export default function AyudaPage() {
   const { user } = useAuth()
   const userDisplayEmail = user?.email || ""
 
   // Estado para datos de límites
-  const [limitsData, setLimitsData] = useState<any>(null)
+  const [limitsData, setLimitsData] = useState<LimitesData | null>(null)
   const [limitsLoading, setLimitsLoading] = useState<boolean>(false)
   const [limitsError, setLimitsError] = useState<string | null>(null)
 
-  // Cargar datos de límites
+  // Cargar datos de límites desde Supabase
   useEffect(() => {
     async function loadLimits() {
       if (!userDisplayEmail) return
@@ -28,16 +28,12 @@ export default function AyudaPage() {
       try {
         setLimitsLoading(true)
         setLimitsError(null)
-        const rows = await getSheetDataByGid(1530389295) // Límites GID
-        const userLimits = findRowByEmailInColumn0(rows, userDisplayEmail)
+        const userLimits = await getLimitesByEmail(userDisplayEmail)
         
         if (userLimits) {
-          setLimitsData({
-            email: userLimits[0],
-            limit: parseFloat(userLimits[1]) || 0,
-            consumido: parseFloat(userLimits[2]) || 0,
-            restante: parseFloat(userLimits[3]) || 0
-          })
+          setLimitsData(userLimits)
+        } else {
+          setLimitsError('No se encontraron límites para este usuario')
         }
       } catch (e: any) {
         setLimitsError(e?.message || 'Error cargando límites')
@@ -68,21 +64,21 @@ export default function AyudaPage() {
       )
     }
 
-    const { limit, consumido } = limitsData
-    const percentage = limit > 0 ? (consumido / limit) * 100 : 0
+    const { limite, consumido, restante } = limitsData
+    const percentage = limite > 0 ? (consumido / limite) * 100 : 0
 
     return (
       <div className="space-y-3">
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">Límite mensual</span>
-          <span className="font-medium">${limit.toLocaleString()}</span>
+          <span className="font-medium">${limite.toLocaleString()}</span>
         </div>
         
         <div className="space-y-2">
           <Progress value={percentage} className="h-3" />
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>Consumido: ${consumido.toLocaleString()}</span>
-            <span>Restante: ${(limit - consumido).toLocaleString()}</span>
+            <span>Restante: ${restante.toLocaleString()}</span>
           </div>
         </div>
         
