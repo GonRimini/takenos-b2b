@@ -138,6 +138,7 @@ export default function AyudaPage() {
 
                   <Button 
                     className="w-full mt-4"
+                    variant="cta"
                     onClick={() => window.open('https://wa.me/5491165637616', '_blank')}
                   >
                     <Phone className="mr-2 h-4 w-4" />

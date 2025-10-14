@@ -10,8 +10,8 @@ import { useAuth } from "@/components/auth"
 import { useDataCache, useCacheInvalidator } from "@/hooks/use-data-cache"
 import { useAuthenticatedFetch } from "@/hooks/use-authenticated-fetch"
 import { useCompanyName } from "@/hooks/use-company-name"
-
-
+import { DownloadStatement } from "@/components/DownloadStatement"
+import { Table as TableIcon } from "lucide-react"
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -36,18 +36,22 @@ export default function Dashboard() {
   }
 
   // Función para obtener movimientos
-  const fetchMovementsData = async (): Promise<any[]> => {
-    if (!user?.email) throw new Error("Usuario no autenticado")
-    
-    const response = await authenticatedFetch("/api/transactions", {
-      method: "POST",
-    })
+const fetchMovementsData = async (): Promise<any[]> => {
+  if (!user?.email) throw new Error("Usuario no autenticado")
 
-    const data = await response.json()
-    if (!response.ok) throw new Error(data.error || "Error al cargar movimientos")
-    
-    return Array.isArray(data.data) ? data.data : []
+  const response = await authenticatedFetch("/api/transactions", {
+    method: "POST",
+  })
+
+  const data = await response.json()
+  if (!response.ok) throw new Error(data.error || "Error al cargar movimientos")
+  if (data.data) {
+    data.data.companyName = companyName;
+    data.data.userEmail = user.email;
   }
+
+  return Array.isArray(data.data) ? data.data : []
+}
 
   // Función para obtener retiros pendientes
   const fetchPendingWithdrawalsData = async (): Promise<any[]> => {
@@ -267,7 +271,7 @@ export default function Dashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">
-            Bienvenido, {companyLoading ? (
+            Hola, {companyLoading ? (
               <span className="inline-flex items-center">
                 <span className="animate-pulse">Cargando...</span>
               </span>
@@ -275,13 +279,13 @@ export default function Dashboard() {
               companyName || user?.email
             )}
           </h1>
-          <p className="text-gray-600 mt-1">Dashboard</p>
+          <p className="text-gray-600 mt-1">Resumen general de tu cuenta</p>
         </div>
         
         {/* Controles de actualización */}
         <div className="flex items-center space-x-2">
           <Button
-            variant="outline"
+            variant="cta"
             size="sm"
             onClick={refreshAllData}
             disabled={balanceCache.loading || movementsCache.loading || pendingWithdrawalsCache.loading}
@@ -341,15 +345,18 @@ export default function Dashboard() {
               <CardTitle className="text-xl font-semibold">Movimientos Recientes</CardTitle>
               <p className="text-gray-600">Historial de transacciones y operaciones</p>
             </div>
-            <Button
-              onClick={downloadCSV}
-              variant="outline"
-              size="sm"
-              disabled={movementsCache.loading || !movementsCache.data || movementsCache.data.length === 0}
-              className="ml-4"
-            >
-              Descargar CSV
-            </Button>
+            <div className="flex items-center space-x-2">
+              <Button
+                onClick={downloadCSV}
+                variant="cta"
+                size="sm"
+                disabled={movementsCache.loading || !movementsCache.data || movementsCache.data.length === 0}
+              >
+                <TableIcon className="w-4 h-4" />
+                Descargar CSV
+              </Button>
+            <DownloadStatement data={movementsCache.data || []} disabled={movementsCache.loading || !movementsCache.data || movementsCache.data.length === 0} />
+            </div>
           </div>
           
           {/* Date Filters */}

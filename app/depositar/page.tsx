@@ -403,7 +403,7 @@ export default function DepositarPage() {
             <div className="mt-6 pt-4 border-t">
               <Button
                 onClick={handleDownloadPDF}
-                variant="outline"
+                variant="cta"
                 className="w-full sm:w-auto"
               >
                 <Download className="w-4 h-4 mr-2" />
@@ -431,7 +431,7 @@ export default function DepositarPage() {
         
         {/* Botón de actualización */}
         <Button
-          variant="outline"
+          variant="cta"
           size="sm"
           onClick={() => { 
             if (selectedMethod === 'ach') loadACH()
