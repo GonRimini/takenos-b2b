@@ -355,7 +355,7 @@ const fetchMovementsData = async (): Promise<any[]> => {
                 <TableIcon className="w-4 h-4" />
                 Descargar CSV
               </Button>
-            <DownloadStatement data={movementsCache.data || []} disabled={movementsCache.loading || !movementsCache.data || movementsCache.data.length === 0} />
+            {/* <DownloadStatement data={movementsCache.data || []} disabled={movementsCache.loading || !movementsCache.data || movementsCache.data.length === 0} /> */}
             </div>
           </div>
           
