@@ -10,7 +10,7 @@ import { useAuth } from "@/components/auth"
 import { useDataCache, useCacheInvalidator } from "@/hooks/use-data-cache"
 import { useAuthenticatedFetch } from "@/hooks/use-authenticated-fetch"
 import { useCompanyName } from "@/hooks/use-company-name"
-import { DownloadStatement } from "@/components/DownloadStatement"
+// import { DownloadStatement } from "@/components/DownloadStatement"
 import { Table as TableIcon } from "lucide-react"
 
 export default function Dashboard() {
