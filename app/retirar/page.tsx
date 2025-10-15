@@ -53,10 +53,13 @@ const walletNetworks = [
 export default function RetirarPage() {
   const [showSummary, setShowSummary] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [showAccounts, setShowAccounts] = useState(false)
   const [accounts, setAccounts] = useState<any[]>([])
   const [loadingAccounts, setLoadingAccounts] = useState(false)
   const [usedSavedAccount, setUsedSavedAccount] = useState(false)
+  
+  // Estados del wizard
+  const [currentStep, setCurrentStep] = useState<'select-account' | 'withdrawal-details'>('select-account')
+  const [selectedAccount, setSelectedAccount] = useState<any>(null)
   const { toast } = useToast()
   const { user } = useAuth()
   const { invalidateWithdrawalsCache } = useCacheInvalidation()
@@ -253,9 +256,8 @@ export default function RetirarPage() {
     return ""
   }
 
-  // Función para cargar cuentas guardadas
+  // Función para cargar cuentas guardadas al iniciar el paso 1
   async function loadSavedAccounts() {
-    setShowAccounts(true)
     setLoadingAccounts(true)
     
     try {
@@ -299,6 +301,48 @@ export default function RetirarPage() {
     } finally {
       setLoadingAccounts(false)
     }
+  }
+
+  // Función para seleccionar cuenta y avanzar al paso 2
+  function selectAccountAndProceed(account: any) {
+    setSelectedAccount(account)
+    fillFormFromAccount(account)
+    setCurrentStep('withdrawal-details')
+    setUsedSavedAccount(true)
+    toast({
+      title: "Cuenta seleccionada",
+      description: `Se ha seleccionado la cuenta: ${account.nickname || 'Sin nombre'}`,
+    })
+  }
+
+  // Función para volver al paso 1
+  function backToAccountSelection() {
+    setCurrentStep('select-account')
+    setSelectedAccount(null)
+    resetForm()
+  }
+
+  // Función para resetear formulario y bloquear inputs
+  function resetForm() {
+    setValue("category", undefined as any)
+    setValue("method", undefined as any)
+    setValue("accountOwnership", undefined as any)
+    setValue("beneficiaryName", "")
+    setValue("beneficiaryBank", "")
+    setValue("accountType", undefined as any)
+    setValue("accountNumber", "")
+    setValue("routingNumber", "")
+    setValue("swiftBic", "")
+    setValue("walletAlias", "")
+    setValue("walletAddress", "")
+    setValue("walletNetwork", undefined as any)
+    setValue("country", "")
+    setValue("localAccountName", "")
+    setValue("localBank", "")
+    setValue("localAccountNumber", "")
+    setValue("amount", "")
+    setValue("reference", "")
+    setUsedSavedAccount(false)
   }
 
   // Función para rellenar formulario desde cuenta guardada
@@ -355,24 +399,98 @@ export default function RetirarPage() {
       setValue("localAccountNumber", details.localAccountNumber ?? account.local_account_number ?? "")
     }
 
-    setShowAccounts(false)
     setUsedSavedAccount(true)
-    toast({
-      title: "Cuenta cargada",
-      description: "Los datos de la cuenta han sido cargados en el formulario.",
-    })
   }
 
+  // Renderizado condicional según el paso actual
+  if (currentStep === 'select-account') {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-foreground mb-2">Solicitud de retiro</h1>
+          <p className="text-muted-foreground">Paso 1: Selecciona la cuenta para el retiro</p>
+        </div>
+
+        {/* Paso 1: Selección de cuenta */}
+        <Card className="rounded-lg">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg">Selecciona una cuenta guardada</CardTitle>
+            <CardDescription>
+              Elige la cuenta bancaria o wallet desde donde quieres realizar el retiro
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {!accounts.length ? (
+              <div className="text-center py-8">
+                <Button 
+                  variant="cta" 
+                  onClick={loadSavedAccounts}
+                  disabled={loadingAccounts}
+                  className="mb-4"
+                >
+                  {loadingAccounts ? "Cargando..." : "Cargar cuentas guardadas"}
+                </Button>
+                <p className="text-sm text-muted-foreground">
+                  Necesitas al menos una cuenta guardada para crear retiros
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {accounts.map((account, index) => (
+                  <Card 
+                    key={account.id || index} 
+                    className="border-2 hover:border-violet-500 cursor-pointer transition-colors"
+                    onClick={() => selectAccountAndProceed(account)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="font-medium">{account.nickname || "Cuenta sin nombre"}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {account.category === "usd_bank" && `${account.method?.toUpperCase()} - ${account.beneficiary_bank}`}
+                            {account.category === "crypto" && `${account.wallet_network} - ${account.wallet_address?.slice(0, 10)}...`}
+                            {account.category === "local_currency" && `${account.local_bank} - ${account.country}`}
+                          </p>
+                        </div>
+                        <Button variant="cta" size="sm">
+                          Seleccionar
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Paso 2: Detalles del retiro
   return (
     <div className="max-w-2xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground mb-2">Solicitud de retiro</h1>
-          <p className="text-muted-foreground">Completa el formulario para solicitar un retiro</p>
+      <div className="mb-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Button 
+            variant="cta" 
+            size="sm" 
+            onClick={backToAccountSelection}
+          >
+            ← Cambiar cuenta
+          </Button>
         </div>
-        <Button variant="cta" onClick={loadSavedAccounts}>
-          Usar cuenta guardada
-        </Button>
+        <h1 className="text-2xl font-bold text-foreground mb-2">Solicitud de retiro</h1>
+        <p className="text-muted-foreground">
+          Paso 2: Confirma los detalles y especifica el monto
+        </p>
+        {selectedAccount && (
+          <div className="mt-3 p-3 bg-muted rounded-lg">
+            <p className="text-sm">
+              <span className="font-medium">Cuenta seleccionada:</span> {selectedAccount.nickname || "Sin nombre"}
+            </p>
+          </div>
+        )}
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -404,7 +522,7 @@ export default function RetirarPage() {
             {watchedCategory === "usd_bank" && (
               <>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
+                  {/* <div className="space-y-2">
                     <Label htmlFor="accountOwnership" className="text-sm">
                       Propietario de la cuenta *
                     </Label>
@@ -419,7 +537,7 @@ export default function RetirarPage() {
                       </SelectContent>
                     </Select>
                     {errors.accountOwnership && <p className="text-xs text-destructive">{errors.accountOwnership.message}</p>}
-                  </div>
+                  </div> */}
 
                   <div className="space-y-2">
                     <Label htmlFor="method" className="text-sm">
@@ -448,6 +566,7 @@ export default function RetirarPage() {
                       {...register("beneficiaryName")}
                       placeholder="Nombre completo"
                       className="h-9"
+                      disabled
                     />
                     {errors.beneficiaryName && <p className="text-xs text-destructive">{errors.beneficiaryName.message}</p>}
                   </div>
@@ -461,6 +580,7 @@ export default function RetirarPage() {
                       {...register("beneficiaryBank")}
                       placeholder="Nombre del banco"
                       className="h-9"
+                      disabled
                     />
                     {errors.beneficiaryBank && <p className="text-xs text-destructive">{errors.beneficiaryBank.message}</p>}
                   </div>
@@ -472,7 +592,7 @@ export default function RetirarPage() {
                       <Label htmlFor="accountType" className="text-sm">
                         Tipo de cuenta *
                       </Label>
-                      <Select onValueChange={(value) => setValue("accountType", value as any)} value={watchedAccountType as any}>
+                      <Select onValueChange={(value) => setValue("accountType", value as any)} value={watchedAccountType as any} disabled>
                         <SelectTrigger className="h-9">
                           <SelectValue placeholder="Selecciona" />
                         </SelectTrigger>
@@ -493,6 +613,7 @@ export default function RetirarPage() {
                         {...register("accountNumber")}
                         placeholder="Número de cuenta"
                         className="font-mono h-9"
+                        disabled
                       />
                       {errors.accountNumber && <p className="text-xs text-destructive">{errors.accountNumber.message}</p>}
                     </div>
@@ -507,6 +628,7 @@ export default function RetirarPage() {
                       {...register("accountNumber")}
                       placeholder="Número de cuenta o IBAN"
                       className="font-mono h-9"
+                      disabled
                     />
                     {errors.accountNumber && <p className="text-xs text-destructive">{errors.accountNumber.message}</p>}
                   </div>
@@ -523,6 +645,7 @@ export default function RetirarPage() {
                       placeholder="123456789"
                       className="font-mono h-9"
                       maxLength={9}
+                      disabled
                     />
                     {errors.routingNumber && <p className="text-xs text-destructive">{errors.routingNumber.message}</p>}
                   </div>
@@ -538,6 +661,7 @@ export default function RetirarPage() {
                       {...register("swiftBic")} 
                       placeholder="ABCDUS33XXX" 
                       className="font-mono h-9" 
+                      disabled
                     />
                     {errors.swiftBic && <p className="text-xs text-destructive">{errors.swiftBic.message}</p>}
                   </div>
@@ -557,6 +681,7 @@ export default function RetirarPage() {
                     {...register("walletAlias")}
                     placeholder="Mi billetera principal"
                     className="h-9"
+                    disabled
                   />
                   {errors.walletAlias && <p className="text-xs text-destructive">{errors.walletAlias.message}</p>}
                 </div>
@@ -570,6 +695,7 @@ export default function RetirarPage() {
                     {...register("walletAddress")}
                     placeholder="0x..."
                     className="font-mono h-9"
+                    disabled
                   />
                   {errors.walletAddress && <p className="text-xs text-destructive">{errors.walletAddress.message}</p>}
                 </div>
@@ -605,7 +731,7 @@ export default function RetirarPage() {
                   <Label htmlFor="country" className="text-sm">
                     País *
                   </Label>
-                  <Select onValueChange={(value) => setValue("country", value)}>
+                  <Select onValueChange={(value) => setValue("country", value)} disabled>
                     <SelectTrigger className="h-9">
                       <SelectValue placeholder="Selecciona el país" />
                     </SelectTrigger>
@@ -626,6 +752,7 @@ export default function RetirarPage() {
                     {...register("localAccountName")}
                     placeholder="Nombre completo del titular"
                     className="h-9"
+                    disabled
                   />
                   {errors.localAccountName && <p className="text-xs text-destructive">{errors.localAccountName.message}</p>}
                 </div>
@@ -635,7 +762,7 @@ export default function RetirarPage() {
                     <Label htmlFor="localBank" className="text-sm">
                       Banco *
                     </Label>
-                    <Select onValueChange={(value) => setValue("localBank", value)} value={watchedLocalBank || undefined}>
+                    <Select onValueChange={(value) => setValue("localBank", value)} value={watchedLocalBank || undefined} disabled>
                       <SelectTrigger className="h-9">
                         <SelectValue placeholder="Selecciona el banco" />
                       </SelectTrigger>
@@ -661,6 +788,7 @@ export default function RetirarPage() {
                       {...register("localBank")}
                       placeholder="Nombre del banco"
                       className="h-9"
+                      disabled
                     />
                     {errors.localBank && <p className="text-xs text-destructive">{errors.localBank.message}</p>}
                   </div>
@@ -675,6 +803,7 @@ export default function RetirarPage() {
                     {...register("localAccountNumber")}
                     placeholder="Número de cuenta"
                     className="font-mono h-9"
+                    disabled
                   />
                   {errors.localAccountNumber && <p className="text-xs text-destructive">{errors.localAccountNumber.message}</p>}
                 </div>
@@ -925,73 +1054,7 @@ export default function RetirarPage() {
         isSubmitting={isSubmitting}
       />
 
-      {/* Modal de cuentas guardadas */}
-      <Dialog open={showAccounts} onOpenChange={setShowAccounts}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Cuentas guardadas</DialogTitle>
-            <DialogDescription>Selecciona una cuenta para completar el formulario automáticamente</DialogDescription>
-          </DialogHeader>
 
-          {loadingAccounts ? (
-            <div className="py-6 text-center text-sm text-muted-foreground">
-              Cargando cuentas...
-            </div>
-          ) : accounts.length === 0 ? (
-            <div className="py-6 text-center text-sm text-muted-foreground">
-              No tienes cuentas guardadas
-            </div>
-          ) : (
-            <div className="space-y-2 max-h-80 overflow-y-auto">
-              {accounts.map((account) => {
-                const getAccountTitle = () => {
-                  if (account.nickname) return account.nickname
-                  
-                  if (account.category === "usd_bank") {
-                    return `${account.beneficiary_bank || "Banco"} ••••${account.last4 || ""}`
-                  } else if (account.category === "crypto") {
-                    return `${account.wallet_network || "Crypto"} ••••${account.last4 || ""}`
-                  } else if (account.category === "local_currency") {
-                    return `${account.local_bank || "Banco local"} ••••${account.last4 || ""}`
-                  }
-                  
-                  return `Cuenta ${account.category}`
-                }
-
-                const getAccountSubtitle = () => {
-                  if (account.category === "usd_bank") {
-                    return `${account.method?.toUpperCase() || ""} • ${account.beneficiary_bank || ""}`
-                  } else if (account.category === "crypto") {
-                    return `${account.wallet_network || ""} • ${account.wallet_alias || ""}`
-                  } else if (account.category === "local_currency") {
-                    return `${account.local_bank || ""} • ${account.local_account_name || ""}`
-                  }
-                  
-                  return account.category
-                }
-
-                return (
-                  <div key={account.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50">
-                    <div className="flex-1">
-                      <div className="font-medium text-sm">{getAccountTitle()}</div>
-                      <div className="text-xs text-muted-foreground">{getAccountSubtitle()}</div>
-                    </div>
-                    <Button size="sm" onClick={() => fillFormFromAccount(account)}>
-                      Usar
-                    </Button>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAccounts(false)}>
-              Cerrar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
