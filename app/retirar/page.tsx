@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { WithdrawalSummaryModal } from "@/components/withdrawal-summary-modal"
 import { 
   withdrawalSchema, 
@@ -24,7 +25,7 @@ import {
 } from "@/lib/withdrawal-schema"
 import { useToast } from "@/hooks/use-toast"
 import { useCacheInvalidation } from "@/hooks/use-cache-invalidation"
-import { AlertCircle, DollarSign } from "lucide-react"
+import { AlertCircle, DollarSign, ChevronDown, ChevronUp } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { getApiEmailForUser } from "@/lib/utils"
@@ -60,6 +61,8 @@ export default function RetirarPage() {
   // Estados del wizard
   const [currentStep, setCurrentStep] = useState<'select-account' | 'withdrawal-details'>('select-account')
   const [selectedAccount, setSelectedAccount] = useState<any>(null)
+  const [isCreatingNewAccount, setIsCreatingNewAccount] = useState(false)
+  const [isAccountsExpanded, setIsAccountsExpanded] = useState(true)
   const { toast } = useToast()
   const { user } = useAuth()
   const { invalidateWithdrawalsCache } = useCacheInvalidation()
@@ -309,9 +312,23 @@ export default function RetirarPage() {
     fillFormFromAccount(account)
     setCurrentStep('withdrawal-details')
     setUsedSavedAccount(true)
+    setIsCreatingNewAccount(false)
     toast({
       title: "Cuenta seleccionada",
       description: `Se ha seleccionado la cuenta: ${account.nickname || 'Sin nombre'}`,
+    })
+  }
+
+  // Función para crear nueva cuenta y avanzar al paso 2
+  function createNewAccountAndProceed() {
+    setSelectedAccount(null)
+    resetForm()
+    setCurrentStep('withdrawal-details')
+    setUsedSavedAccount(false)
+    setIsCreatingNewAccount(true)
+    toast({
+      title: "Nueva cuenta",
+      description: "Completa los datos para crear una nueva cuenta de retiro",
     })
   }
 
@@ -319,6 +336,7 @@ export default function RetirarPage() {
   function backToAccountSelection() {
     setCurrentStep('select-account')
     setSelectedAccount(null)
+    setIsCreatingNewAccount(false)
     resetForm()
   }
 
@@ -412,57 +430,130 @@ export default function RetirarPage() {
         </div>
 
         {/* Paso 1: Selección de cuenta */}
-        <Card className="rounded-lg">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg">Selecciona una cuenta guardada</CardTitle>
-            <CardDescription>
-              Elige la cuenta bancaria o wallet desde donde quieres realizar el retiro
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {!accounts.length ? (
-              <div className="text-center py-8">
+        <div className="space-y-6">
+          {/* Opción: Usar cuenta guardada */}
+          <Card className="rounded-lg">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg">Usar cuenta guardada</CardTitle>
+                  <CardDescription>
+                    Elige una cuenta bancaria o wallet que ya tengas guardada
+                  </CardDescription>
+                </div>
+                {accounts.length > 0 && (
+                  <Collapsible open={isAccountsExpanded} onOpenChange={setIsAccountsExpanded}>
+                    <CollapsibleTrigger asChild>
+                      <Button variant="ghost" size="sm" className="p-2 transition-all duration-200 hover:bg-muted/80 rounded-full">
+                        {isAccountsExpanded ? (
+                          <ChevronUp className="h-4 w-4 transition-transform duration-200" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4 transition-transform duration-200" />
+                        )}
+                      </Button>
+                    </CollapsibleTrigger>
+                  </Collapsible>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {!accounts.length ? (
+                <div className="text-center py-8">
+                  <Button 
+                    variant="cta" 
+                    onClick={loadSavedAccounts}
+                    disabled={loadingAccounts}
+                    className="mb-4"
+                  >
+                    {loadingAccounts ? "Cargando..." : "Cargar cuentas guardadas"}
+                  </Button>
+                  <p className="text-sm text-muted-foreground">
+                    Carga tus cuentas guardadas para seleccionar una
+                  </p>
+                </div>
+              ) : (
+                <Collapsible open={isAccountsExpanded} onOpenChange={setIsAccountsExpanded}>
+                  <div className="mb-4 flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      {accounts.length} cuenta{accounts.length !== 1 ? 's' : ''} guardada{accounts.length !== 1 ? 's' : ''}
+                    </p>
+                    <CollapsibleTrigger asChild>
+                      <Button variant="cta" size="sm" className="transition-all duration-200">
+                        {isAccountsExpanded ? (
+                          <>
+                            <ChevronUp className="h-4 w-4 mr-2 transition-transform duration-200" />
+                            Ocultar cuentas
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown className="h-4 w-4 mr-2 transition-transform duration-200" />
+                            Ver cuentas
+                          </>
+                        )}
+                      </Button>
+                    </CollapsibleTrigger>
+                  </div>
+                  <CollapsibleContent className="space-y-4 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 duration-300">
+                    {accounts.map((account, index) => (
+                      <Card 
+                        key={account.id || index} 
+                        className="border-2 hover:border-violet-500 cursor-pointer transition-all duration-200 hover:shadow-md"
+                        onClick={() => selectAccountAndProceed(account)}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="font-medium">{account.nickname || "Cuenta sin nombre"}</h3>
+                              <p className="text-sm text-muted-foreground">
+                                {account.category === "usd_bank" && `${account.method?.toUpperCase()} - ${account.beneficiary_bank}`}
+                                {account.category === "crypto" && `${account.wallet_network} - ${account.wallet_address?.slice(0, 10)}...`}
+                                {account.category === "local_currency" && `${account.local_bank} - ${account.country}`}
+                              </p>
+                            </div>
+                            <Button variant="default" size="sm" className="transition-colors duration-200">
+                              Seleccionar
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Divisor */}
+          <div className="flex items-center justify-center">
+            <div className="flex-1 h-px bg-border"></div>
+            <span className="px-4 text-sm text-muted-foreground">o</span>
+            <div className="flex-1 h-px bg-border"></div>
+          </div>
+
+          {/* Opción: Crear nueva cuenta */}
+          <Card className="rounded-lg">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg">Agregar nueva cuenta</CardTitle>
+              <CardDescription>
+                Crea una nueva cuenta bancaria o wallet para este retiro
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-6">
                 <Button 
                   variant="cta" 
-                  onClick={loadSavedAccounts}
-                  disabled={loadingAccounts}
-                  className="mb-4"
+                  onClick={createNewAccountAndProceed}
+                  className="mb-2"
                 >
-                  {loadingAccounts ? "Cargando..." : "Cargar cuentas guardadas"}
+                  Crear nueva cuenta
                 </Button>
                 <p className="text-sm text-muted-foreground">
-                  Necesitas al menos una cuenta guardada para crear retiros
+                  Completa los datos de una nueva cuenta de destino
                 </p>
               </div>
-            ) : (
-              <div className="space-y-4">
-                {accounts.map((account, index) => (
-                  <Card 
-                    key={account.id || index} 
-                    className="border-2 hover:border-violet-500 cursor-pointer transition-colors"
-                    onClick={() => selectAccountAndProceed(account)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-medium">{account.nickname || "Cuenta sin nombre"}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {account.category === "usd_bank" && `${account.method?.toUpperCase()} - ${account.beneficiary_bank}`}
-                            {account.category === "crypto" && `${account.wallet_network} - ${account.wallet_address?.slice(0, 10)}...`}
-                            {account.category === "local_currency" && `${account.local_bank} - ${account.country}`}
-                          </p>
-                        </div>
-                        <Button variant="cta" size="sm">
-                          Seleccionar
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     )
   }
@@ -482,12 +573,19 @@ export default function RetirarPage() {
         </div>
         <h1 className="text-2xl font-bold text-foreground mb-2">Solicitud de retiro</h1>
         <p className="text-muted-foreground">
-          Paso 2: Confirma los detalles y especifica el monto
+          Paso 2: {isCreatingNewAccount ? "Completa los datos de la nueva cuenta" : "Confirma los detalles y especifica el monto"}
         </p>
-        {selectedAccount && (
+        {selectedAccount && !isCreatingNewAccount && (
           <div className="mt-3 p-3 bg-muted rounded-lg">
             <p className="text-sm">
               <span className="font-medium">Cuenta seleccionada:</span> {selectedAccount.nickname || "Sin nombre"}
+            </p>
+          </div>
+        )}
+        {isCreatingNewAccount && (
+          <div className="mt-3 p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-800">
+            <p className="text-sm text-orange-700 dark:text-orange-300">
+              <span className="font-medium">Nueva cuenta:</span> Completa todos los campos requeridos
             </p>
           </div>
         )}
@@ -522,22 +620,6 @@ export default function RetirarPage() {
             {watchedCategory === "usd_bank" && (
               <>
                 <div className="grid grid-cols-2 gap-4">
-                  {/* <div className="space-y-2">
-                    <Label htmlFor="accountOwnership" className="text-sm">
-                      Propietario de la cuenta *
-                    </Label>
-                    <Select onValueChange={(value) => setValue("accountOwnership", value as any)} value={watchedAccountOwnership as any}>
-                      <SelectTrigger className="h-9">
-                        <SelectValue placeholder="Selecciona" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="yo">Yo mismo</SelectItem>
-                        <SelectItem value="otra_persona">Otra persona</SelectItem>
-                        <SelectItem value="empresa">Empresa</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {errors.accountOwnership && <p className="text-xs text-destructive">{errors.accountOwnership.message}</p>}
-                  </div> */}
 
                   <div className="space-y-2">
                     <Label htmlFor="method" className="text-sm">
@@ -566,7 +648,7 @@ export default function RetirarPage() {
                       {...register("beneficiaryName")}
                       placeholder="Nombre completo"
                       className="h-9"
-                      disabled
+                      disabled={!isCreatingNewAccount}
                     />
                     {errors.beneficiaryName && <p className="text-xs text-destructive">{errors.beneficiaryName.message}</p>}
                   </div>
@@ -580,7 +662,7 @@ export default function RetirarPage() {
                       {...register("beneficiaryBank")}
                       placeholder="Nombre del banco"
                       className="h-9"
-                      disabled
+                      disabled={!isCreatingNewAccount}
                     />
                     {errors.beneficiaryBank && <p className="text-xs text-destructive">{errors.beneficiaryBank.message}</p>}
                   </div>
@@ -592,7 +674,7 @@ export default function RetirarPage() {
                       <Label htmlFor="accountType" className="text-sm">
                         Tipo de cuenta *
                       </Label>
-                      <Select onValueChange={(value) => setValue("accountType", value as any)} value={watchedAccountType as any} disabled>
+                      <Select onValueChange={(value) => setValue("accountType", value as any)} value={watchedAccountType as any} disabled={!isCreatingNewAccount}>
                         <SelectTrigger className="h-9">
                           <SelectValue placeholder="Selecciona" />
                         </SelectTrigger>
@@ -613,7 +695,7 @@ export default function RetirarPage() {
                         {...register("accountNumber")}
                         placeholder="Número de cuenta"
                         className="font-mono h-9"
-                        disabled
+                        disabled={!isCreatingNewAccount}
                       />
                       {errors.accountNumber && <p className="text-xs text-destructive">{errors.accountNumber.message}</p>}
                     </div>
@@ -628,7 +710,7 @@ export default function RetirarPage() {
                       {...register("accountNumber")}
                       placeholder="Número de cuenta o IBAN"
                       className="font-mono h-9"
-                      disabled
+                      disabled={!isCreatingNewAccount}
                     />
                     {errors.accountNumber && <p className="text-xs text-destructive">{errors.accountNumber.message}</p>}
                   </div>
@@ -645,7 +727,7 @@ export default function RetirarPage() {
                       placeholder="123456789"
                       className="font-mono h-9"
                       maxLength={9}
-                      disabled
+                      disabled={!isCreatingNewAccount}
                     />
                     {errors.routingNumber && <p className="text-xs text-destructive">{errors.routingNumber.message}</p>}
                   </div>
@@ -661,7 +743,7 @@ export default function RetirarPage() {
                       {...register("swiftBic")} 
                       placeholder="ABCDUS33XXX" 
                       className="font-mono h-9" 
-                      disabled
+                      disabled={!isCreatingNewAccount}
                     />
                     {errors.swiftBic && <p className="text-xs text-destructive">{errors.swiftBic.message}</p>}
                   </div>
@@ -681,7 +763,7 @@ export default function RetirarPage() {
                     {...register("walletAlias")}
                     placeholder="Mi billetera principal"
                     className="h-9"
-                    disabled
+                    disabled={!isCreatingNewAccount}
                   />
                   {errors.walletAlias && <p className="text-xs text-destructive">{errors.walletAlias.message}</p>}
                 </div>
@@ -695,7 +777,7 @@ export default function RetirarPage() {
                     {...register("walletAddress")}
                     placeholder="0x..."
                     className="font-mono h-9"
-                    disabled
+                    disabled={!isCreatingNewAccount}
                   />
                   {errors.walletAddress && <p className="text-xs text-destructive">{errors.walletAddress.message}</p>}
                 </div>
@@ -731,7 +813,7 @@ export default function RetirarPage() {
                   <Label htmlFor="country" className="text-sm">
                     País *
                   </Label>
-                  <Select onValueChange={(value) => setValue("country", value)} disabled>
+                  <Select onValueChange={(value) => setValue("country", value)} disabled={!isCreatingNewAccount}>
                     <SelectTrigger className="h-9">
                       <SelectValue placeholder="Selecciona el país" />
                     </SelectTrigger>
@@ -752,7 +834,7 @@ export default function RetirarPage() {
                     {...register("localAccountName")}
                     placeholder="Nombre completo del titular"
                     className="h-9"
-                    disabled
+                    disabled={!isCreatingNewAccount}
                   />
                   {errors.localAccountName && <p className="text-xs text-destructive">{errors.localAccountName.message}</p>}
                 </div>
@@ -762,7 +844,7 @@ export default function RetirarPage() {
                     <Label htmlFor="localBank" className="text-sm">
                       Banco *
                     </Label>
-                    <Select onValueChange={(value) => setValue("localBank", value)} value={watchedLocalBank || undefined} disabled>
+                    <Select onValueChange={(value) => setValue("localBank", value)} value={watchedLocalBank || undefined} disabled={!isCreatingNewAccount}>
                       <SelectTrigger className="h-9">
                         <SelectValue placeholder="Selecciona el banco" />
                       </SelectTrigger>
@@ -788,7 +870,7 @@ export default function RetirarPage() {
                       {...register("localBank")}
                       placeholder="Nombre del banco"
                       className="h-9"
-                      disabled
+                      disabled={!isCreatingNewAccount}
                     />
                     {errors.localBank && <p className="text-xs text-destructive">{errors.localBank.message}</p>}
                   </div>
@@ -803,7 +885,7 @@ export default function RetirarPage() {
                     {...register("localAccountNumber")}
                     placeholder="Número de cuenta"
                     className="font-mono h-9"
-                    disabled
+                    disabled={!isCreatingNewAccount}
                   />
                   {errors.localAccountNumber && <p className="text-xs text-destructive">{errors.localAccountNumber.message}</p>}
                 </div>
@@ -846,7 +928,7 @@ export default function RetirarPage() {
               <p className="text-xs text-muted-foreground">{getHelperText()}</p>)}
 
             {/* Guardar cuenta */}
-            {!usedSavedAccount && (
+            {isCreatingNewAccount && (
             <div className="space-y-2">
               <Button
                 type="button"
