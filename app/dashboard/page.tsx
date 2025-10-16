@@ -453,7 +453,7 @@ export default function Dashboard() {
                     <TableHead className="bg-white">Fecha</TableHead>
                     <TableHead className="bg-white">Descripción</TableHead>
                     <TableHead className="text-right bg-white">Monto</TableHead>
-                    {/* <TableHead className="bg-white">Cuenta/Destino</TableHead> */}
+                    <TableHead className="bg-white">Cuenta/Destino</TableHead>
                     <TableHead className="bg-white">Estado</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -482,9 +482,9 @@ export default function Dashboard() {
                         <TableCell className={`text-right font-medium ${m.amount > 0 ? "text-green-600" : "text-red-600"}`}>
                           {formatCurrency(m.amount)}
                         </TableCell>
-                        {/* <TableCell>
-                          {m.cuenta_origen_o_destino }
-                        </TableCell> */}
+                        <TableCell>
+                          {m.account_ref}
+                        </TableCell>
                         <TableCell>{getStatusBadge(m.status)}</TableCell>
                       </TableRow>
                       )
