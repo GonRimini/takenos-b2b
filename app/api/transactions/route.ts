@@ -11,6 +11,10 @@ type RawTx = {
   direccion: "in" | "out" | string
   estado: "processed" | "pending" | "failed" | string
   monto_usd: string
+  monto_inicial?: number
+  monto_final?: number
+  moneda?: string
+  tasa_conversion?: number
 }
 
 type UiTx = {
@@ -24,6 +28,10 @@ type UiTx = {
   direction?: string
   raw_type?: string
   account_ref?: string | null
+  initial_amount?: number
+  final_amount?: number
+  currency?: string
+  conversion_rate?: number
 }
 
 function toUi(tx: RawTx, idx: number): UiTx {
@@ -64,6 +72,24 @@ function toUi(tx: RawTx, idx: number): UiTx {
   const via = tx.cuenta_origen_o_destino || ""
   const description = via ? `${descBase} ${via}` : descBase
 
+  console.log("Procesando transacción:", {
+    id: tx.id_unico || `tx_${idx}_${tx.fecha}`, // mantiene el id real de Retool
+    raw_id: tx.id_unico, // para merge con Supabase (withdraw_id)
+    date: tx.fecha,
+    description,
+    amount,
+    type: isCredit ? "credit" : "debit",
+    status,
+    direction: tx.direccion,
+    raw_type: tx.tipo, // conserva el tipo original (withdrawal, deposit, etc.)
+    account_ref: tx.cuenta_origen_o_destino || null,
+    initial_amount: tx.monto_inicial,
+    final_amount: tx.monto_final,
+    currency: tx.moneda,
+    conversion_rate: tx.tasa_conversion,
+
+  })
+
   // ✅ Estructura final lista para el front y para el merge posterior
   return {
     id: tx.id_unico || `tx_${idx}_${tx.fecha}`, // mantiene el id real de Retool
@@ -76,6 +102,10 @@ function toUi(tx: RawTx, idx: number): UiTx {
     direction: tx.direccion,
     raw_type: tx.tipo, // conserva el tipo original (withdrawal, deposit, etc.)
     account_ref: tx.cuenta_origen_o_destino || null,
+    initial_amount: tx.monto_inicial,
+    final_amount: tx.monto_final,
+    currency: tx.moneda,
+    conversion_rate: tx.tasa_conversion,
   }
 }
 

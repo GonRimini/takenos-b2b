@@ -1,47 +1,25 @@
 import { useAuthenticatedFetch } from "@/hooks/use-authenticated-fetch"
-// import { supabase } from "./supabase-client"
 
 export const useEnrichedWithdrawals = () => {
   const { authenticatedFetch } = useAuthenticatedFetch()
 
-  const fetchEnrichedWithdrawals = async (userEmail: string, withdrawalIds: string[]) => {
-    console.log("🚀 [RPC] Llamando get_enriched_withdrawals con:", {
-      userEmail,
-      withdrawalIds
+   const fetchEnrichedWithdrawal = async (withdrawalId: string) => {
+    const res = await authenticatedFetch("/api/enriched-withdrawal", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ withdrawalId }),
     })
 
-    const response = await authenticatedFetch(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/rpc/get_enriched_withdrawals`,
-      {
-        method: "POST",
-        headers: {
-          apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        },
-        body: JSON.stringify({
-          user_email: userEmail,
-          withdraw_ids: withdrawalIds,
-        }),
-      }
-    )
+    const json = await res.json()
+    if (!res.ok) throw new Error(json.error || "Error RPC")
 
-    console.log("🛰️ [RPC] Status:", response.status)
-    const text = await response.text()
-    console.log("🛰️ [RPC] Raw response text:", text)
-
-    try {
-      const json = JSON.parse(text)
-      console.log("📦 [RPC] Parsed JSON:", json)
-      return json
-    } catch (e) {
-      console.error("❌ [RPC] Error parseando JSON:", e)
-      return []
-    }
+    console.log("✅ [BFF] Enriched data:", json.data)
+    return json.data
   }
 
-  return { fetchEnrichedWithdrawals }
+  return { fetchEnrichedWithdrawal }
 }
 
-// export async function testRPC() {
 //   const {authenticatedFetch} = useAuthenticatedFetch()
 //   // const { data, error } = await supabase.rpc("get_enriched_withdrawals", {
 //   //   user_email: "gonzalo.rimini@gmail.com",
