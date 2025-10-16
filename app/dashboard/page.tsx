@@ -12,6 +12,8 @@ import { useAuthenticatedFetch } from "@/hooks/use-authenticated-fetch"
 import { useCompanyName } from "@/hooks/use-company-name"
 import { DownloadStatement } from "@/components/DownloadStatement"
 import { Table as TableIcon } from "lucide-react"
+import { WithdrawalPDFButton } from "@/components/WithdrawalPDFButton"
+
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -20,6 +22,8 @@ export default function Dashboard() {
   const { invalidateKeys } = useCacheInvalidator()
   const { authenticatedFetch } = useAuthenticatedFetch()
   const { companyName, loading: companyLoading } = useCompanyName()
+  // const { fetchMovementsData } = useMovementsFetcher(user, companyName)
+  
 
   // Función para obtener el balance
   const fetchBalanceData = async (): Promise<{ balance: number; source: string }> => {
@@ -34,24 +38,71 @@ export default function Dashboard() {
     
     return { balance: Number.parseFloat(data.balance), source: data.source }
   }
+  // const fetchMovementsData = async (): Promise<any[]> => {
+  //   if (!user?.email) throw new Error("Usuario no autenticado")
 
-  // Función para obtener movimientos
-const fetchMovementsData = async (): Promise<any[]> => {
-  if (!user?.email) throw new Error("Usuario no autenticado")
+  //   // 1️⃣ Traer las transacciones crudas (como ya hacías)
+  //   const response = await authenticatedFetch("/api/transactions", {
+  //     method: "POST",
+  //   })
 
-  const response = await authenticatedFetch("/api/transactions", {
-    method: "POST",
-  })
+  //   const data = await response.json()
+  //   if (!response.ok) throw new Error(data.error || "Error al cargar movimientos")
 
-  const data = await response.json()
-  if (!response.ok) throw new Error(data.error || "Error al cargar movimientos")
-  if (data.data) {
-    data.data.companyName = companyName;
-    data.data.userEmail = user.email;
+  //   const transactions = Array.isArray(data.data) ? data.data : []
+  //   if (transactions.length === 0) return []
+
+  //   // 2️⃣ Añadir info de contexto
+  //   transactions.companyName = companyName
+  //   transactions.userEmail = user.email
+
+  //   // 3️⃣ Filtrar solo los retiros
+  //   const withdrawalIds = transactions
+  //     .filter((tx:any) => tx.tipo === "withdrawal")
+  //     .map((tx:any) => tx.id_unico)
+
+  //   if (withdrawalIds.length === 0) return transactions
+
+  //   // 4️⃣ Llamar a la RPC en Supabase
+  //   const enrichedWithdrawals = await fetchEnrichedWithdrawals(user.email, withdrawalIds)
+  //     console.log("📚 [fetchMovementsData] Data RPC enriquecida:", enrichedWithdrawals)
+
+
+  //   // 5️⃣ Mergear la data enriquecida
+  //   const enrichedMap = new Map(enrichedWithdrawals.map((e: any) => [e.withdraw_id, e]))
+  //   const merged = transactions.map((tx:any) => {
+  //     if (tx.tipo !== "withdrawal") return tx
+  //     const extra:any = enrichedMap.get(tx.id_unico)
+  //     return extra
+  //       ? {
+  //           ...tx,
+  //           nickname: extra.nickname,
+  //           method: extra.method,
+  //           category: extra.category,
+  //           beneficiary_name: extra.beneficiary_name,
+  //           beneficiary_bank: extra.beneficiary_bank,
+  //           account_number: extra.account_number,
+  //           wallet_address: extra.wallet_address,
+  //           wallet_network: extra.wallet_network,
+  //         }
+  //       : tx
+  //   })
+  // console.log("✅ [fetchMovementsData] Data final enriquecida:", merged)
+  //   return merged
+  // }
+    // Función para obtener movimientos
+  const fetchMovementsData = async (): Promise<any[]> => {
+    if (!user?.email) throw new Error("Usuario no autenticado")
+    
+    const response = await authenticatedFetch("/api/transactions", {
+      method: "POST",
+    })
+
+    const data = await response.json()
+    if (!response.ok) throw new Error(data.error || "Error al cargar movimientos")
+    
+    return Array.isArray(data.data) ? data.data : []
   }
-
-  return Array.isArray(data.data) ? data.data : []
-}
 
   // Función para obtener retiros pendientes
   const fetchPendingWithdrawalsData = async (): Promise<any[]> => {
@@ -109,7 +160,7 @@ const fetchMovementsData = async (): Promise<any[]> => {
   const invalidateCacheAfterOperation = () => {
     invalidateKeys([
       `balance-${user?.email}`,
-      `movements-${user?.email}`,
+      `movements-${user?.email}-${companyName || 'no-company'}`,
       `pending-withdrawals-${user?.email}`
     ])
   }
@@ -125,9 +176,9 @@ const fetchMovementsData = async (): Promise<any[]> => {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("es-ES", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
+      day: "2-digit",
+      month: "2-digit",
+      year: "2-digit",
     })
   }
 
@@ -200,17 +251,21 @@ const fetchMovementsData = async (): Promise<any[]> => {
   const downloadCSV = () => {
     if (!movementsCache.data || movementsCache.data.length === 0) return
 
+    console.log("[Dashboard] Datos para CSV - Total movimientos:", movementsCache.data.length)
+    console.log("[Dashboard] Primer movimiento:", movementsCache.data[0])
+    
     // Filtrar movimientos por fecha si hay filtros aplicados
     const filteredMovements = filterMovementsByDate(movementsCache.data)
 
     // Crear headers del CSV
-    const headers = ["Fecha", "Descripción", "Monto (USD)", "Tipo", "Estado"]
+    const headers = ["Fecha", "Descripción", "Monto (USD)", "Cuenta/Destino", "Tipo", "Estado"]
     
     // Crear filas de datos
     const rows = filteredMovements.map(m => [
       formatDate(m.date),
       m.description,
       m.amount.toFixed(2),
+      m.cuenta_origen_o_destino || "-",
       m.type === "credit" ? "Crédito" : "Débito",
       m.status === "completed" ? "Completado" : m.status === "pending" ? "Pendiente" : "Fallido"
     ])
@@ -401,12 +456,13 @@ const fetchMovementsData = async (): Promise<any[]> => {
         </CardHeader>
         <CardContent>
           <div className="rounded-md border">
-            <div className="max-h-[400px] overflow-y-auto">
+            <div className="max-h-[500px] overflow-y-auto">
               <Table>
                 <TableHeader className="sticky top-0 bg-white z-10">
                   <TableRow>
                     <TableHead className="bg-white">Fecha</TableHead>
-                    <TableHead className="bg-white">Descripción</TableHead>
+                    <TableHead className="bg-white">Cuenta/Destino</TableHead>
+                    {/* <TableHead className="bg-white">Descripción</TableHead> */}
                     <TableHead className="text-right bg-white">Monto</TableHead>
                     <TableHead className="bg-white">Estado</TableHead>
                   </TableRow>
@@ -414,27 +470,45 @@ const fetchMovementsData = async (): Promise<any[]> => {
                 <TableBody>
                   {movementsCache.loading ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                         Cargando...
                       </TableCell>
                     </TableRow>
                   ) : !movementsCache.data || filterMovementsByDate(movementsCache.data).length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                         {startDate || endDate ? "No hay movimientos en el rango de fechas seleccionado" : "No hay movimientos registrados"}
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filterMovementsByDate(movementsCache.data).map((m) => (
+                    filterMovementsByDate(movementsCache.data).map((m) => {
+                      // Log para debug - ver estructura del movimiento
+                      console.log("🔍 [Dashboard] Movimiento:", m)
+                      
+                      return (
                       <TableRow key={m.id}>
                         <TableCell className="font-medium">{formatDate(m.date)}</TableCell>
-                        <TableCell>{m.description}</TableCell>
+                        <TableCell>
+                          {m.account_ref}
+                        </TableCell>
+                        {/* <TableCell>{m.description}</TableCell> */}
                         <TableCell className={`text-right font-medium ${m.amount > 0 ? "text-green-600" : "text-red-600"}`}>
                           {formatCurrency(m.amount)}
                         </TableCell>
                         <TableCell>{getStatusBadge(m.status)}</TableCell>
+                        <TableCell>
+                          {m.raw_type === "withdrawal" ? (
+                            <WithdrawalPDFButton 
+                              withdrawalId={m.raw_id} 
+                              transaction={m}
+                            />
+                          ) : (
+                            <p>{""}</p>
+                          )}
+                        </TableCell>
                       </TableRow>
-                    ))
+                      )
+                    })
                   )}
                 </TableBody>
               </Table>
@@ -498,7 +572,7 @@ const fetchMovementsData = async (): Promise<any[]> => {
                         {formatCurrency(withdrawal.amount_numeric || 0)}
                       </TableCell>
                       <TableCell className="text-sm text-gray-600">
-                        {withdrawal.payload?.reference || "Sin referencia"}
+                        {withdrawal.payload?.account_reference || "Sin referencia"}
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
