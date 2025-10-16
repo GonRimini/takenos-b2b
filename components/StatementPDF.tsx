@@ -9,6 +9,7 @@ import {
 } from "@react-pdf/renderer";
 
 export const StatementPDF = ({ data }: { data: any }) => {
+  console.log("StatementPDF data:", data);
   const companyName = data.companyName || "";
   const userEmail = data.userEmail || "";
   const transactions = Array.isArray(data.transactions)
@@ -56,31 +57,39 @@ export const StatementPDF = ({ data }: { data: any }) => {
         {/* Encabezado tabla */}
         <View style={styles.tableHeader}>
           <Text style={[styles.th, styles.colDate]}>Fecha</Text>
+          <Text style={[styles.th, styles.colAccount]}>Cuenta/Destino</Text>
           <Text style={[styles.th, styles.colDesc]}>Descripción</Text>
           <Text style={[styles.th, styles.colAmount]}>Monto</Text>
           <Text style={[styles.th, styles.colStatus]}>Estado</Text>
         </View>
 
-        {transactions.map((t: any, i: number) => (
-          <View style={styles.row} key={i}>
-            <Text style={[styles.cell, styles.colDate]}>{fmtDate(t.date)}</Text>
-            <Text style={[styles.cell, styles.colDesc]}>{t.description}</Text>
-            <Text
-              style={[
-                styles.cell,
-                styles.colAmount,
-                t.amount < 0 ? styles.debit : styles.credit,
-              ]}
-            >
-              {t.amount < 0
-                ? `-$${Math.abs(t.amount).toLocaleString()}`
-                : `$${t.amount.toLocaleString()}`}
-            </Text>
-            <Text style={[styles.cell, styles.colStatus]}>
-              {t.status.charAt(0).toUpperCase() + t.status.slice(1)}
-            </Text>
-          </View>
-        ))}
+        {transactions.map((t: any, i: number) => {
+          return (
+            <View style={styles.row} key={i}>
+              <Text style={[styles.cell, styles.colDate]}>{fmtDate(t.date)}</Text>
+              <Text style={[styles.cell, styles.colAccount]}>
+                {truncateAccount(t.account_ref || t.cuenta_origen_o_destino || t.nickname || "-")}
+              </Text>
+              <Text style={[styles.cell, styles.colDesc]}>
+                {truncateDescription(t.description || "")}
+              </Text>
+              <Text
+                style={[
+                  styles.cell,
+                  styles.colAmount,
+                  t.amount < 0 ? styles.debit : styles.credit,
+                ]}
+              >
+                {t.amount < 0
+                  ? `-$${Math.abs(t.amount).toLocaleString()}`
+                  : `$${t.amount.toLocaleString()}`}
+              </Text>
+              <Text style={[styles.cell, styles.colStatus]}>
+                {truncateStatus(t.status.charAt(0).toUpperCase() + t.status.slice(1))}
+              </Text>
+            </View>
+          );
+        })}
 
         {/* Footer */}
         <View style={styles.footer}>
@@ -102,14 +111,24 @@ const fmtDate = (iso: string) =>
     year: "numeric",
   });
 
+// 🔹 Funciones para truncar texto
+const truncateText = (text: string, maxLength: number) => {
+  if (!text) return "";
+  return text.length > maxLength ? text.substring(0, maxLength) + "..." : text;
+};
+
+const truncateDescription = (desc: string) => truncateText(desc, 25);
+const truncateAccount = (account: string) => truncateText(account, 20);
+const truncateStatus = (status: string) => truncateText(status, 10);
+
 // 🎨 Estilos refinados
 const styles = StyleSheet.create({
-  page: { padding: 30, fontSize: 11, fontFamily: "Helvetica" },
+  page: { padding: 20, fontSize: 9, fontFamily: "Helvetica" }, // Reducido padding y fontSize
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 16,
+    marginBottom: 8, // Más reducido para subir el contenido
   },
   leftHeader: {
     flexDirection: "column",
@@ -119,74 +138,100 @@ const styles = StyleSheet.create({
   headerRight: {
     flexDirection: "column",
     alignItems: "flex-end",
+    marginTop: 8, // Alinea mejor con el logo
   },
-  logo: { width: 80, height: 20, objectFit: "contain", marginBottom: 3 },
+  logo: { width: 120, height: 32, objectFit: "contain", marginBottom: 2 }, // Más compacto
   companyBlock: { flexDirection: "column", gap: 1 },
-  companyName: { fontSize: 10, color: "#374151", fontWeight: 600 },
-  userEmail: { fontSize: 9, color: "#6b7280" },
+  companyName: { fontSize: 9, color: "#374151", fontWeight: 600 },
+  userEmail: { fontSize: 8, color: "#6b7280" },
   headerText: {
-    fontSize: 15,
-    color: "#7044d2", // más suave
+    fontSize: 13, // Reducido
+    color: "#7044d2",
     fontWeight: 500,
   },
   issuedAt: {
-    fontSize: 9,
+    fontSize: 8, // Reducido
     color: "#6b7280",
     textAlign: "right",
-    marginTop: 2,
+    marginTop: 1,
   },
   separator: {
     borderBottom: 1,
     borderColor: "#ECECEC",
-    marginVertical: 12,
+    marginTop: 4, // Margen superior más pequeño
+    marginBottom: 6, // Margen inferior más pequeño
   },
   tableHeader: {
     flexDirection: "row",
     borderBottom: 1,
     borderColor: "#ECECEC",
-    marginBottom: 6,
+    marginBottom: 3, // Más reducido
+    backgroundColor: "#F8F9FA", // Fondo ligero para header
+    paddingVertical: 3, // Ligeramente más padding vertical
+    paddingTop: 1, // Padding superior mínimo para estar más cerca de la línea
   },
   th: {
     fontWeight: "bold",
-    paddingRight: 6,
+    paddingRight: 4,
+    fontSize: 8,
+    paddingVertical: 3,
   },
   row: {
     flexDirection: "row",
     borderBottom: 1,
     borderColor: "#F2F2F2",
     paddingVertical: 4,
-    alignItems: "flex-start", // 👈 para que el texto largo no empuje
+    minHeight: 24, // Más altura para texto truncado
+    alignItems: "stretch", // Para que todas las celdas tengan la misma altura
   },
   cell: {
-    fontSize: 10,
-    paddingRight: 6,
+    fontSize: 8,
+    paddingRight: 4,
+    paddingVertical: 1,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
   },
   colDate: {
-    width: "22%", // más espacio para fechas tipo "30 de sept de 2025"
+    width: "15%",
+    fontSize: 7,
+    flexShrink: 0, // No se encoge
   },
   colDesc: {
-    width: "42%", // 👈 descripción con más aire y wrap automático
+    width: "28%",
+    fontSize: 7,
+    flexWrap: "wrap", // Permite wrap
+    flexShrink: 1,
+  },
+  colAccount: {
+    width: "27%",
+    fontSize: 7,
+    flexWrap: "wrap", // Permite wrap
+    flexShrink: 1,
   },
   colAmount: {
-    width: "20%",
+    width: "15%",
     textAlign: "right",
+    fontSize: 8,
+    flexShrink: 0, // No se encoge
   },
   colStatus: {
-    width: "16%",
+    width: "15%",
     textAlign: "right",
+    fontSize: 7,
+    flexShrink: 0, // No se encoge
   },
   right: { textAlign: "right" },
   credit: { color: "#22C55E" },
   debit: { color: "#EF4444" },
   footer: {
     position: "absolute",
-    bottom: 20,
-    left: 30,
-    right: 30,
+    bottom: 15, // Reducido
+    left: 20,
+    right: 20,
     textAlign: "center",
   },
   footerText: {
-    fontSize: 8,
+    fontSize: 7, // Reducido
     color: "#9ca3af",
   },
 });
