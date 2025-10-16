@@ -630,8 +630,8 @@ export default function RetirarPage() {
                         <SelectValue placeholder="Selecciona" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="ach">ACH</SelectItem>
-                        <SelectItem value="wire">Wire Transfer</SelectItem>
+                        <SelectItem value="ach">ACH/WIRE</SelectItem>
+                        <SelectItem value="wire">SWIFT</SelectItem>
                       </SelectContent>
                     </Select>
                     {errors.method && <p className="text-xs text-destructive">{errors.method.message}</p>}
