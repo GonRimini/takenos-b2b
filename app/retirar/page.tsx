@@ -39,7 +39,7 @@ const boliviaBanks = [
   "Cooperativa San José de Punata LTDA", "Cooperativa Trinidad LTDA", "Cooperativa Comarapa RL", "Cooperativa San Roque RL",
   "El Choroloque RA", "Monseñor Felix Gainza RL", "Cooperativa Madre y Maestra LTDA", "Cooperativa Educadores Gran Chaco LTDA",
   "Cooperativa Catedral RA", "Cooperativa Asunción LTDA", "Cooperativa Magisterio Rural de Chuquisaca LTDA",
-  "Cooperativa La Sagrada Familia RL", "Cooperativa La Sagrada Familia RL", "Cooperativa Progreso RL",
+  "Cooperativa La Sagrada Familia RL", "Cooperativa Progreso RL",
   "Cooperativa Magisterio Rural de Chuquisaca", "La Primera Entidad Financiera de Vivienda", "Cooperativa Ina Huasi LTDA",
   "Cooperativa Loyola RL", "E.F. De Vivienda La Promotora", "Cooperativa San Martin de Porres LTDA",
   "Cooperativa San Carlos Borromeo LTDA"
