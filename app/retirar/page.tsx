@@ -370,7 +370,7 @@ export default function RetirarPage() {
           <h1 className="text-2xl font-bold text-foreground mb-2">Solicitud de retiro</h1>
           <p className="text-muted-foreground">Completa el formulario para solicitar un retiro</p>
         </div>
-        <Button variant="outline" onClick={loadSavedAccounts}>
+        <Button variant="cta" onClick={loadSavedAccounts}>
           Usar cuenta guardada
         </Button>
       </div>
@@ -721,7 +721,7 @@ export default function RetirarPage() {
             <div className="space-y-2">
               <Button
                 type="button"
-                variant="outline"
+                variant="cta"
                 size="sm"
                 onClick={async () => {
                   const formData = getValues()

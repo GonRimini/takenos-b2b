@@ -17,13 +17,14 @@ export type DepositMethod = "ach" | "wire" | "swift" | "crypto" | "local"
 export default function DepositarPage() {
   const [selectedMethod, setSelectedMethod] = useState<DepositMethod>("ach")
   
+
   // Obtener usuario desde Supabase
   const { user } = useAuth()
-  
+
   // Para datos de depósito, usar el email real del usuario (sin mapeo)
   // El mapeo solo debe aplicarse en el backend para APIs externas
   const userDisplayEmail = user?.email || ""
-
+  
   // Supabase state (ACH)
   const [achData, setAchData] = useState<DepositoACH | null>(null)
   const [achLoading, setAchLoading] = useState<boolean>(false)
@@ -403,7 +404,7 @@ export default function DepositarPage() {
             <div className="mt-6 pt-4 border-t">
               <Button
                 onClick={handleDownloadPDF}
-                variant="outline"
+                variant="cta"
                 className="w-full sm:w-auto"
               >
                 <Download className="w-4 h-4 mr-2" />
@@ -431,7 +432,7 @@ export default function DepositarPage() {
         
         {/* Botón de actualización */}
         <Button
-          variant="outline"
+          variant="cta"
           size="sm"
           onClick={() => { 
             if (selectedMethod === 'ach') loadACH()
