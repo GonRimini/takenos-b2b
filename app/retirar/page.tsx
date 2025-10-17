@@ -813,7 +813,7 @@ export default function RetirarPage() {
                   <Label htmlFor="country" className="text-sm">
                     País *
                   </Label>
-                  <Select onValueChange={(value) => setValue("country", value)} disabled={!isCreatingNewAccount}>
+                  <Select onValueChange={(value) => setValue("country", value)}>
                     <SelectTrigger className="h-9">
                       <SelectValue placeholder="Selecciona el país" />
                     </SelectTrigger>
