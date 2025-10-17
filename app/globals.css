@@ -7,55 +7,65 @@
    🌈 Takenos Theme Variables
 --------------------------------*/
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.298 0.004 258.338);
-  --card: oklch(0.98 0.002 258.338);
-  --card-foreground: oklch(0.298 0.004 258.338);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.298 0.004 258.338);
+  --background: oklch(0.965 0.005 255); /* un poco más oscuro que antes */
+  --foreground: oklch(0.25 0.01 265); /* texto más visible */
+  --card: oklch(0.985 0.003 255); /* paneles suaves, no blanco puro */
+  --card-foreground: oklch(0.25 0.01 265);
   --primary: oklch(0.488 0.243 264.376);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.298 0.004 258.338);
-  --muted: oklch(0.98 0.002 258.338);
-  --muted-foreground: oklch(0.556 0.004 258.338);
-  --accent: oklch(0.769 0.188 70.08);
-  --accent-foreground: oklch(0.298 0.004 258.338);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.922 0.002 258.338);
-  --ring: oklch(0.488 0.243 264.376 / 0.5);
-  --radius: 1rem;
+  --accent: oklch(0.88 0.02 260);
+  --accent-foreground: oklch(0.25 0.01 260);
+  --border: oklch(0.92 0.005 260); /* gris muy claro para bordes suaves */
+  --muted: oklch(0.93 0.01 260);
+  --muted-foreground: oklch(0.48 0.008 260);
+  --ring: oklch(0.488 0.243 264.376 / 0.3);
+  --radius: 0.75rem;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
+  --background: oklch(0.14 0 0);
+  --foreground: oklch(0.95 0 0);
+  --border: oklch(0.3 0 0); /* más claro en modo oscuro */
+  --muted: oklch(0.22 0 0);
+  --muted-foreground: oklch(0.7 0 0);
+  --card: oklch(0.18 0 0);
+  --card-foreground: oklch(0.95 0 0);
   --primary: oklch(0.488 0.243 264.376);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.769 0.188 70.08);
-  --accent-foreground: oklch(0.145 0 0);
-  --border: oklch(0.269 0 0);
-  --ring: oklch(0.488 0.243 264.376 / 0.5);
+  --accent: oklch(0.25 0.01 260);
 }
 
 /* ------------------------------
-   💅 Base Layer
+   💅 Base Layer (equilibrado)
 --------------------------------*/
 @layer base {
-* {
-  @apply border border-gray-200 dark:border-gray-800 outline-none;
-}
+  *,
+  ::before,
+  ::after {
+    @apply outline-none;
+    border-color: oklch(0.92 0.005 260 / 0.6); /* bordes muy suaves */
+  }
 
-  body {
+  html, body {
     @apply bg-[oklch(var(--background))] text-[oklch(var(--foreground))];
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Bordes suaves, consistentes */
+  table, th, td {
+    border-color: oklch(0.92 0.005 260 / 0.4); /* aún más suave para tablas */
+  }
+
+  /* Inputs y botones con fondo acorde al card */
+  input, textarea, select {
+    @apply border border-[oklch(0.92_0.005_260_/_0.5)] bg-[oklch(var(--card))] text-[oklch(var(--foreground))] rounded-md;
+  }
+
+  button {
+    @apply border border-transparent rounded-md;
+  }
+
+  /* Quita bordes excesivos en divs, mantiene estructura limpia */
+  div {
+    border-color: oklch(0.92 0.005 260 / 0.3); /* muy sutil para divs */
   }
 }
