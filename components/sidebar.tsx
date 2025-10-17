@@ -127,7 +127,6 @@ export function Sidebar() {
     console.log("🚪 Current userEmail from sidebar:", userEmail);
     console.log("🚪 Current user from auth:", user?.email);
     console.log("🚪 SignOut function type:", typeof signOut);
-    alert("SIDEBAR LOGOUT CLICKED! Check console for logs");
 
     try {
       console.log("🔥 Calling signOut function...");
