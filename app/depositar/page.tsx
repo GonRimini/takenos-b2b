@@ -11,19 +11,24 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/components/auth"
 import { getDepositoACH, getDepositoSWIFT, getDepositosCrypto, getDepositoLocal, DepositoACH, DepositoSWIFT, DepositoCrypto, DepositoLocal } from "@/lib/depositos"
 import { downloadDepositInstructions } from "@/lib/pdf-generator"
+import ExtractPdfData from "@/components/ExtractPdfData"
+import InformDeposit from "@/components/InformDeposit"
 
 export type DepositMethod = "ach" | "wire" | "swift" | "crypto" | "local"
+export type MainSection = "instructions" | "inform"
 
 export default function DepositarPage() {
+  const [mainSection, setMainSection] = useState<MainSection>("instructions")
   const [selectedMethod, setSelectedMethod] = useState<DepositMethod>("ach")
   
+
   // Obtener usuario desde Supabase
   const { user } = useAuth()
-  
+
   // Para datos de depósito, usar el email real del usuario (sin mapeo)
   // El mapeo solo debe aplicarse en el backend para APIs externas
   const userDisplayEmail = user?.email || ""
-
+  
   // Supabase state (ACH)
   const [achData, setAchData] = useState<DepositoACH | null>(null)
   const [achLoading, setAchLoading] = useState<boolean>(false)
@@ -421,96 +426,138 @@ export default function DepositarPage() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground mb-2">Instrucciones de depósito</h1>
-          <p className="text-muted-foreground">
-            Selecciona el método de depósito para obtener la información bancaria necesaria
-          </p>
-        </div>
-        
-        {/* Botón de actualización */}
-        <Button
-          variant="cta"
-          size="sm"
-          onClick={() => { 
-            if (selectedMethod === 'ach') loadACH()
-            else if (selectedMethod === 'swift') loadSWIFT()
-            else if (selectedMethod === 'crypto') loadCrypto()
-            else if (selectedMethod === 'local') loadLocal()
-          }}
-          disabled={achLoading || swiftLoading || cryptoLoading || localLoading}
-          className="flex items-center space-x-2"
-        >
-          <RefreshCw className={`h-4 w-4 ${(achLoading || swiftLoading || cryptoLoading || localLoading) ? 'animate-spin' : ''}`} />
-          <span>Actualizar</span>
-        </Button>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-foreground mb-2">Depósitos</h1>
+        <p className="text-muted-foreground">
+          Gestiona tus depósitos: consulta instrucciones o informa un depósito realizado
+        </p>
       </div>
 
-      <div className="space-y-4">
-        <Card className="rounded-lg">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-base">Método de depósito</CardTitle>
-            <CardDescription>Elige el tipo de transferencia que utilizarás</CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Tabs value={selectedMethod} onValueChange={(value) => setSelectedMethod(value as DepositMethod)} className="w-full">
-              <TabsList className="grid w-full grid-cols-4 rounded-none border-b bg-transparent p-0">
-                <TabsTrigger 
-                  value="ach" 
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#6d37d5] data-[state=active]:bg-transparent data-[state=active]:text-[#6d37d5] data-[state=active]:shadow-none"
-                >
-                  ACH/Wire
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="swift" 
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#6d37d5] data-[state=active]:bg-transparent data-[state=active]:text-[#6d37d5] data-[state=active]:shadow-none"
-                >
-                  SWIFT
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="crypto" 
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#6d37d5] data-[state=active]:bg-transparent data-[state=active]:text-[#6d37d5] data-[state=active]:shadow-none"
-                >
-                  Crypto
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="local" 
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#6d37d5] data-[state=active]:bg-transparent data-[state=active]:text-[#6d37d5] data-[state=active]:shadow-none"
-                >
-                  Moneda Local
-                </TabsTrigger>
-              </TabsList>
-              
-              <div className="p-6">
-                <TabsContent value="ach" className="mt-0">
-                  {renderDepositContent("ach")}
-                </TabsContent>
-                
-                <TabsContent value="swift" className="mt-0">
-                  {renderDepositContent("swift")}
-                </TabsContent>
-                
-                <TabsContent value="crypto" className="mt-0">
-                  {renderDepositContent("crypto")}
-                </TabsContent>
-                
-                <TabsContent value="local" className="mt-0">
-                  {renderDepositContent("local")}
-                </TabsContent>
-              </div>
-            </Tabs>
-          </CardContent>
-        </Card>
+      <Tabs value={mainSection} onValueChange={(value) => setMainSection(value as MainSection)} className="w-full">
+        <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="instructions" className="data-[state=active]:bg-[#6d37d5] data-[state=active]:text-white hover:bg-[#f3ecff] hover:text-[#6d37d5]">
+            Ver Instrucciones
+            </TabsTrigger>
+            <TabsTrigger value="inform" className="data-[state=active]:bg-[#6d37d5] data-[state=active]:text-white hover:bg-[#f3ecff] hover:text-[#6d37d5]">
+            Informar Depósito
+            </TabsTrigger>
+        </TabsList>
 
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription className="text-sm">
-            Verifica con tu banco los costos y tiempos de procesamiento. Los pagos internacionales pueden requerir
-            información adicional.
-          </AlertDescription>
-        </Alert>
-      </div>
+        <TabsContent value="instructions" className="space-y-4">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground mb-1">Instrucciones de depósito</h2>
+              <p className="text-sm text-muted-foreground">
+                Selecciona el método de depósito para obtener la información bancaria necesaria
+              </p>
+            </div>
+            
+            {/* Botón de actualización */}
+            <Button
+              variant="cta"
+              size="sm"
+              onClick={() => { 
+                if (selectedMethod === 'ach') loadACH()
+                else if (selectedMethod === 'swift') loadSWIFT()
+                else if (selectedMethod === 'crypto') loadCrypto()
+                else if (selectedMethod === 'local') loadLocal()
+              }}
+              disabled={achLoading || swiftLoading || cryptoLoading || localLoading}
+              className="flex items-center space-x-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${(achLoading || swiftLoading || cryptoLoading || localLoading) ? 'animate-spin' : ''}`} />
+              <span>Actualizar</span>
+            </Button>
+          </div>
+
+          <div className="space-y-4">
+            <Card className="rounded-lg">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-base">Método de depósito</CardTitle>
+                <CardDescription>Elige el tipo de transferencia que utilizarás</CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Tabs value={selectedMethod} onValueChange={(value) => setSelectedMethod(value as DepositMethod)} className="w-full">
+                  <TabsList className="grid w-full grid-cols-4 rounded-none border-b bg-transparent p-0">
+                    <TabsTrigger 
+                      value="ach" 
+                      className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#6d37d5] data-[state=active]:bg-transparent data-[state=active]:text-[#6d37d5] data-[state=active]:shadow-none"
+                    >
+                      ACH/Wire
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="swift" 
+                      className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#6d37d5] data-[state=active]:bg-transparent data-[state=active]:text-[#6d37d5] data-[state=active]:shadow-none"
+                    >
+                      SWIFT
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="crypto" 
+                      className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#6d37d5] data-[state=active]:bg-transparent data-[state=active]:text-[#6d37d5] data-[state=active]:shadow-none"
+                    >
+                      Crypto
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="local" 
+                      className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#6d37d5] data-[state=active]:bg-transparent data-[state=active]:text-[#6d37d5] data-[state=active]:shadow-none"
+                    >
+                      Moneda Local
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  <div className="p-6">
+                    <TabsContent value="ach" className="mt-0">
+                      {renderDepositContent("ach")}
+                    </TabsContent>
+                    
+                    <TabsContent value="swift" className="mt-0">
+                      {renderDepositContent("swift")}
+                    </TabsContent>
+                    
+                    <TabsContent value="crypto" className="mt-0">
+                      {renderDepositContent("crypto")}
+                    </TabsContent>
+                    
+                    <TabsContent value="local" className="mt-0">
+                      {renderDepositContent("local")}
+                    </TabsContent>
+                  </div>
+                </Tabs>
+              </CardContent>
+            </Card>
+
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="text-sm">
+                Verifica con tu banco los costos y tiempos de procesamiento. Los pagos internacionales pueden requerir
+                información adicional.
+              </AlertDescription>
+            </Alert>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="inform" className="space-y-4">
+          <Card className="rounded-lg">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base">Informar Depósito Realizado</CardTitle>
+              <CardDescription>
+                Sube el comprobante de tu depósito para que podamos procesar tu solicitud y acreditar los fondos
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <InformDeposit />
+            </CardContent>
+          </Card>
+
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="text-sm">
+              Asegúrate de que el comprobante sea legible y contenga toda la información del depósito. 
+              El procesamiento puede tomar entre 24-48 horas hábiles.
+            </AlertDescription>
+          </Alert>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
