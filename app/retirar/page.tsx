@@ -791,8 +791,8 @@ export default function RetirarPage() {
                       <SelectValue placeholder="Selecciona la red" />
                     </SelectTrigger>
                     <SelectContent>
-                      {walletNetworks.map((network) => (
-                        <SelectItem key={network.value} value={network.value}>
+                      {walletNetworks.map((network, i) => (
+                        <SelectItem key={i} value={network.value}>
                           {network.label}
                         </SelectItem>
                       ))}
@@ -849,8 +849,8 @@ export default function RetirarPage() {
                         <SelectValue placeholder="Selecciona el banco" />
                       </SelectTrigger>
                       <SelectContent>
-                        {boliviaBanks.map((bank) => (
-                          <SelectItem key={bank} value={bank}>
+                        {boliviaBanks.map((bank, i) => (
+                          <SelectItem key={i} value={bank}>
                             {bank}
                           </SelectItem>
                         ))}
