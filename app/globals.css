@@ -48,6 +48,7 @@
   html, body {
     @apply bg-[oklch(var(--background))] text-[oklch(var(--foreground))];
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+
   }
 
   /* Bordes suaves, consistentes */

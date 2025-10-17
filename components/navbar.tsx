@@ -131,16 +131,13 @@ export function Navbar() {
                   console.log("🖱️ Current user:", user?.email)
                   console.log("🖱️ SignOut function type:", typeof signOut)
                   console.log("🖱️ HandleSignOut function type:", typeof handleSignOut)
-                  alert("LOGOUT BUTTON CLICKED! Check console for logs")
                   
                   // Llamar directamente a signOut sin pasar por handleSignOut
                   console.log("🖱️ Calling signOut directly...")
                   signOut().then(result => {
                     console.log("🖱️ SignOut result:", result)
-                    alert("SignOut completed! Result: " + JSON.stringify(result))
                   }).catch(err => {
                     console.log("🖱️ SignOut error:", err)
-                    alert("SignOut error: " + err)
                   })
                 }}
                 style={{ 
@@ -207,7 +204,6 @@ export function Navbar() {
                   onClick={(e) => {
                     console.log("🖱️🖱️🖱️ MOBILE LOGOUT CLICKED!")
                     console.log("🖱️ Mobile Event:", e)
-                    alert("MOBILE LOGOUT CLICKED! Check console")
                     setIsMenuOpen(false)
                     handleSignOut()
                   }}
