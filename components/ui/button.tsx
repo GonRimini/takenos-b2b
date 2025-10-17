@@ -33,7 +33,7 @@ const buttonVariants = cva(
           "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80",
         ghost:
           "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
-        link: "text-primary underline-offset-4 hover:underline",
+        link: " text-[#6d37d5]",
         logout: `
   bg-[#f4f4f6] text-[#374151]
   hover:bg-[#f3ecff] hover:text-[#6d37d5]

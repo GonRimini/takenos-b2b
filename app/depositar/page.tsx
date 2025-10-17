@@ -21,13 +21,14 @@ export default function DepositarPage() {
   const [mainSection, setMainSection] = useState<MainSection>("instructions")
   const [selectedMethod, setSelectedMethod] = useState<DepositMethod>("ach")
   
+
   // Obtener usuario desde Supabase
   const { user } = useAuth()
-  
+
   // Para datos de depósito, usar el email real del usuario (sin mapeo)
   // El mapeo solo debe aplicarse en el backend para APIs externas
   const userDisplayEmail = user?.email || ""
-
+  
   // Supabase state (ACH)
   const [achData, setAchData] = useState<DepositoACH | null>(null)
   const [achLoading, setAchLoading] = useState<boolean>(false)

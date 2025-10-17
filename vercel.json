@@ -1,5 +1,6 @@
 {
-  "installCommand": "pnpm install",
+  "installCommand": "npm install",
+  "buildCommand": "npm run build",
   "env": {
     "NEXT_DISABLE_LIGHTNINGCSS": "1"
   }
