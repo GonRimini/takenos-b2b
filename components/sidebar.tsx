@@ -141,8 +141,6 @@ export function Sidebar() {
         description: "Has cerrado sesión exitosamente",
       });
 
-      alert("Logout completed! Result: " + JSON.stringify(result));
-
       // Forzar recarga completa
       window.location.href = "/login";
     } catch (error) {
