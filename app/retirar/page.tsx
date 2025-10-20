@@ -853,13 +853,7 @@ export default function RetirarPage() {
                       <Label htmlFor="accountType" className="text-sm">
                         Tipo de cuenta *
                       </Label>
-                      <Select
-                        onValueChange={(value) =>
-                          setValue("accountType", value as any)
-                        }
-                        value={watchedAccountType as any}
-                        disabled={!isCreatingNewAccount}
-                      >
+                      <Select onValueChange={(value) => setValue("accountType", value as any)} value={watchedAccountType as any}>
                         <SelectTrigger className="h-9">
                           <SelectValue placeholder="Selecciona" />
                         </SelectTrigger>
