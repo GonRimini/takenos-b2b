@@ -86,7 +86,7 @@ export function WithdrawalSummaryModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl bg-gray-50">
         <DialogHeader>
           <DialogTitle>Revisar y confirmar</DialogTitle>
           <DialogDescription>
@@ -94,7 +94,7 @@ export function WithdrawalSummaryModal({
           </DialogDescription>
         </DialogHeader>
 
-        <Card>
+        <Card className="bg-gray-50 border-gray-200">
           <CardContent className="pt-6 space-y-4">
             {/* Información general */}
             <div className="grid grid-cols-2 gap-4">
