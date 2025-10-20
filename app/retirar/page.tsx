@@ -176,7 +176,7 @@ export default function RetirarPage() {
     formState: { errors },
     getValues,
   } = useForm<WithdrawalFormData>({
-    resolver: zodResolver(withdrawalSchema),
+    // resolver: zodResolver(withdrawalSchema),
   });
 
   const watchedCategory = watch("category");
