@@ -188,12 +188,33 @@ export default function RetirarPage() {
   const watchedLocalBank = watch("localBank");
 
   const formatCurrency = (value: string) => {
-    const number = value.replace(/[^\d]/g, "");
-    if (!number) return "";
-    const formatted = new Intl.NumberFormat("en-US").format(
-      Number.parseInt(number)
-    );
-    return formatted;
+    // Permitir solo números y un punto decimal
+    let cleanValue = value.replace(/[^\d.]/g, "");
+    
+    // Evitar múltiples puntos decimales
+    const parts = cleanValue.split(".");
+    if (parts.length > 2) {
+      cleanValue = parts[0] + "." + parts.slice(1).join("");
+    }
+    
+    // Limitar a 2 decimales
+    if (parts[1] && parts[1].length > 2) {
+      cleanValue = parts[0] + "." + parts[1].substring(0, 2);
+    }
+    
+    if (!cleanValue) return "";
+    
+    // Si hay punto decimal, formatear manteniendo los decimales
+    if (cleanValue.includes(".")) {
+      const [integerPart, decimalPart] = cleanValue.split(".");
+      const formattedInteger = new Intl.NumberFormat("en-US").format(
+        Number.parseInt(integerPart || "0")
+      );
+      return decimalPart !== undefined ? `${formattedInteger}.${decimalPart}` : formattedInteger;
+    } else {
+      // Solo números enteros
+      return new Intl.NumberFormat("en-US").format(Number.parseInt(cleanValue));
+    }
   };
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1143,7 +1164,7 @@ export default function RetirarPage() {
                   id="amount"
                   {...register("amount")}
                   onChange={handleAmountChange}
-                  placeholder="0"
+                  placeholder="0.00"
                   className="pl-10 font-mono h-9"
                 />
               </div>
