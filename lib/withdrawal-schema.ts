@@ -11,6 +11,9 @@ const baseSchema = z.object({
   category: withdrawalCategoryEnum,     // usd_bank | crypto | local_currency
   amount: z.string().min(1, "Requerido"), // ya formateado como string, lo convertimos server-side
   reference: z.string().optional(),
+  
+  // Comprobante PDF para justificar el retiro
+  receiptFile: z.any().optional(), // File object, validamos en el cliente
 
   // comunes opcionales (se filtran por categoría)
   country: z.string().optional(),
@@ -35,9 +38,17 @@ const baseSchema = z.object({
 })
 
 export const withdrawalSchema = baseSchema.superRefine((data, ctx) => {
+  // Validar comprobante PDF (requerido para todas las categorías)
+  if (!data.receiptFile) {
+    ctx.addIssue({ 
+      code: z.ZodIssueCode.custom, 
+      message: "Debes subir un comprobante PDF que justifique el retiro", 
+      path: ["receiptFile"] 
+    })
+  }
+
   // USD bank
   if (data.category === "usd_bank") {
-    if (!data.accountOwnership) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Selecciona a quién pertenece la cuenta", path: ["accountOwnership"] })
     if (!data.method) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Selecciona tipo de transferencia (ACH/Wire)", path: ["method"] })
     if (!data.beneficiaryName) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Titular requerido", path: ["beneficiaryName"] })
     if (!data.beneficiaryBank) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Banco requerido", path: ["beneficiaryBank"] })

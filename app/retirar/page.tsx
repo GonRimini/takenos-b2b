@@ -41,7 +41,7 @@ import {
 } from "@/lib/withdrawal-schema";
 import { useToast } from "@/hooks/use-toast";
 import { useCacheInvalidation } from "@/hooks/use-cache-invalidation";
-import { AlertCircle, DollarSign, ChevronDown, ChevronUp } from "lucide-react";
+import { AlertCircle, DollarSign, ChevronDown, ChevronUp, FileText } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Dialog,
@@ -52,6 +52,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { getApiEmailForUser } from "@/lib/utils";
+import { supabase } from "@/lib/supabase-client";
 
 const boliviaBanks = [
   "Banco Mercantil",
@@ -111,6 +112,7 @@ export default function RetirarPage() {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [usedSavedAccount, setUsedSavedAccount] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   // Estados del wizard
   const [currentStep, setCurrentStep] = useState<
@@ -258,6 +260,54 @@ export default function RetirarPage() {
         );
       }
 
+      // Subir archivo PDF si existe
+      let fileUrl = null;
+      if (selectedFile && selectedFile instanceof File) {
+        try {
+          // 1. Crear nombre de archivo único y seguro
+          const timestamp = Date.now();
+          const safeFileName = selectedFile.name
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "") // quitar tildes
+            .replace(/[^a-zA-Z0-9.\-_ ]/g, "") // solo caracteres válidos
+            .replace(/\s+/g, "_"); // reemplazar espacios por _
+
+          const filePath = `withdrawal-proofs/${userEmail}/${timestamp}_${safeFileName}`;
+
+          // 2. Subir archivo a Supabase Storage
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from("proofs")
+            .upload(filePath, selectedFile, {
+              cacheControl: "3600",
+              upsert: false
+            });
+
+          if (uploadError) {
+            console.error("Error uploading file:", uploadError);
+            throw new Error("Error al subir el archivo: " + uploadError.message);
+          }
+
+          // 3. Generar URL pública del archivo
+          const { data: publicUrlData } = supabase.storage
+            .from("proofs")
+            .getPublicUrl(uploadData.path);
+
+          if (!publicUrlData.publicUrl) {
+            throw new Error("No se pudo generar la URL del archivo");
+          }
+
+          fileUrl = publicUrlData.publicUrl;
+          console.log("File uploaded successfully:", fileUrl);
+        } catch (uploadError) {
+          console.error("Error during file upload:", uploadError);
+          throw new Error(
+            uploadError instanceof Error 
+              ? uploadError.message 
+              : "Error al subir el comprobante PDF"
+          );
+        }
+      }
+
       console.log("Final user email being sent:", userEmail);
       console.log("Making request to:", "/api/withdrawals");
       console.log("Window location:", window.location.href);
@@ -266,13 +316,20 @@ export default function RetirarPage() {
       const fullUrl = `${window.location.origin}/api/withdrawals`;
       console.log("Full URL being requested:", fullUrl);
 
+      // Incluir la URL del archivo en los datos del formulario
+      const submitData = {
+        ...formData,
+        receiptFileUrl: fileUrl,
+        receiptFileName: selectedFile?.name
+      };
+
       const response = await fetch("/api/withdrawals", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-user-email": getApiEmailForUser(userEmail),
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(submitData),
       }).catch((error) => {
         console.error("Fetch error details:", error);
         console.error("Error name:", error.name);
@@ -281,6 +338,7 @@ export default function RetirarPage() {
       });
 
       const responseData = await response.json();
+      console.log("Response from /api/withdrawals:", responseData);
 
       if (!response.ok) {
         // Mostrar mensaje específico del backend si está disponible
@@ -307,8 +365,10 @@ export default function RetirarPage() {
       setValue("method", undefined as any);
       setValue("amount", "");
       setValue("reference", "");
+      setValue("receiptFile", undefined);
       setValue("saveNickname" as any, "");
       setUsedSavedAccount(false);
+      setSelectedFile(null);
       // Clear other fields
       Object.keys(formData).forEach((key) => {
         if (
@@ -316,6 +376,7 @@ export default function RetirarPage() {
           key !== "method" &&
           key !== "amount" &&
           key !== "reference" &&
+          key !== "receiptFile" &&
           key !== "saveNickname"
         ) {
           setValue(key as any, "");
@@ -458,7 +519,9 @@ export default function RetirarPage() {
     setValue("localAccountNumber", "");
     setValue("amount", "");
     setValue("reference", "");
+    setValue("receiptFile", undefined);
     setUsedSavedAccount(false);
+    setSelectedFile(null);
   }
 
   // Función para rellenar formulario desde cuenta guardada
@@ -1188,6 +1251,70 @@ export default function RetirarPage() {
               />
             </div>
 
+            {/* Comprobante PDF */}
+            <div className="space-y-2">
+              <Label htmlFor="receiptFile" className="text-sm">
+                Comprobante PDF *
+              </Label>
+              <Input
+                id="receiptFile"
+                type="file"
+                accept="application/pdf"
+                {...register("receiptFile")}
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) {
+                    // Validar tipo de archivo
+                    if (file.type !== "application/pdf") {
+                      toast({
+                        title: "Error",
+                        description: "Por favor, selecciona un archivo PDF",
+                        variant: "destructive"
+                      });
+                      e.target.value = ""; // Limpiar input
+                      setSelectedFile(null);
+                      setValue("receiptFile", undefined);
+                      return;
+                    }
+                    // Validar tamaño (10MB máximo)
+                    if (file.size > 10 * 1024 * 1024) {
+                      toast({
+                        title: "Error",
+                        description: "El archivo es muy grande. Máximo 10MB",
+                        variant: "destructive"
+                      });
+                      e.target.value = ""; // Limpiar input
+                      setSelectedFile(null);
+                      setValue("receiptFile", undefined);
+                      return;
+                    }
+                    setSelectedFile(file);
+                    setValue("receiptFile", file);
+                  } else {
+                    setSelectedFile(null);
+                    setValue("receiptFile", undefined);
+                  }
+                }}
+                className="h-9 cursor-pointer file:cursor-pointer file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+              />
+              {errors.receiptFile && (
+                <p className="text-xs text-destructive">
+                  {String(errors.receiptFile.message)}
+                </p>
+              )}
+              {selectedFile && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted p-2 rounded">
+                  <FileText className="h-3 w-3" />
+                  <span>
+                    {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                  </span>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Sube una factura, contrato, o documento PDF que justifique tu retiro (máx. 10MB)
+              </p>
+            </div>
+
             {/* Helper text */}
             {getHelperText() && (
               <p className="text-xs text-muted-foreground">{getHelperText()}</p>
@@ -1434,7 +1561,10 @@ export default function RetirarPage() {
         isOpen={showSummary}
         onClose={() => setShowSummary(false)}
         onConfirm={handleConfirmSubmission}
-        data={getValues()}
+        data={{
+          ...getValues(),
+          receiptFile: selectedFile
+        }}
         isSubmitting={isSubmitting}
       />
     </div>
