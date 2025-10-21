@@ -19,17 +19,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     const apiUrl = `${BLINDPAY_API_BASE}/instances/${INSTANCE_ID}/receivers/${receiverId}/virtual-accounts`
-    console.log("[v0] Making request to:", apiUrl)
-    console.log("[v0] Receiver ID:", receiverId)
-    console.log("[v0] API Key present:", !!BLINDPAY_API_KEY)
-    console.log("[v0] API Key length:", BLINDPAY_API_KEY?.length || 0)
-    console.log("[v0] API Key first 10 chars:", BLINDPAY_API_KEY?.substring(0, 10))
-    console.log("[v0] API Key last 10 chars:", BLINDPAY_API_KEY?.substring(BLINDPAY_API_KEY.length - 10))
-    console.log("[v0] API Key contains Bearer:", BLINDPAY_API_KEY?.includes("Bearer"))
 
     const authHeader = BLINDPAY_API_KEY.startsWith("Bearer ") ? BLINDPAY_API_KEY : `Bearer ${BLINDPAY_API_KEY}`
-
-    console.log("[v0] Final auth header:", authHeader.substring(0, 20) + "...")
 
     const response = await fetch(apiUrl, {
       method: "GET",
