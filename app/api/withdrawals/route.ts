@@ -217,6 +217,7 @@ function generateEmailHtml(data: any) {
       <tr><td><strong>Banco:</strong></td><td>${data.beneficiaryBank}</td></tr>
       <tr><td><strong>Tipo de cuenta:</strong></td><td>${getAccountTypeLabel(data.accountType)}</td></tr>
       <tr><td><strong>Número de cuenta:</strong></td><td>${data.accountNumber}</td></tr>
+      ${data.receiptFileUrl ? `<tr><td><strong>Comprobante de justificación:</strong></td><td><a href="${data.receiptFileUrl}" target="_blank" style="color: #7c3aed; text-decoration: none;">${data.receiptFileName || 'Ver comprobante'}</a></td></tr>` : ""}
       ${data.method === "ach" && data.routingNumber ? `<tr><td><strong>Routing Number:</strong></td><td>${data.routingNumber}</td></tr>` : ""}
       ${data.method === "wire" && data.swiftBic ? `<tr><td><strong>SWIFT/BIC:</strong></td><td>${data.swiftBic}</td></tr>` : ""}
     `
@@ -225,6 +226,7 @@ function generateEmailHtml(data: any) {
       <tr><td><strong>Apodo de la billetera:</strong></td><td>${data.walletAlias}</td></tr>
       <tr><td><strong>Dirección:</strong></td><td>${data.walletAddress}</td></tr>
       <tr><td><strong>Red:</strong></td><td>${getWalletNetworkLabel(data.walletNetwork)}</td></tr>
+      ${data.receiptFileUrl ? `<tr><td><strong>Comprobante de justificación:</strong></td><td><a href="${data.receiptFileUrl}" target="_blank" style="color: #7c3aed; text-decoration: none;">${data.receiptFileName || 'Ver comprobante'}</a></td></tr>` : ""}
     `
   } else if (data.category === "local_currency") {
     categoryFields = `
@@ -232,6 +234,7 @@ function generateEmailHtml(data: any) {
       <tr><td><strong>Nombre de la cuenta:</strong></td><td>${data.localAccountName}</td></tr>
       <tr><td><strong>Banco:</strong></td><td>${data.localBank}</td></tr>
       <tr><td><strong>Número de cuenta:</strong></td><td>${data.localAccountNumber}</td></tr>
+      ${data.receiptFileUrl ? `<tr><td><strong>Comprobante de justificación:</strong></td><td><a href="${data.receiptFileUrl}" target="_blank" style="color: #7c3aed; text-decoration: none;">${data.receiptFileName || 'Ver comprobante'}</a></td></tr>` : ""}
     `
   }
 

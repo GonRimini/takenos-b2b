@@ -219,6 +219,21 @@ export function WithdrawalSummaryModal({
                 <div className="text-sm">{data.reference}</div>
               </div>
             )}
+
+            {/* Comprobante PDF */}
+            {data.receiptFile && data.receiptFile instanceof File && (
+              <div>
+                <div className="text-sm font-medium text-muted-foreground">Comprobante PDF</div>
+                <div className="text-sm flex items-center gap-2">
+                  <span className="font-mono bg-gray-100 px-2 py-1 rounded text-xs">
+                    📄 {data.receiptFile.name}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    ({(data.receiptFile.size / 1024 / 1024).toFixed(2)} MB)
+                  </span>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
