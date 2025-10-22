@@ -14,6 +14,8 @@ const baseSchema = z.object({
   
   // Comprobante PDF para justificar el retiro
   receiptFile: z.any().optional(), // File object, validamos en el cliente
+  receiptFileUrl: z.string().optional(), // URL del archivo subido a Supabase
+  receiptFileName: z.string().optional(), // Nombre del archivo
 
   // comunes opcionales (se filtran por categoría)
   country: z.string().optional(),
