@@ -113,6 +113,7 @@ export default function RetirarPage() {
   const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [usedSavedAccount, setUsedSavedAccount] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
 
   // Estados del wizard
   const [currentStep, setCurrentStep] = useState<
@@ -224,7 +225,82 @@ export default function RetirarPage() {
     setValue("amount", formatted);
   };
 
-  const onSubmit = (data: WithdrawalFormData) => {
+  const onSubmit = async (data: WithdrawalFormData) => {
+    // Si hay archivo seleccionado, subirlo antes de mostrar el modal
+    if (selectedFile && selectedFile instanceof File) {
+      try {
+        // Obtener el email del usuario
+        let userEmail = null;
+        try {
+          const storedUser = localStorage.getItem("takenos_user");
+          if (storedUser) {
+            const parsedUser = JSON.parse(storedUser);
+            userEmail = parsedUser.email;
+          }
+        } catch (e) {
+          console.error("Error reading from localStorage:", e);
+        }
+
+        if (!userEmail && user?.email) {
+          userEmail = user.email;
+        }
+
+        if (userEmail) {
+          // Subir archivo a Supabase
+          const timestamp = Date.now();
+          const safeFileName = selectedFile.name
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-zA-Z0-9.\-_ ]/g, "")
+            .replace(/\s+/g, "_");
+
+          const filePath = `withdrawal-proofs/${userEmail}/${timestamp}_${safeFileName}`;
+
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from("proofs")
+            .upload(filePath, selectedFile, {
+              cacheControl: "3600",
+              upsert: false
+            });
+
+          if (uploadError) {
+            console.error("Error uploading file:", uploadError);
+            toast({
+              title: "Error",
+              description: "Error al subir el archivo: " + uploadError.message,
+              variant: "destructive"
+            });
+            return;
+          }
+
+          // Generar URL pública del archivo
+          const { data: publicUrlData } = supabase.storage
+            .from("proofs")
+            .getPublicUrl(uploadData.path);
+
+          if (!publicUrlData.publicUrl) {
+            toast({
+              title: "Error",
+              description: "No se pudo generar la URL del archivo",
+              variant: "destructive"
+            });
+            return;
+          }
+
+          setUploadedFileUrl(publicUrlData.publicUrl);
+          console.log("File uploaded successfully:", publicUrlData.publicUrl);
+        }
+      } catch (uploadError) {
+        console.error("Error during file upload:", uploadError);
+        toast({
+          title: "Error",
+          description: "Error al subir el comprobante PDF",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+
     setShowSummary(true);
   };
 
@@ -261,8 +337,8 @@ export default function RetirarPage() {
       }
 
       // Subir archivo PDF si existe
-      let fileUrl = null;
-      if (selectedFile && selectedFile instanceof File) {
+      let fileUrl = uploadedFileUrl; // Usar la URL ya subida
+      if (!fileUrl && selectedFile && selectedFile instanceof File) {
         try {
           // 1. Crear nombre de archivo único y seguro
           const timestamp = Date.now();
@@ -319,7 +395,7 @@ export default function RetirarPage() {
       // Incluir la URL del archivo en los datos del formulario
       const submitData = {
         ...formData,
-        receiptFileUrl: fileUrl,
+        receiptFileUrl: fileUrl || uploadedFileUrl,
         receiptFileName: selectedFile?.name
       };
 
@@ -369,6 +445,7 @@ export default function RetirarPage() {
       setValue("saveNickname" as any, "");
       setUsedSavedAccount(false);
       setSelectedFile(null);
+      setUploadedFileUrl(null);
       // Clear other fields
       Object.keys(formData).forEach((key) => {
         if (
@@ -522,6 +599,7 @@ export default function RetirarPage() {
     setValue("receiptFile", undefined);
     setUsedSavedAccount(false);
     setSelectedFile(null);
+    setUploadedFileUrl(null);
   }
 
   // Función para rellenar formulario desde cuenta guardada
@@ -1563,7 +1641,9 @@ export default function RetirarPage() {
         onConfirm={handleConfirmSubmission}
         data={{
           ...getValues(),
-          receiptFile: selectedFile
+          receiptFile: selectedFile,
+          receiptFileUrl: uploadedFileUrl || undefined,
+          receiptFileName: selectedFile?.name
         }}
         isSubmitting={isSubmitting}
       />

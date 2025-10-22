@@ -1,98 +1,130 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { withdrawalSchema } from "@/lib/withdrawal-schema"
-import { Resend } from "resend"
-import { supabaseServer } from "@/lib/supabase-server"
+import { type NextRequest, NextResponse } from "next/server";
+import { withdrawalSchema } from "@/lib/withdrawal-schema";
+import { Resend } from "resend";
+import { supabaseServer } from "@/lib/supabase-server";
+import { sendSlackNotification } from "@/lib/slack";
 
-export const runtime = "nodejs"
+export const runtime = "nodejs";
 
 function parseAmountToNumber(v?: string) {
-  if (!v) return null
-  const onlyDigits = v.replace(/[^\d.]/g, "")
-  if (!onlyDigits) return null
-  return Number.parseFloat(onlyDigits)
+  if (!v) return null;
+  const onlyDigits = v.replace(/[^\d.]/g, "");
+  if (!onlyDigits) return null;
+  return Number.parseFloat(onlyDigits);
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    
+    const body = await request.json();
+
     // Validar con Zod
-    const validatedData = withdrawalSchema.parse(body)
-    
-    console.log("Withdrawal request received:", validatedData)
-    
+    const validatedData = withdrawalSchema.parse(body);
+
+    console.log("Withdrawal request received:", validatedData);
+
     // Obtener el email del usuario desde el header o query param
-    const userEmail = request.headers.get("x-user-email") || "usuario@takenos.com"
-    
+    const userEmail =
+      request.headers.get("x-user-email") || "usuario@takenos.com";
+
     // Generar HTML del email según la categoría
-    const emailHtml = generateEmailHtml(validatedData)
-    
+    const emailHtml = generateEmailHtml(validatedData);
+
     // Enviar email usando Resend
-    const resendApiKey = process.env.RESEND_API_KEY
-    
-    console.log("RESEND_API_KEY found:", resendApiKey ? "Yes" : "No")
-    
+    const resendApiKey = process.env.RESEND_API_KEY;
+
+    console.log("RESEND_API_KEY found:", resendApiKey ? "Yes" : "No");
+
     if (!resendApiKey) {
-      console.warn("RESEND_API_KEY not found, skipping email send")
-      console.log("Email HTML that would be sent:", emailHtml)
+      console.warn("RESEND_API_KEY not found, skipping email send");
+      console.log("Email HTML that would be sent:", emailHtml);
     } else {
-      const resend = new Resend(resendApiKey)
-      
+      const resend = new Resend(resendApiKey);
+
       try {
-        const recipients = ["grimini@takenos.com"]
-        const emailResults = []
-        
+        const recipients =
+          process.env.NODE_ENV === "production"
+            ? ["fermin@takenos.com"]
+            : ["grimini@takenos.com"];
+        const emailResults = [];
+        const FROM_EMAIL =
+          process.env.NODE_ENV === "production"
+            ? "Takenos B2B <grimini@takenos.com>"
+            : "Takenos B2B <onboarding@resend.dev>";
         // Enviar emails por separado para debug
+        console.log("From email:", FROM_EMAIL);
         for (const recipient of recipients) {
-          console.log(`Sending email to: ${recipient}`)
-          
+          console.log(`Sending email to: ${recipient}`);
+
           const { data, error } = await resend.emails.send({
-            from: "onboarding@resend.dev",
+            from: FROM_EMAIL,
             to: [recipient],
-            subject: `Withdrawal Request de ${userEmail} - ${formatAmount(validatedData.amount)}`,
+            subject: `Withdrawal Request de ${userEmail} - ${formatAmount(
+              validatedData.amount
+            )}`,
             html: emailHtml,
-          })
-          
+          });
+
+          console.log("RECEIPT FILE", validatedData.receiptFile);
+          console.log("RECEIPT FILE URL", validatedData.receiptFileUrl);
+
+          const slackMessage = `:money_with_wings: *Nueva solicitud de retiro*\n*Usuario:* ${userEmail}\n*Monto:* ${formatAmount(
+            validatedData.amount
+          )}\n*Categoría:* ${validatedData.category}\n*Comprobante:* ${
+            validatedData.receiptFileUrl 
+          }\n*Fecha:* ${new Date().toLocaleString()}\n`;
+          await sendSlackNotification(slackMessage);
+
           if (error) {
-            console.error(`Error sending email to ${recipient}:`, error)
-            emailResults.push({ recipient, success: false, error })
+            console.error("ERROR", error.message, error);
+          }
+
+          if (error) {
+            console.error(`Error sending email to ${recipient}:`, error);
+            emailResults.push({ recipient, success: false, error });
           } else {
-            console.log(`Email sent successfully to ${recipient}:`, data)
-            emailResults.push({ recipient, success: true, data })
+            console.log(`Email sent successfully to ${recipient}:`, data);
+            emailResults.push({ recipient, success: true, data });
           }
         }
-        
+
         // Verificar si al menos uno se envió exitosamente
-        const successfulEmails = emailResults.filter(result => result.success)
-        const failedEmails = emailResults.filter(result => !result.success)
-        
-        console.log(`Email summary: ${successfulEmails.length} successful, ${failedEmails.length} failed`)
-        
+        const successfulEmails = emailResults.filter(
+          (result) => result.success
+        );
+        const failedEmails = emailResults.filter((result) => !result.success);
+
         if (successfulEmails.length === 0) {
-          console.error("All emails failed:", failedEmails)
-          return NextResponse.json({ 
-            success: false, 
-            message: "Error al enviar todas las notificaciones por email",
-            emailResults 
-          }, { status: 500 })
+          console.error("All emails failed:", failedEmails);
+          return NextResponse.json(
+            {
+              success: false,
+              message: "Error al enviar todas las notificaciones por email",
+              emailResults,
+            },
+            { status: 500 }
+          );
         }
-        
+
         if (failedEmails.length > 0) {
-          console.warn("Some emails failed:", failedEmails)
+          console.warn("Some emails failed:", failedEmails);
         }
-        
       } catch (emailError) {
-        console.error("Error sending email:", emailError)
-        return NextResponse.json({ 
-          success: false, 
-          message: `Error al enviar la notificación por email: ${emailError instanceof Error ? emailError.message : 'Unknown error'}` 
-        }, { status: 500 })
+        console.error("Error sending email:", emailError);
+        return NextResponse.json(
+          {
+            success: false,
+            message: `Error al enviar la notificación por email: ${
+              emailError instanceof Error ? emailError.message : "Unknown error"
+            }`,
+          },
+          { status: 500 }
+        );
       }
     }
-    
+
     // 2) Insertar en Supabase
-    const supa = supabaseServer()
-    const amountNumeric = parseAmountToNumber(validatedData.amount)
+    const supa = supabaseServer();
+    const amountNumeric = parseAmountToNumber(validatedData.amount);
     const insertPayload = {
       status: "pending",
       category: validatedData.category,
@@ -102,140 +134,198 @@ export async function POST(request: NextRequest) {
       requester_email: userEmail,
       user_id: null, // TODO: Add user_id if available from auth context
       payload: validatedData,
-    }
+    };
 
     const { data: inserted, error } = await supa
       .from("withdrawals")
       .insert(insertPayload)
       .select("id, created_at")
-      .single()
+      .single();
 
     if (error) {
-      console.error("Supabase insert error:", error)
-      return NextResponse.json({ 
-        success: false, 
-        message: "Error al guardar en la base de datos",
-        error: error.message 
-      }, { status: 500 })
+      console.error("Supabase insert error:", error);
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Error al guardar en la base de datos",
+          error: error.message,
+        },
+        { status: 500 }
+      );
     }
 
-    console.log("Withdrawal saved to database:", inserted)
+    console.log("Withdrawal saved to database:", inserted);
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       message: "Solicitud de retiro recibida correctamente",
       data: validatedData,
       withdrawalId: inserted.id,
-      createdAt: inserted.created_at
-    })
-    
+      createdAt: inserted.created_at,
+    });
   } catch (error) {
-    console.error("Error processing withdrawal request:", error)
-    
+    console.error("Error processing withdrawal request:", error);
+
     if (error instanceof Error && error.name === "ZodError") {
-      return NextResponse.json({ 
-        success: false, 
-        message: "Datos de formulario inválidos",
-        errors: error.message 
-      }, { status: 400 })
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Datos de formulario inválidos",
+          errors: error.message,
+        },
+        { status: 400 }
+      );
     }
-    
-    return NextResponse.json({ 
-      success: false, 
-      message: "Error interno del servidor" 
-    }, { status: 500 })
+
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Error interno del servidor",
+      },
+      { status: 500 }
+    );
   }
 }
 
 function formatAmount(amount: string) {
   if (!amount || typeof amount !== "string") {
-    return "$0.00"
+    return "$0.00";
   }
-  const num = Number.parseFloat(amount.replace(/[,$]/g, ""))
+  const num = Number.parseFloat(amount.replace(/[,$]/g, ""));
   if (isNaN(num)) {
-    return "$0.00"
+    return "$0.00";
   }
   return new Intl.NumberFormat("es-US", {
     style: "currency",
     currency: "USD",
-  }).format(num)
+  }).format(num);
 }
 
 function generateEmailHtml(data: any) {
   const getCategoryLabel = (category: string) => {
     const labels = {
       usd_bank: "USD - Cuenta bancaria",
-      crypto: "Criptomonedas", 
+      crypto: "Criptomonedas",
       local_currency: "Moneda local",
-    }
-    return labels[category as keyof typeof labels] || category
-  }
+    };
+    return labels[category as keyof typeof labels] || category;
+  };
 
   const getMethodLabel = (method: string) => {
     const labels = {
       ach: "ACH",
       wire: "Wire Transfer",
-    }
-    return labels[method as keyof typeof labels] || method
-  }
+    };
+    return labels[method as keyof typeof labels] || method;
+  };
 
   const getAccountOwnershipLabel = (ownership: string) => {
     const labels = {
       yo: "Yo mismo",
-      otra_persona: "Otra persona", 
+      otra_persona: "Otra persona",
       empresa: "Empresa",
-    }
-    return labels[ownership as keyof typeof labels] || ownership
-  }
+    };
+    return labels[ownership as keyof typeof labels] || ownership;
+  };
 
   const getAccountTypeLabel = (type: string) => {
     const labels = {
       checking: "Checking",
       saving: "Saving",
-    }
-    return labels[type as keyof typeof labels] || type
-  }
+    };
+    return labels[type as keyof typeof labels] || type;
+  };
 
   const getWalletNetworkLabel = (network: string) => {
     const labels = {
       BEP20: "Binance Smart Chain - BEP20",
       MATIC: "Polygon - MATIC",
       TRC20: "Tron - TRC20",
-    }
-    return labels[network as keyof typeof labels] || network
-  }
+    };
+    return labels[network as keyof typeof labels] || network;
+  };
 
+  let categoryFields = "";
 
-
-  let categoryFields = ""
-  
   if (data.category === "usd_bank") {
     categoryFields = `
-      <tr><td><strong>Propietario:</strong></td><td>${getAccountOwnershipLabel(data.accountOwnership)}</td></tr>
-      <tr><td><strong>Método:</strong></td><td>${getMethodLabel(data.method)}</td></tr>
-      <tr><td><strong>Titular:</strong></td><td>${data.beneficiaryName}</td></tr>
+      <tr><td><strong>Propietario:</strong></td><td>${getAccountOwnershipLabel(
+        data.accountOwnership
+      )}</td></tr>
+      <tr><td><strong>Método:</strong></td><td>${getMethodLabel(
+        data.method
+      )}</td></tr>
+      <tr><td><strong>Titular:</strong></td><td>${
+        data.beneficiaryName
+      }</td></tr>
       <tr><td><strong>Banco:</strong></td><td>${data.beneficiaryBank}</td></tr>
-      <tr><td><strong>Tipo de cuenta:</strong></td><td>${getAccountTypeLabel(data.accountType)}</td></tr>
-      <tr><td><strong>Número de cuenta:</strong></td><td>${data.accountNumber}</td></tr>
-      ${data.receiptFileUrl ? `<tr><td><strong>Comprobante de justificación:</strong></td><td><a href="${data.receiptFileUrl}" target="_blank" style="color: #7c3aed; text-decoration: none;">${data.receiptFileName || 'Ver comprobante'}</a></td></tr>` : ""}
-      ${data.method === "ach" && data.routingNumber ? `<tr><td><strong>Routing Number:</strong></td><td>${data.routingNumber}</td></tr>` : ""}
-      ${data.method === "wire" && data.swiftBic ? `<tr><td><strong>SWIFT/BIC:</strong></td><td>${data.swiftBic}</td></tr>` : ""}
-    `
+      <tr><td><strong>Tipo de cuenta:</strong></td><td>${getAccountTypeLabel(
+        data.accountType
+      )}</td></tr>
+      <tr><td><strong>Número de cuenta:</strong></td><td>${
+        data.accountNumber
+      }</td></tr>
+      ${
+        data.receiptFileUrl
+          ? `<tr><td><strong>Comprobante de justificación:</strong></td><td><a href="${
+              data.receiptFileUrl
+            }" target="_blank" style="color: #7c3aed; text-decoration: none;">${
+              data.receiptFileName || "Ver comprobante"
+            }</a></td></tr>`
+          : ""
+      }
+      ${
+        data.method === "ach" && data.routingNumber
+          ? `<tr><td><strong>Routing Number:</strong></td><td>${data.routingNumber}</td></tr>`
+          : ""
+      }
+      ${
+        data.method === "wire" && data.swiftBic
+          ? `<tr><td><strong>SWIFT/BIC:</strong></td><td>${data.swiftBic}</td></tr>`
+          : ""
+      }
+    `;
   } else if (data.category === "crypto") {
     categoryFields = `
-      <tr><td><strong>Apodo de la billetera:</strong></td><td>${data.walletAlias}</td></tr>
-      <tr><td><strong>Dirección:</strong></td><td>${data.walletAddress}</td></tr>
-      <tr><td><strong>Red:</strong></td><td>${getWalletNetworkLabel(data.walletNetwork)}</td></tr>
-      ${data.receiptFileUrl ? `<tr><td><strong>Comprobante de justificación:</strong></td><td><a href="${data.receiptFileUrl}" target="_blank" style="color: #7c3aed; text-decoration: none;">${data.receiptFileName || 'Ver comprobante'}</a></td></tr>` : ""}
-    `
+      <tr><td><strong>Apodo de la billetera:</strong></td><td>${
+        data.walletAlias
+      }</td></tr>
+      <tr><td><strong>Dirección:</strong></td><td>${
+        data.walletAddress
+      }</td></tr>
+      <tr><td><strong>Red:</strong></td><td>${getWalletNetworkLabel(
+        data.walletNetwork
+      )}</td></tr>
+      ${
+        data.receiptFileUrl
+          ? `<tr><td><strong>Comprobante de justificación:</strong></td><td><a href="${
+              data.receiptFileUrl
+            }" target="_blank" style="color: #7c3aed; text-decoration: none;">${
+              data.receiptFileName || "Ver comprobante"
+            }</a></td></tr>`
+          : ""
+      }
+    `;
   } else if (data.category === "local_currency") {
     categoryFields = `
       <tr><td><strong>País:</strong></td><td>${data.country}</td></tr>
-      <tr><td><strong>Nombre de la cuenta:</strong></td><td>${data.localAccountName}</td></tr>
+      <tr><td><strong>Nombre de la cuenta:</strong></td><td>${
+        data.localAccountName
+      }</td></tr>
       <tr><td><strong>Banco:</strong></td><td>${data.localBank}</td></tr>
-      <tr><td><strong>Número de cuenta:</strong></td><td>${data.localAccountNumber}</td></tr>
-      ${data.receiptFileUrl ? `<tr><td><strong>Comprobante de justificación:</strong></td><td><a href="${data.receiptFileUrl}" target="_blank" style="color: #7c3aed; text-decoration: none;">${data.receiptFileName || 'Ver comprobante'}</a></td></tr>` : ""}
-    `
+      <tr><td><strong>Número de cuenta:</strong></td><td>${
+        data.localAccountNumber
+      }</td></tr>
+      ${
+        data.receiptFileUrl
+          ? `<tr><td><strong>Comprobante de justificación:</strong></td><td><a href="${
+              data.receiptFileUrl
+            }" target="_blank" style="color: #7c3aed; text-decoration: none;">${
+              data.receiptFileName || "Ver comprobante"
+            }</a></td></tr>`
+          : ""
+      }
+    `;
   }
 
   return `
@@ -380,9 +470,15 @@ function generateEmailHtml(data: any) {
           </div>
           
           <table>
-            <tr><td><strong>Categoría:</strong></td><td>${getCategoryLabel(data.category)}</td></tr>
+            <tr><td><strong>Categoría:</strong></td><td>${getCategoryLabel(
+              data.category
+            )}</td></tr>
             ${categoryFields}
-            ${data.reference ? `<tr><td><strong>Referencia:</strong></td><td>${data.reference}</td></tr>` : ""}
+            ${
+              data.reference
+                ? `<tr><td><strong>Referencia:</strong></td><td>${data.reference}</td></tr>`
+                : ""
+            }
           </table>
           
           <div class="info-box">
@@ -415,5 +511,5 @@ function generateEmailHtml(data: any) {
       </div>
     </body>
     </html>
-  `
+  `;
 }
