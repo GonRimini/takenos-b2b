@@ -74,7 +74,7 @@ Usuario: ${userEmail} | Fecha: ${uploadDate}
 
     // Enviar notificación a Slack
     const slackMessage = `:bank: *Nueva Solicitud de Depósito*\n*Usuario:* ${userEmail}\n*Fecha de carga:* ${uploadDate}\n*Archivo:* <${fileUrl}|${fileName}>\n*Acción requerida:* Procesar la acreditación manualmente.`;
-    await sendSlackNotification(slackMessage);
+    // await sendSlackNotification(slackMessage);
 
     if (error) {
       console.error("Error sending email:", error);
