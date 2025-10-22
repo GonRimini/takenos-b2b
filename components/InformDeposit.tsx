@@ -87,7 +87,7 @@ export default function InformDeposit() {
 
       // 4. Enviar email con el link del PDF
       const emailData = {
-        to: "grimini@takenos.com",
+        to: "facurimini@gmail.com",
         subject: `Solicitud de Depósito : ${user.email}`,
         userEmail: user.email,
         fileName: file.name,
