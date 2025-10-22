@@ -52,8 +52,13 @@ Usuario: ${userEmail} | Fecha: ${uploadDate}
     };
 
     // Enviar el email usando Resend
+    const FROM_EMAIL =
+  process.env.NODE_ENV === "production"
+    ? "Takenos B2B <grimini@takenos.com>"
+    : "Takenos B2B <onboarding@resend.dev>";
+
     const { data, error } = await resend.emails.send({
-      from: "Takenos B2B <onboarding@resend.dev>", // Cambiar por tu dominio verificado
+      from: FROM_EMAIL,
       to: [to],
       subject: subject,
       // html: htmlContent, // Comentado - solo enviamos texto plano
