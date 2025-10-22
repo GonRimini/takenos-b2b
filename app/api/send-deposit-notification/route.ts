@@ -37,7 +37,7 @@ PRÓXIMOS PASOS:
 IMPORTANTE: Este es un proceso manual que requiere atención inmediata.
 
 ---
-Este email fue generado automáticamente por el sistema TakeNos B2B Portal
+Este email fue generado automáticamente por el sistema Takenos B2B Portal
 Usuario: ${userEmail} | Fecha: ${uploadDate}
     `;
 
