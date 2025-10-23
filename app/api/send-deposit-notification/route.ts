@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { sendSlackNotification } from "@/lib/slack";
+import { supabase } from "@/lib/supabase-client";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -17,6 +18,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
+  const { data: deposit, error: dbError } = await supabase
+  .from("deposits")
+  .insert([
+    {
+      user_email: userEmail,
+      date: uploadDate,
+      status: "pending",
+      file_url: fileUrl,
+    },
+  ])
+  .select()
+  .single();
+
+if (dbError) {
+  console.error("❌ Error al insertar depósito:", dbError.message);
+  return NextResponse.json(
+    { error: "Error al registrar el depósito en la base de datos" },
+    { status: 500 }
+  );
+}
+console.log("✅ Depósito registrado:", deposit);
     const textContent = `
 Nueva Solicitud de Depósito - Takenos B2B Portal
 
@@ -84,10 +106,10 @@ Usuario: ${userEmail} | Fecha: ${uploadDate}
       );
     }
 
-    console.log("Email sent successfully:", data);
+    // console.log("Email sent successfully:", data);
     return NextResponse.json({
       success: true,
-      data,
+      // data,
       message: "Email enviado correctamente",
     });
   } catch (error) {
