@@ -19,12 +19,11 @@ export async function POST(request: NextRequest) {
     }
 
   const { data: deposit, error: dbError } = await supabase
-  .from("deposits")
+  .from("deposits_request")
   .insert([
     {
       user_email: userEmail,
       date: uploadDate,
-      status: "pending",
       file_url: fileUrl,
     },
   ])
@@ -94,7 +93,7 @@ Usuario: ${userEmail} | Fecha: ${uploadDate}
       ],
     });
 
-    // Enviar notificación a Slack
+    // // Enviar notificación a Slack
     const slackMessage = `:bank: *Nueva Solicitud de Depósito*\n*Usuario:* ${userEmail}\n*Fecha de carga:* ${uploadDate}\n*Archivo:* <${fileUrl}|${fileName}>\n*Acción requerida:* Procesar la acreditación manualmente.`;
     await sendSlackNotification(slackMessage);
 
