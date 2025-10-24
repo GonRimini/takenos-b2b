@@ -34,34 +34,39 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // 🚀 Llamada al RPC deposit_url
-    const rpcUrl = `${supabaseUrl}/rest/v1/rpc/get_deposit_file_url`
-    const payload = {
-      p_deposit_id: depositId,
-    }
-
-    const resp = await fetch(rpcUrl, {
-      method: "POST",
+    // 🔍 Consultar depósito por external_id
+    const url = `${supabaseUrl}/rest/v1/deposits?external_id=eq.${depositId}&select=file_url`
+    const resp = await fetch(url, {
+      method: "GET",
       headers: {
-        "Content-Type": "application/json",
         apikey: serviceRoleKey,
         Authorization: `Bearer ${serviceRoleKey}`,
-        Prefer: "params=single-object",
       },
-      body: JSON.stringify(payload),
       cache: "no-store",
     })
 
     const data = await resp.json()
 
+    console.log(data)
+
     if (!resp.ok) {
-      const errorMessage = data?.message || data?.error || "RPC call failed"
+      const errorMessage = data?.message || data?.error || "Failed to fetch deposit"
       return NextResponse.json({ ok: false, error: errorMessage }, { status: 500 })
     }
 
-    return NextResponse.json({ ok: true, data })
+    // 🧾 Validar resultado
+    if (!data?.length || !data[0]?.file_url) {
+      return NextResponse.json(
+        { ok: false, error: "Deposit not found or missing file_url" },
+        { status: 404 }
+      )
+    }
+
+    const fileUrl = data[0].file_url
+
+    return NextResponse.json({ ok: true, file_url: fileUrl })
   } catch (e: any) {
-    console.error("❌ Error en /api/deposits/[depositId]:", e)
+    console.error("❌ Error en /api/deposits/file-url:", e)
     return NextResponse.json(
       { ok: false, error: e?.message || "Unexpected error" },
       { status: 500 }

@@ -38,15 +38,13 @@ export function DepositPdfButton({ depositId }: DepositPdfButtonProps) {
         body: JSON.stringify({ depositId })
       })
 
-      const { data } = await response.json()
-      if (!response.ok) throw new Error(data.error || "Error al obtener el comprobante")
+      const { file_url } = await response.json()
+      if (!response.ok) throw new Error(file_url || "Error al obtener el comprobante")
 
-      const fileUrl = data[0]?.file_url
-
-      if (!fileUrl) throw new Error("No se encontró la URL del comprobante")
+      if (!file_url) throw new Error("No se encontró la URL del comprobante")
 
       // 🚀 Abre el PDF en una nueva pestaña
-      window.open(fileUrl, "_blank")
+      window.open(file_url, "_blank")
 
       toast({
         title: "Comprobante abierto",
