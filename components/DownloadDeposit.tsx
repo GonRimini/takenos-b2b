@@ -38,13 +38,19 @@ export function DepositPdfButton({ depositId }: DepositPdfButtonProps) {
         body: JSON.stringify({ depositId })
       })
 
-      const { file_url } = await response.json()
-      if (!response.ok) throw new Error(file_url || "Error al obtener el comprobante")
+      const result = await response.json()
+      
+      if (!response.ok) {
+        throw new Error("Comprobante no disponible")
+      }
 
-      if (!file_url) throw new Error("No se encontró la URL del comprobante")
+      const fileUrl = result.file_url
+      if (!fileUrl) {
+        throw new Error("Comprobante no disponible")
+      }
 
       // 🚀 Abre el PDF en una nueva pestaña
-      window.open(file_url, "_blank")
+      window.open(fileUrl, "_blank")
 
       toast({
         title: "Comprobante abierto",
@@ -54,8 +60,7 @@ export function DepositPdfButton({ depositId }: DepositPdfButtonProps) {
       console.error("❌ [DepositPdfButton] Error:", error)
       toast({
         title: "Error",
-        description:
-          error instanceof Error ? error.message : "Error desconocido al abrir el comprobante",
+        description: "Comprobante no disponible en este momento",
         variant: "destructive",
       })
     } finally {
