@@ -13,6 +13,7 @@ import { useCompanyName } from "@/hooks/use-company-name"
 import { DownloadStatement } from "@/components/DownloadStatement"
 import { Table as TableIcon } from "lucide-react"
 import { WithdrawalPDFButton } from "@/components/WithdrawalPDFButton"
+import { DepositPdfButton } from "@/components/DownloadDeposit"
 
 
 export default function Dashboard() {
@@ -528,8 +529,12 @@ export default function Dashboard() {
                               withdrawalId={m.raw_id} 
                               transaction={m}
                             />
+                          ) : m.raw_type === "deposit" ? (
+                            <DepositPdfButton 
+                              depositId={m.raw_id || m.id} 
+                            />
                           ) : (
-                            <p>{""}</p>
+                            <span></span>
                           )}
                         </TableCell>
                       </TableRow>
