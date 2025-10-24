@@ -13,6 +13,7 @@ import { useCompanyName } from "@/hooks/use-company-name"
 import { DownloadStatement } from "@/components/DownloadStatement"
 import { Table as TableIcon } from "lucide-react"
 import { WithdrawalPDFButton } from "@/components/WithdrawalPDFButton"
+import { DepositPdfButton } from "@/components/DownloadDeposit"
 
 
 export default function Dashboard() {
@@ -248,6 +249,28 @@ export default function Dashboard() {
     }
   }
 
+  const getTransactionTypeBadge = (rawType: string, direction: string) => {
+    if (rawType === "deposit" || direction === "in") {
+      return (
+        <Badge variant="default" className="bg-green-100 text-green-800">
+          Depósito
+        </Badge>
+      )
+    } else if (rawType === "withdrawal" || direction === "out") {
+      return (
+        <Badge variant="default" className="bg-blue-100 text-blue-800">
+          Retiro
+        </Badge>
+      )
+    } else {
+      return (
+        <Badge variant="outline">
+          {rawType === "deposit" ? "Depósito" : rawType === "withdrawal" ? "Retiro" : "Otro"}
+        </Badge>
+      )
+    }
+  }
+
   const downloadCSV = () => {
     if (!movementsCache.data || movementsCache.data.length === 0) return
 
@@ -258,14 +281,15 @@ export default function Dashboard() {
     const filteredMovements = filterMovementsByDate(movementsCache.data)
 
     // Crear headers del CSV
-    const headers = ["Fecha", "Descripción", "Monto (USD)", "Cuenta/Destino", "Tipo", "Estado"]
+    const headers = ["Fecha", "Tipo Transacción", "Descripción", "Monto (USD)", "Cuenta/Destino", "Tipo", "Estado"]
     
     // Crear filas de datos
     const rows = filteredMovements.map(m => [
       formatDate(m.date),
+      m.raw_type === "deposit" ? "Depósito" : m.raw_type === "withdrawal" ? "Retiro" : "Otro",
       m.description,
       m.amount.toFixed(2),
-      m.cuenta_origen_o_destino || "-",
+      m.account_ref || "-",
       m.type === "credit" ? "Crédito" : "Débito",
       m.status === "completed" ? "Completado" : m.status === "pending" ? "Pendiente" : "Fallido"
     ])
@@ -461,6 +485,7 @@ export default function Dashboard() {
                 <TableHeader className="sticky top-0 bg-white z-10">
                   <TableRow>
                     <TableHead className="bg-white">Fecha</TableHead>
+                    <TableHead className="bg-white">Tipo</TableHead>
                     <TableHead className="bg-white">Cuenta/Destino</TableHead>
                     {/* <TableHead className="bg-white">Descripción</TableHead> */}
                     <TableHead className="text-right bg-white">Monto</TableHead>
@@ -470,13 +495,13 @@ export default function Dashboard() {
                 <TableBody>
                   {movementsCache.loading ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                      <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                         Cargando...
                       </TableCell>
                     </TableRow>
                   ) : !movementsCache.data || filterMovementsByDate(movementsCache.data).length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                      <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                         {startDate || endDate ? "No hay movimientos en el rango de fechas seleccionado" : "No hay movimientos registrados"}
                       </TableCell>
                     </TableRow>
@@ -489,9 +514,11 @@ export default function Dashboard() {
                       <TableRow key={m.id}>
                         <TableCell className="font-medium">{formatDate(m.date)}</TableCell>
                         <TableCell>
+                          {getTransactionTypeBadge(m.raw_type, m.direction)}
+                        </TableCell>
+                        <TableCell>
                           {m.account_ref}
                         </TableCell>
-                        {/* <TableCell>{m.description}</TableCell> */}
                         <TableCell className={`text-right font-medium ${m.amount > 0 ? "text-green-600" : "text-red-600"}`}>
                           {formatCurrency(m.amount)}
                         </TableCell>
@@ -502,8 +529,12 @@ export default function Dashboard() {
                               withdrawalId={m.raw_id} 
                               transaction={m}
                             />
+                          ) : m.raw_type === "deposit" ? (
+                            <DepositPdfButton 
+                              depositId={m.raw_id || m.id} 
+                            />
                           ) : (
-                            <p>{""}</p>
+                            <span></span>
                           )}
                         </TableCell>
                       </TableRow>

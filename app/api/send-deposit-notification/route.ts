@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { sendSlackNotification } from "@/lib/slack";
+import { supabase } from "@/lib/supabase-client";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -17,6 +18,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+  const { data: deposit, error: dbError } = await supabase
+  .from("deposits_request")
+  .insert([
+    {
+      user_email: userEmail,
+      date: uploadDate,
+      file_url: fileUrl,
+    },
+  ])
+  .select()
+  .single();
+
+if (dbError) {
+  console.error("❌ Error al insertar depósito:", dbError.message);
+  return NextResponse.json(
+    { error: "Error al registrar el depósito en la base de datos" },
+    { status: 500 }
+  );
+}
+console.log("✅ Depósito registrado:", deposit);
     const textContent = `
 Nueva Solicitud de Depósito - Takenos B2B Portal
 
@@ -59,7 +80,7 @@ Usuario: ${userEmail} | Fecha: ${uploadDate}
 
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
-      to: [to],
+      to: process.env.NODE_ENV === "production" ? [to] : ["grimini@takenos.com"],
       subject: subject,
       // html: htmlContent, // Comentado - solo enviamos texto plano
       text: textContent,
@@ -72,7 +93,7 @@ Usuario: ${userEmail} | Fecha: ${uploadDate}
       ],
     });
 
-    // Enviar notificación a Slack
+    // // Enviar notificación a Slack
     const slackMessage = `:bank: *Nueva Solicitud de Depósito*\n*Usuario:* ${userEmail}\n*Fecha de carga:* ${uploadDate}\n*Archivo:* <${fileUrl}|${fileName}>\n*Acción requerida:* Procesar la acreditación manualmente.`;
     await sendSlackNotification(slackMessage);
 
@@ -84,10 +105,10 @@ Usuario: ${userEmail} | Fecha: ${uploadDate}
       );
     }
 
-    console.log("Email sent successfully:", data);
+    // console.log("Email sent successfully:", data);
     return NextResponse.json({
       success: true,
-      data,
+      // data,
       message: "Email enviado correctamente",
     });
   } catch (error) {
