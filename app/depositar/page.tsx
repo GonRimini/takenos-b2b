@@ -11,7 +11,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/components/auth"
 import { getDepositoACH, getDepositoSWIFT, getDepositosCrypto, getDepositoLocal, DepositoACH, DepositoSWIFT, DepositoCrypto, DepositoLocal } from "@/lib/depositos"
 import { downloadDepositInstructions } from "@/lib/pdf-generator"
-import ExtractPdfData from "@/components/ExtractPdfData"
 import InformDeposit from "@/components/InformDeposit"
 
 export type DepositMethod = "ach" | "wire" | "swift" | "crypto" | "local"
