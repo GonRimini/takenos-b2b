@@ -7,6 +7,7 @@ import { AuthProvider } from "@/components/auth"
 import { ConditionalLayout } from "@/components/conditional-layout"
 // import ErrorBoundary from "@/components/error-boundary"
 import { ApiStatusChecker } from "@/components/api-status-checker"
+import { AppQueryClientProvider } from "@/components/providers/react-query-provider"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -46,11 +47,13 @@ export default function RootLayout({
   return (
     <html lang="es" className={inter.variable}>
       <body className="font-sans antialiased">
-        <AuthProvider>
-          <ConditionalLayout>{children}</ConditionalLayout>
-        </AuthProvider>
-        <Toaster />
-        <ApiStatusChecker />
+        <AppQueryClientProvider>
+          <AuthProvider>
+            <ConditionalLayout>{children}</ConditionalLayout>
+          </AuthProvider>
+          <Toaster />
+          <ApiStatusChecker />
+        </AppQueryClientProvider>
       </body>
     </html>
   )
