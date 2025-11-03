@@ -11,11 +11,12 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { category, method = null, nickname = null, details } = body || {}
+    console.log(body)
+    // const { category, method = null, nickname = null, details } = body || {}
 
-    if (!category) {
-      return NextResponse.json({ ok: false, error: "Faltan campos requeridos (category)" }, { status: 400 })
-    }
+    // if (!category) {
+    //   return NextResponse.json({ ok: false, error: "Faltan campos requeridos (category)" }, { status: 400 })
+    // }
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE
@@ -27,11 +28,7 @@ export async function POST(req: NextRequest) {
     const apiUrl = `${supabaseUrl}/rest/v1/payout_accounts`
     const payload = {
       user_email: userEmail,
-      category,
-      method,
-      nickname,
-      details: details || {},
-      is_default: false,
+      ...body
     }
 
     const resp = await fetch(apiUrl, {

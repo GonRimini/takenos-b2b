@@ -114,11 +114,11 @@ export function WithdrawalSummaryModal({
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <div className="text-sm font-medium text-muted-foreground">Propietario</div>
-                    <div className="text-sm">{getAccountOwnershipLabel(data.accountOwnership)}</div>
+                    <div className="text-sm">{getAccountOwnershipLabel(data.accountOwnership || "")}</div>
                   </div>
                   <div>
                     <div className="text-sm font-medium text-muted-foreground">Método</div>
-                    <div className="text-sm">{getMethodLabel(data.method)}</div>
+                    <div className="text-sm">{getMethodLabel(data.method || "")}</div>
                   </div>
                 </div>
 
@@ -137,7 +137,7 @@ export function WithdrawalSummaryModal({
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <div className="text-sm font-medium text-muted-foreground">Tipo de cuenta</div>
-                      <div className="text-sm">{getAccountTypeLabel(data.accountType)}</div>
+                      <div className="text-sm">{getAccountTypeLabel(data.accountType || "")}</div>
                     </div>
                     <div>
                       <div className="text-sm font-medium text-muted-foreground">Número de cuenta</div>
@@ -182,7 +182,7 @@ export function WithdrawalSummaryModal({
 
                 <div>
                   <div className="text-sm font-medium text-muted-foreground">Red</div>
-                  <div className="text-sm">{getWalletNetworkLabel(data.walletNetwork)}</div>
+                  <div className="text-sm">{getWalletNetworkLabel(data.walletNetwork || "")}</div>
                 </div>
               </>
             )}
