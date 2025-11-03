@@ -1,30 +1,43 @@
-import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
-import { Table as TableIcon } from "lucide-react"
-import { DownloadStatement } from "@/components/DownloadStatement"
-import { WithdrawalPDFButton } from "@/components/WithdrawalPDFButton"
-import { DepositPdfButton } from "@/components/DownloadDeposit"
-import { StatusBadge } from "@/components/shared/ui"
-import { TransactionTypeBadge } from "@/components/TransactionTypeBadge"
-import { formatCurrency, formatDate } from "@/utils/formatters"
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Table as TableIcon } from "lucide-react";
+import { DownloadStatement } from "@/components/DownloadStatement";
+import { WithdrawalPDFButton } from "@/components/WithdrawalPDFButton";
+import { StatusBadge } from "@/components/shared/ui";
+import { TransactionTypeBadge } from "@/components/TransactionTypeBadge";
+import { formatCurrency, formatDate } from "@/utils/formatters";
+import { DownloadDepositReceiptButton } from "./deposit/DownloadDepositReceiptButton";
 
 interface MovementsTableProps {
-  movementsData: any[] | undefined
-  isLoadingMovements: boolean
-  userEmail: string | undefined
+  movementsData: any[] | undefined;
+  isLoadingMovements: boolean;
+  userEmail: string | undefined;
 }
 
-export function MovementsTable({ movementsData, isLoadingMovements, userEmail }: MovementsTableProps) {
-  const [startDate, setStartDate] = useState<string>("")
-  const [endDate, setEndDate] = useState<string>("")
+export function MovementsTable({
+  movementsData,
+  isLoadingMovements,
+  userEmail,
+}: MovementsTableProps) {
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+
+  console.log("📄 [MovementsTable] movementsData:", movementsData);
 
   const downloadCSV = () => {
-    if (!movementsData || movementsData.length === 0) return
+    if (!movementsData || movementsData.length === 0) return;
 
     // Filtrar movimientos por fecha si hay filtros aplicados
-    const filteredMovements = filterMovementsByDate(movementsData)
+    const filteredMovements = filterMovementsByDate(movementsData);
 
     // Crear headers del CSV
     const headers = [
@@ -35,7 +48,7 @@ export function MovementsTable({ movementsData, isLoadingMovements, userEmail }:
       "Cuenta/Destino",
       "Tipo",
       "Estado",
-    ]
+    ];
 
     // Crear filas de datos
     const rows = filteredMovements.map((m) => [
@@ -54,57 +67,55 @@ export function MovementsTable({ movementsData, isLoadingMovements, userEmail }:
         : m.status === "pending"
         ? "Pendiente"
         : "Fallido",
-    ])
+    ]);
 
     // Combinar headers y filas
     const csvContent = [headers, ...rows]
       .map((row) => row.map((cell) => `"${cell}"`).join(","))
-      .join("\n")
+      .join("\n");
 
     // Crear y descargar archivo
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
-    const link = document.createElement("a")
-    const url = URL.createObjectURL(blob)
-    link.setAttribute("href", url)
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
     link.setAttribute(
       "download",
-      `transacciones_${userEmail}_${
-        new Date().toISOString().split("T")[0]
-      }.csv`
-    )
-    link.style.visibility = "hidden"
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
+      `transacciones_${userEmail}_${new Date().toISOString().split("T")[0]}.csv`
+    );
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const filterMovementsByDate = (movementsToFilter: any[]) => {
     if (!startDate && !endDate) {
-      return movementsToFilter
+      return movementsToFilter;
     }
 
     const filtered = movementsToFilter.filter((movement) => {
-      const movementDate = new Date(movement.date)
-      const start = startDate ? new Date(startDate) : null
-      const end = endDate ? new Date(endDate) : null
+      const movementDate = new Date(movement.date);
+      const start = startDate ? new Date(startDate) : null;
+      const end = endDate ? new Date(endDate) : null;
 
       if (start && end) {
-        return movementDate >= start && movementDate <= end
+        return movementDate >= start && movementDate <= end;
       } else if (start) {
-        return movementDate >= start
+        return movementDate >= start;
       } else if (end) {
-        return movementDate <= end
+        return movementDate <= end;
       }
-      return true
-    })
+      return true;
+    });
 
-    return filtered
-  }
+    return filtered;
+  };
 
   const clearDateFilters = () => {
-    setStartDate("")
-    setEndDate("")
-  }
+    setStartDate("");
+    setEndDate("");
+  };
 
   return (
     <Card>
@@ -255,28 +266,35 @@ export function MovementsTable({ movementsData, isLoadingMovements, userEmail }:
                               transaction={m}
                             />
                           ) : m.raw_type === "deposit" ? (
-                            <DepositPdfButton depositId={m.raw_id || m.id} />
+                            <DownloadDepositReceiptButton
+                              depositData={{
+                                id: m.id || m.raw_id || "",
+                                account_ref: m.account_ref || "",
+                                amount: Math.abs(m.amount) || 0,
+                                description: m.description || "Depósito",
+                                date: m.date || new Date().toISOString(),
+                              }}
+                            />
                           ) : (
                             <span></span>
                           )}
                         </TableCell>
                       </TableRow>
-                    )
+                    );
                   })
                 )}
               </TableBody>
             </Table>
           </div>
           {/* Mostrar indicador de scroll */}
-          {movementsData &&
-            filterMovementsByDate(movementsData).length > 8 && (
-              <div className="text-center py-2 text-sm text-gray-500 bg-gray-50 border-t">
-                {filterMovementsByDate(movementsData).length} movimientos -
-                Desplázate para ver todos
-              </div>
-            )}
+          {movementsData && filterMovementsByDate(movementsData).length > 8 && (
+            <div className="text-center py-2 text-sm text-gray-500 bg-gray-50 border-t">
+              {filterMovementsByDate(movementsData).length} movimientos -
+              Desplázate para ver todos
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
