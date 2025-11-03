@@ -26,48 +26,58 @@ interface TransactionReceiptData {
     currency?: string;
     conversion_rate?: number;
   };
-    // Datos enriquecidos de la cuenta destino
-enrichedData: {
-  withdraw_id?: string
-  payout_account_id?: string
-  nickname?: string
-  category?: string
-  method?: string
-  beneficiary_name?: string
-  beneficiary_bank?: string
-  account_number?: string
-  routing_number?: string
-  account_type?: string
-  swift_bic?: string
-  wallet_alias?: string
-  wallet_address?: string
-  wallet_network?: string
-  local_bank?: string
-  local_account_name?: string
-  local_account_number?: string
-  last4?: string
-  created_at?: string
-}
+  // Datos enriquecidos de la cuenta destino
+  enrichedData: {
+    withdraw_id?: string;
+    payout_account_id?: string;
+    nickname?: string;
+    category?: string;
+    method?: string;
+    beneficiary_name?: string;
+    beneficiary_bank?: string;
+    account_number?: string;
+    routing_number?: string;
+    account_type?: string;
+    swift_bic?: string;
+    wallet_alias?: string;
+    wallet_address?: string;
+    wallet_network?: string;
+    local_bank?: string;
+    local_account_name?: string;
+    local_account_number?: string;
+    last4?: string;
+    created_at?: string;
+  };
   // Datos del usuario/empresa
   companyName?: string;
   userEmail?: string;
 }
 
-export const TransactionReceiptPDF = ({ data }: { data: TransactionReceiptData }) => {
+export const TransactionReceiptPDF = ({
+  data,
+}: {
+  data: TransactionReceiptData;
+}) => {
   const { transaction, enrichedData, companyName, userEmail } = data;
 
   // Log para verificar los datos recibidos con keys correctas
   console.log("🎨 [TransactionReceiptPDF] Datos recibidos para PDF:", data);
-  console.log("💰 [TransactionReceiptPDF] Transaction con keys correctas:", transaction);
+  console.log(
+    "💰 [TransactionReceiptPDF] Transaction con keys correctas:",
+    transaction
+  );
   console.log("🏦 [TransactionReceiptPDF] EnrichedData:", enrichedData);
-  console.log("💳 [TransactionReceiptPDF] Método detectado:", enrichedData?.method);
+  console.log(
+    "💳 [TransactionReceiptPDF] Método detectado:",
+    enrichedData?.method
+  );
   console.log("🔍 [TransactionReceiptPDF] Datos específicos método:", {
     method: enrichedData?.method,
     beneficiary_name: enrichedData?.beneficiary_name,
     beneficiary_bank: enrichedData?.beneficiary_bank,
     account_number: enrichedData?.account_number,
     routing_number: enrichedData?.routing_number,
-    account_type: enrichedData?.account_type
+    account_type: enrichedData?.account_type,
   });
   console.log("💰 [TransactionReceiptPDF] Transacción Retool:", transaction);
   console.log("🏦 [TransactionReceiptPDF] Datos enriquecidos:", enrichedData);
@@ -83,7 +93,8 @@ export const TransactionReceiptPDF = ({ data }: { data: TransactionReceiptData }
 
   // Formatear monto USD
   const formatAmountUSD = (amountUSD: string | number) => {
-    const amount = typeof amountUSD === 'string' ? parseFloat(amountUSD) : amountUSD;
+    const amount =
+      typeof amountUSD === "string" ? parseFloat(amountUSD) : amountUSD;
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
@@ -104,16 +115,17 @@ export const TransactionReceiptPDF = ({ data }: { data: TransactionReceiptData }
   // Formatear concepto para que sea más legible
   const formatConcept = (concept: string) => {
     if (!concept) return "Transferencia";
-    
+
     // Convertir camelCase a texto legible
     const formatted = concept
-      .replace(/([A-Z])/g, ' $1') // Agregar espacios antes de mayúsculas
-      .replace(/^./, str => str.toUpperCase()) // Primera letra mayúscula
+      .replace(/([A-Z])/g, " $1") // Agregar espacios antes de mayúsculas
+      .replace(/^./, (str) => str.toUpperCase()) // Primera letra mayúscula
       .trim();
-    
+
     // Casos específicos
-    if (concept === "individualBusinessPayment") return "Pago Comercial Individual";
-    
+    if (concept === "individualBusinessPayment")
+      return "Pago Comercial Individual";
+
     return formatted || "Transferencia";
   };
 
@@ -121,7 +133,7 @@ export const TransactionReceiptPDF = ({ data }: { data: TransactionReceiptData }
   const getPaymentMethodInfo = () => {
     // Método desde enriched data (SWIFT, ACH, WIRE)
     const method = enrichedData?.method?.toUpperCase();
-    
+
     if (method === "SWIFT" || method === "WIRE") {
       return {
         method: "Transferencia SWIFT",
@@ -131,7 +143,7 @@ export const TransactionReceiptPDF = ({ data }: { data: TransactionReceiptData }
         showSwiftInfo: true,
       };
     }
-    
+
     if (method === "ACH") {
       return {
         method: "Transferencia ACH",
@@ -144,9 +156,9 @@ export const TransactionReceiptPDF = ({ data }: { data: TransactionReceiptData }
         showAchInfo: true,
       };
     }
-    
+
     // Si tenemos account_ref que parece una wallet (empieza con 0x)
-    if (transaction?.account_ref?.startsWith('0x')) {
+    if (transaction?.account_ref?.startsWith("0x")) {
       return {
         method: "Criptomoneda",
         accountInfo: transaction.account_ref,
@@ -154,11 +166,12 @@ export const TransactionReceiptPDF = ({ data }: { data: TransactionReceiptData }
         details: `Red: ${transaction?.currency?.toUpperCase() || "CRYPTO"}`,
       };
     }
-    
+
     // Fallback - transferencia tradicional
     return {
       method: "Transferencia Bancaria",
-      accountInfo: transaction?.account_ref || enrichedData?.account_number || "Varios",
+      accountInfo:
+        transaction?.account_ref || enrichedData?.account_number || "Varios",
       beneficiary: enrichedData?.beneficiary_name || "Destinatario",
       details: `Banco: ${enrichedData?.beneficiary_bank || "N/A"}`,
     };
@@ -209,14 +222,28 @@ export const TransactionReceiptPDF = ({ data }: { data: TransactionReceiptData }
           <Text style={styles.amountLabel}>Importe debitado</Text>
           <View style={styles.amountContainer}>
             <Text style={styles.amountValue}>
-              {transaction?.final_amount ? formatAmount(transaction.final_amount) : 
-               transaction?.amount ? formatAmount(Math.abs(transaction.amount)) : "$ 0,00"}
+              {transaction?.final_amount
+                ? formatAmount(transaction.final_amount)
+                : transaction?.amount
+                ? formatAmount(Math.abs(transaction.amount))
+                : "$ 0,00"}
             </Text>
             {transaction?.initial_amount && (
               <Text style={styles.amountUSD}>
                 Monto inicial: {formatAmount(transaction.initial_amount)}
               </Text>
             )}
+            {transaction?.initial_amount}
+            <Text style={styles.amountUSD}>
+              Fee:{" "}
+              {transaction?.initial_amount != null &&
+              transaction?.final_amount != null
+                ? formatAmount(
+                    Number(transaction.initial_amount) -
+                      Number(transaction.final_amount)
+                  )
+                : "$ 0,00"}
+            </Text>
           </View>
         </View>
 
@@ -240,22 +267,30 @@ export const TransactionReceiptPDF = ({ data }: { data: TransactionReceiptData }
             <>
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Banco beneficiario</Text>
-                <Text style={styles.detailValue}>{paymentInfo.beneficiaryBank}</Text>
+                <Text style={styles.detailValue}>
+                  {paymentInfo.beneficiaryBank}
+                </Text>
               </View>
-              
+
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Número de cuenta</Text>
-                <Text style={styles.detailValue}>{paymentInfo.accountNumber}</Text>
+                <Text style={styles.detailValue}>
+                  {paymentInfo.accountNumber}
+                </Text>
               </View>
-              
+
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Routing number</Text>
-                <Text style={styles.detailValue}>{paymentInfo.routingNumber}</Text>
+                <Text style={styles.detailValue}>
+                  {paymentInfo.routingNumber}
+                </Text>
               </View>
-              
+
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Tipo de cuenta</Text>
-                <Text style={styles.detailValue}>{paymentInfo.accountType}</Text>
+                <Text style={styles.detailValue}>
+                  {paymentInfo.accountType}
+                </Text>
               </View>
             </>
           )}
@@ -265,9 +300,11 @@ export const TransactionReceiptPDF = ({ data }: { data: TransactionReceiptData }
             <>
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Banco beneficiario</Text>
-                <Text style={styles.detailValue}>{paymentInfo.beneficiaryBank}</Text>
+                <Text style={styles.detailValue}>
+                  {paymentInfo.beneficiaryBank}
+                </Text>
               </View>
-              
+
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Método</Text>
                 <Text style={styles.detailValue}>SWIFT Internacional</Text>
@@ -277,42 +314,48 @@ export const TransactionReceiptPDF = ({ data }: { data: TransactionReceiptData }
 
           {enrichedData.method === "crypto" && (
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>
-                Dirección/Red
+              <Text style={styles.detailLabel}>Dirección/Red</Text>
+              <Text style={styles.detailValue}>
+                {transaction?.account_ref || "N/A"}
               </Text>
-              <Text style={styles.detailValue}>{transaction?.account_ref || "N/A"}</Text>
             </View>
           )}
 
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Concepto transferencia</Text>
-            <Text style={styles.detailValue}>{formatConcept(transaction?.description || "")}</Text>
+            <Text style={styles.detailValue}>
+              {formatConcept(transaction?.description || "")}
+            </Text>
           </View>
 
           {transaction?.currency && transaction?.conversion_rate && (
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Moneda/Tasa</Text>
               <Text style={styles.detailValue}>
-                {transaction.currency.toUpperCase()} - Tasa: {transaction.conversion_rate.toLocaleString()}
+                {transaction.currency.toUpperCase()} - Tasa:{" "}
+                {transaction.conversion_rate.toLocaleString()}
               </Text>
             </View>
           )}
 
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Fecha de ejecución</Text>
-                <Text style={styles.detailValue}>{transaction?.date ? formatDate(transaction.date) : "N/A"}</Text>
-            </View>
-
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Fecha de ejecución</Text>
+            <Text style={styles.detailValue}>
+              {transaction?.date ? formatDate(transaction.date) : "N/A"}
+            </Text>
+          </View>
         </View>
 
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            Recuerde que puede consultar e imprimir este comprobante ingresando{"\n"}
+            Recuerde que puede consultar e imprimir este comprobante ingresando
+            {"\n"}
             al portal de empresas.
           </Text>
           <Text style={styles.receiptNumber}>
-            N° comprobante {transaction?.id?.slice(-8) || Math.random().toString().slice(-8)}
+            N° comprobante{" "}
+            {transaction?.id?.slice(-8) || Math.random().toString().slice(-8)}
           </Text>
         </View>
       </Page>
@@ -322,9 +365,9 @@ export const TransactionReceiptPDF = ({ data }: { data: TransactionReceiptData }
 
 // 🎨 Estilos siguiendo el patrón de StatementPDF
 const styles = StyleSheet.create({
-  page: { 
-    padding: 20, 
-    fontSize: 9, 
+  page: {
+    padding: 20,
+    fontSize: 9,
     fontFamily: "Helvetica",
     backgroundColor: "#ffffff",
   },
@@ -345,23 +388,23 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: 8,
   },
-  logo: { 
-    width: 120, 
-    height: 32, 
-    objectFit: "contain", 
+  logo: {
+    width: 120,
+    height: 32,
+    objectFit: "contain",
     marginBottom: 2,
   },
-  companyBlock: { 
-    flexDirection: "column", 
+  companyBlock: {
+    flexDirection: "column",
     gap: 1,
   },
-  companyName: { 
-    fontSize: 9, 
-    color: "#374151", 
+  companyName: {
+    fontSize: 9,
+    color: "#374151",
     fontWeight: 600,
   },
-  userEmail: { 
-    fontSize: 8, 
+  userEmail: {
+    fontSize: 8,
     color: "#6b7280",
   },
   headerText: {
@@ -388,20 +431,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginBottom: 12,
   },
-  amountLabel: {
-    fontSize: 11,
-    color: "#374151",
-    fontWeight: "normal",
-  },
-  amountValue: {
-    fontSize: 14,
-    color: "#374151",
-    fontWeight: "bold",
-  },
-  amountContainer: {
-    flexDirection: "column",
-    alignItems: "flex-end",
-  },
+  amountLabel: { fontSize: 11, color: "#374151", fontWeight: "normal" },
+  amountValue: { fontSize: 14, color: "#374151", fontWeight: "bold" },
+  amountContainer: { flexDirection: "column", alignItems: "flex-end" },
+  amountMeta: { marginTop: 2, alignItems: "flex-end" }, // 👈 nuevo
   amountUSD: {
     fontSize: 10,
     color: "#6b7280",
