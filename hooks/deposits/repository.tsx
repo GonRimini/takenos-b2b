@@ -1,0 +1,173 @@
+import { supabase } from '@/lib/supabase-client';
+import { useAuthenticatedFetch } from '@/hooks/use-authenticated-fetch';
+//import { getApiEmailForUser } from '@/lib/utils';
+
+interface Account {
+  id: string;
+  nickname: string;
+  category: string;
+  method?: string;
+  details: any;
+}
+type DepositMethod = 'ach' | 'swift' | 'crypto' | 'local';
+
+export const useDepositsRepository = () => {
+  const { authenticatedFetch } = useAuthenticatedFetch();
+
+  const uploadFile = async (file: File, userEmail: string) => {
+    // Crear nombre de archivo único y seguro
+    const timestamp = Date.now();
+    const safeFileName = file.name
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9.\-_ ]/g, "")
+      .replace(/\s+/g, "_");
+
+    const filePath = `deposit-proofs/${userEmail}/${timestamp}_${safeFileName}`;
+
+    // Subir archivo a Supabase
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from("proofs")
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: false
+      });
+
+    if (uploadError) {
+      throw new Error("Error al subir el archivo: " + uploadError.message);
+    }
+
+    // Generar URL pública del archivo
+    const { data: publicUrlData } = supabase.storage
+      .from("proofs")
+      .getPublicUrl(uploadData.path);
+
+    if (!publicUrlData.publicUrl) {
+      throw new Error("No se pudo generar la URL del archivo");
+    }
+
+    return {
+      publicUrl: publicUrlData.publicUrl,
+      filePath: uploadData.path
+    };
+  };
+
+  const submitDeposit = async ({ formData, userEmail }: { formData: any; userEmail: string }) => {
+    try {
+      console.log(formData,userEmail)
+      const response = await authenticatedFetch("/api/deposit-requests", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({formData, userEmail}),
+      });
+  
+      return response.json();
+  
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('Error submitting deposit:', errorMessage, error);
+      throw error instanceof Error ? error : new Error(String(error));
+    } 
+  };
+
+  const loadDepositAccounts = async (
+    method: DepositMethod,
+    userEmail?: string
+  ): Promise<Account[]> => {
+    try {
+      const qs = new URLSearchParams({ method });
+      // Podés pasar el email por query o por header; dejo ambos por compatibilidad
+      if (userEmail) qs.set('email', userEmail.toLowerCase().trim());
+
+      console.log('qs', qs.toString());
+      console.log('userEmail', userEmail);
+      console.log('headers', { 'x-user-email': userEmail?.toLowerCase().trim() });
+  
+      const response = await authenticatedFetch(`/api/accounts?${qs.toString()}`, {
+        method: 'GET',
+        headers: userEmail
+          ? { 'x-user-email': userEmail.toLowerCase().trim() }
+          : undefined,
+      });
+  
+  
+      const result = await response.json();
+      return Array.isArray(result?.data) ? result.data : [];
+    } catch (error) {
+      console.error('Error loading accounts:', error);
+      throw Error((error as Error).message);
+    }
+  }; 
+
+  type PayoutMethod = 'ach' | 'swift' | 'crypto' | 'local';
+
+  type DepositAccountPayload = {
+    user_email: string;
+    category: string;                 // ej: "deposit"
+    method: PayoutMethod;
+    nickname: string;
+    is_default?: boolean;
+    details?: any;
+  
+    // Campos opcionales según método
+    beneficiary_name?: string;
+    beneficiary_bank?: string;
+    account_type?: string;
+    account_number?: string;
+    routing_number?: string;
+    swift_bic?: string;
+    wallet_alias?: string;
+    wallet_network?: string;
+    local_account_name?: string;
+    local_bank?: string;
+    local_account_number?: string;
+    last4?: string;
+  };
+  
+  const saveAccount = async (payload: DepositAccountPayload): Promise<void> => {
+    try {
+      const response = await authenticatedFetch('/api/accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload), // ⬅️ se envía tal cual
+      });
+  
+      const result = await response.json().catch(() => ({}));
+  
+      if (!response.ok || !result?.ok) {
+        throw new Error(result?.error || 'No se pudo guardar la cuenta. Intentá más tarde.');
+      }
+    } catch (error) {
+      console.error('Error saving account:', error);
+      throw error;
+    }
+  };
+
+  const loadWhitelistedDepositAccounts = async (userEmail: string): Promise<Account[]> => {
+    try {
+      const qs = new URLSearchParams();
+      if (userEmail) qs.set('email', userEmail.toLowerCase().trim());
+
+      const response = await authenticatedFetch(`/api/deposit-accounts?${qs.toString()}`, {
+        method: 'GET',
+        headers: userEmail ? { 'x-user-email': userEmail.toLowerCase().trim() } : undefined,
+      });
+
+      const result = await response.json();
+      return Array.isArray(result?.data) ? result.data : [];
+    } catch (error) {
+      console.error('Error loading whitelisted deposit accounts:', error);
+      throw Error((error as Error).message);
+    }
+  }
+
+  return {
+    uploadFile,
+    submitDeposit,
+    loadDepositAccounts,
+    saveAccount,
+    loadWhitelistedDepositAccounts
+  };
+};
