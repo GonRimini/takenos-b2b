@@ -1294,46 +1294,48 @@ export default function RetirarPage() {
               </>
             )}
 
-            {/* Campos comunes */}
-            <div className="space-y-2">
-              <Label htmlFor="amount" className="text-sm">
-                Monto (USD) *
-              </Label>
-              <div className="relative">
-                <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="amount"
-                  {...register("amount")}
-                  onChange={handleAmountChange}
-                  placeholder="0.00"
-                  className="pl-10 font-mono h-9"
-                />
-              </div>
-              {errors.amount && (
-                <p className="text-xs text-destructive">
-                  {errors.amount.message}
-                </p>
-              )}
-            </div>
+            {/* Campos de retiro (solo cuando no está creando nueva cuenta) */}
+            {!isCreatingNewAccount && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="amount" className="text-sm">
+                    Monto (USD) *
+                  </Label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="amount"
+                      {...register("amount")}
+                      onChange={handleAmountChange}
+                      placeholder="0.00"
+                      className="pl-10 font-mono h-9"
+                    />
+                  </div>
+                  {errors.amount && (
+                    <p className="text-xs text-destructive">
+                      {errors.amount.message}
+                    </p>
+                  )}
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="reference" className="text-sm">
-                Concepto / Referencia
-              </Label>
-              <Textarea
-                id="reference"
-                {...register("reference")}
-                placeholder="Descripción opcional del retiro"
-                rows={2}
-                className="resize-none"
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="reference" className="text-sm">
+                    Concepto / Referencia
+                  </Label>
+                  <Textarea
+                    id="reference"
+                    {...register("reference")}
+                    placeholder="Descripción opcional del retiro"
+                    rows={2}
+                    className="resize-none"
+                  />
+                </div>
 
-            {/* Comprobante PDF */}
-            <div className="space-y-2">
-              <Label htmlFor="receiptFile" className="text-sm">
-                Comprobante PDF *
-              </Label>
+                {/* Comprobante PDF */}
+                <div className="space-y-2">
+                  <Label htmlFor="receiptFile" className="text-sm">
+                    Comprobante PDF *
+                  </Label>
               <Input
                 id="receiptFile"
                 type="file"
@@ -1388,10 +1390,12 @@ export default function RetirarPage() {
                   </span>
                 </div>
               )}
-              <p className="text-xs text-muted-foreground">
-                Sube una factura, contrato, o documento PDF que justifique tu retiro (máx. 10MB)
-              </p>
-            </div>
+                  <p className="text-xs text-muted-foreground">
+                    Sube una factura, contrato, o documento PDF que justifique tu retiro (máx. 10MB)
+                  </p>
+                </div>
+              </>
+            )}
 
             {/* Helper text */}
             {getHelperText() && (
@@ -1592,8 +1596,15 @@ export default function RetirarPage() {
                         toast({
                           title: "Cuenta guardada",
                           description:
-                            "La cuenta fue guardada correctamente para futuros retiros.",
+                            "La cuenta fue guardada correctamente. Ya puedes usarla para retiros.",
                         });
+                        // Volver al paso de selección de cuenta
+                        setCurrentStep("select-account");
+                        setIsCreatingNewAccount(false);
+                        setSelectedAccount(null);
+                        resetForm();
+                        // Recargar las cuentas para mostrar la nueva
+                        await loadSavedAccounts();
                       } else {
                         toast({
                           title: "No se pudo guardar la cuenta",
@@ -1620,19 +1631,23 @@ export default function RetirarPage() {
           </CardContent>
         </Card>
 
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription className="text-sm">
-            Verifica que todos los datos sean correctos. Los errores pueden
-            causar retrasos o devoluciones con cargos adicionales.
-          </AlertDescription>
-        </Alert>
+        {!isCreatingNewAccount && (
+          <>
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="text-sm">
+                Verifica que todos los datos sean correctos. Los errores pueden
+                causar retrasos o devoluciones con cargos adicionales.
+              </AlertDescription>
+            </Alert>
 
-        <div className="flex justify-end">
-          <Button type="submit" className="px-6">
-            Revisar solicitud
-          </Button>
-        </div>
+            <div className="flex justify-end">
+              <Button type="submit" className="px-6">
+                Revisar solicitud
+              </Button>
+            </div>
+          </>
+        )}
       </form>
 
       <WithdrawalSummaryModal
