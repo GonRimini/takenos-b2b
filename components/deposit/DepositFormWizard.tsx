@@ -9,17 +9,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AccountSelectionStep } from "./DepositAccountSelection";
 import CreateDepositAccountPanel from "./CreateDepositAccountPanel";
 import MethodAndDestinationCard from "./MethodAndDestinationCard";
 import UploadFile from "./UploadFile";
 import ReviewConfirmationCard from "./ReviewConfirmationCard";
-import { useSubmitDepositMutation } from "@/hooks/deposits/queries";
-import { useDepositsRepository } from "@/hooks/deposits/repository";
-//import UploadFile from "./UploadFile";
 import { useAuth } from "@/components/auth";
 import { useWhitelistedDepositAccountsQuery } from "@/hooks/deposits/queries";
+import { useDepositConfirmation } from "@/hooks/deposits/useDepositConfirmation";
+import DepositWizardProgress from "./DepositWizardProgress";
 
 type DepositMethod = "ach" | "swift" | "crypto" | "local";
 
@@ -75,8 +73,34 @@ export default function DepositFormWizard() {
   };
   const goBack = () => setStep((s) => (s === 1 ? 1 : ((s - 1) as WizardStep)));
 
+  const handleStepClick = (targetStep: number) => {
+    // Solo permitir navegar a pasos válidos y no saltar validaciones
+    if (targetStep === 1) {
+      setStep(1);
+    } else if (targetStep === 2 && !!externalAccount) {
+      setStep(2);
+    } else if (targetStep === 3 && !!externalAccount && !!destinationMethod && !!destinationAccount) {
+      setStep(3);
+    } else if (targetStep === 4 && !!externalAccount && !!destinationMethod && !!destinationAccount && !!file) {
+      setStep(4);
+    }
+  };
+
+  const canGoToStep = (targetStep: number): boolean => {
+    if (targetStep === 1) return true;
+    if (targetStep === 2) return !!externalAccount;
+    if (targetStep === 3) return !!externalAccount && !!destinationMethod && !!destinationAccount;
+    if (targetStep === 4) return !!externalAccount && !!destinationMethod && !!destinationAccount && !!file;
+    return false;
+  };
+
   return (
     <div className="space-y-6">
+      <DepositWizardProgress 
+        currentStep={step}
+        canGoToStep={canGoToStep}
+        onStepClick={handleStepClick}
+      />
       {step === 1 && (
         <AccountSelectionStep
           accounts={accounts}
@@ -121,7 +145,7 @@ export default function DepositFormWizard() {
         <Card className="rounded-lg">
           <CardHeader className="pb-4">
             <CardTitle className="text-lg">Cargar comprobante PDF</CardTitle>
-            <CardDescription>Subí el comprobante del depósito</CardDescription>
+            <CardDescription>Paso 3: Subí el comprobante del depósito</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <UploadFile onFileSelected={(f: File) => setFile(f)} />
@@ -182,54 +206,23 @@ function ConfirmDepositButton({
   onSuccess?: () => void;
   file: File | null;
 }) {
-  const { mutateAsync, isPending } = useSubmitDepositMutation();
-  const repo = useDepositsRepository();
+  const { confirmDeposit, isLoading } = useDepositConfirmation();
 
-  type IDLike = { id: string } | string | null | undefined;
-  const getId = (x: IDLike) =>
-    (x && typeof x === "object" ? (x as any).id : x) ?? undefined;
-
-  type DepositRequestInsert = {
-    user_email: string;
-    file_url: string | null;
-    date: string; // ISO
-    deposit_account_id: string;
-    payout_account_id: string;
-  };
-
-  const onConfirm = async () => {
+  const handleConfirm = async () => {
     if (!userEmail) return;
 
-    // Subir archivo (opcional)
-    let fileUrl: string | null = null;
-    if (file) {
-      const uploaded = await repo.uploadFile(file, userEmail);
-      fileUrl = uploaded?.publicUrl ?? null;
-    }
-
-    const depositAccountId = getId(externalAccount);
-    const payoutAccountId = getId(destinationAccount);
-    if (!depositAccountId || !payoutAccountId) {
-      console.error("Faltan IDs: deposit_account_id o payout_account_id");
-      return;
-    }
-
-    // 👇 EXACTO como lo espera la mutación: { formData, userEmail }
-    const formData: DepositRequestInsert = {
-      user_email: userEmail,
-      file_url: fileUrl,
-      date: new Date().toISOString(),
-      deposit_account_id: String(depositAccountId),
-      payout_account_id: String(payoutAccountId),
-    };
-
-    console.log("submit deposits_request", formData);
-    await mutateAsync({ formData, userEmail },{ onSuccess: () => onSuccess?.() });
+    await confirmDeposit({
+      userEmail,
+      externalAccount,
+      destinationAccount,
+      file,
+      onSuccess
+    });
   };
 
   return (
-    <Button variant="cta" onClick={onConfirm} disabled={disabled || isPending}>
-      {isPending ? "Confirmando..." : "Confirmar"}
+    <Button variant="cta" onClick={handleConfirm} disabled={disabled || isLoading}>
+      {isLoading ? "Confirmando..." : "Confirmar"}
     </Button>
   );
 }

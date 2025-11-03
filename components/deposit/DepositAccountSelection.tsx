@@ -51,9 +51,7 @@ export const AccountSelectionStep = ({
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-lg">
-                  Usar cuenta guardada
-                </CardTitle>
+                <CardTitle className="text-lg">Usar cuenta guardada</CardTitle>
                 <CardDescription>
                   Elige una cuenta bancaria o wallet que ya tengas guardada
                 </CardDescription>
@@ -89,9 +87,7 @@ export const AccountSelectionStep = ({
                   disabled={loadingAccounts}
                   className="mb-4"
                 >
-                  {loadingAccounts
-                    ? "Cargando..."
-                    : "Cargar cuentas guardadas"}
+                  {loadingAccounts ? "Cargando..." : "Cargar cuentas guardadas"}
                 </Button>
                 <p className="text-sm text-muted-foreground">
                   Carga tus cuentas guardadas para seleccionar una
@@ -148,10 +144,7 @@ export const AccountSelectionStep = ({
                               {account.category === "crypto" &&
                                 `${
                                   account.wallet_network
-                                } - ${account.wallet_address?.slice(
-                                  0,
-                                  10
-                                )}...`}
+                                } - ${account.wallet_address?.slice(0, 10)}...`}
                               {account.category === "local_currency" &&
                                 `${account.local_bank} - ${account.country}`}
                             </p>
@@ -176,7 +169,6 @@ export const AccountSelectionStep = ({
         {/* Divisor */}
         <div className="flex items-center justify-center">
           <div className="flex-1 h-px bg-border"></div>
-          <span className="px-4 text-sm text-muted-foreground">o</span>
           <div className="flex-1 h-px bg-border"></div>
         </div>
 

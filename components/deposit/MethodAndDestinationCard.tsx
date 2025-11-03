@@ -35,7 +35,7 @@ export default function MethodAndDestinationCard({ userEmail, onBack, onSelected
     <Card className="rounded-lg">
       <CardHeader className="pb-4">
         <CardTitle className="text-lg">Cuenta destino</CardTitle>
-        <CardDescription>Elegí el método y seleccioná la cuenta de Takenos</CardDescription>
+        <CardDescription>Paso 2: Elegí el método y seleccioná la cuenta de Takenos</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>

@@ -4,7 +4,7 @@ const steps = [
   { id: 'Step 3', name: 'Preview', href: '#', status: 'upcoming' },
 ]
 
-export default function ProgressBars() {
+export default function Example() {
   return (
     <nav aria-label="Progress">
       <ol role="list" className="space-y-4 md:flex md:space-x-8 md:space-y-0">

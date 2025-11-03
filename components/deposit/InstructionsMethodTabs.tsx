@@ -85,25 +85,25 @@ export default function InstructionsMethodTabs({
           <TabsList className="grid w-full grid-cols-4 rounded-none border-b bg-transparent p-0">
             <TabsTrigger
               value="ach"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#6d37d5] data-[state=active]:bg-transparent data-[state=active]:text-[#6d37d5] data-[state=active]:shadow-none"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-b-[#6d37d5] data-[state=active]:bg-transparent data-[state=active]:text-[#6d37d5] data-[state=active]:shadow-none"
             >
               ACH/Wire
             </TabsTrigger>
             <TabsTrigger
               value="swift"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#6d37d5] data-[state=active]:bg-transparent data-[state=active]:text-[#6d37d5] data-[state=active]:shadow-none"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-b-[#6d37d5] data-[state=active]:bg-transparent data-[state=active]:text-[#6d37d5] data-[state=active]:shadow-none"
             >
               SWIFT
             </TabsTrigger>
             <TabsTrigger
               value="crypto"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#6d37d5] data-[state=active]:bg-transparent data-[state=active]:text-[#6d37d5] data-[state=active]:shadow-none"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-b-[#6d37d5] data-[state=active]:bg-transparent data-[state=active]:text-[#6d37d5] data-[state=active]:shadow-none"
             >
               Crypto
             </TabsTrigger>
             <TabsTrigger
               value="local"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#6d37d5] data-[state=active]:bg-transparent data-[state=active]:text-[#6d37d5] data-[state=active]:shadow-none"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-b-[#6d37d5] data-[state=active]:bg-transparent data-[state=active]:text-[#6d37d5] data-[state=active]:shadow-none"
             >
               Moneda Local
             </TabsTrigger>

@@ -120,7 +120,7 @@ export default function ReviewConfirmationCard({ externalAccount, destinationAcc
     <Card className="rounded-lg">
       <CardHeader className="pb-4">
         <CardTitle className="text-lg">Revisión y confirmación</CardTitle>
-        <CardDescription>Revisá los datos y confirmá tu depósito</CardDescription>
+        <CardDescription>Paso 4: Revisá los datos y confirmá tu depósito</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="text-sm space-y-4">

@@ -49,26 +49,17 @@ export default function DepositMainTabs() {
 
         <TabsContent value="inform" className="space-y-4">
           <Card className="rounded-lg">
-            <CardHeader className="pb-4">
+            {/* <CardHeader className="pb-4">
               <CardTitle className="text-base">Informar Depósito Realizado</CardTitle>
               <CardDescription>
                 Sube el comprobante de tu depósito para que podamos procesar tu
                 solicitud y acreditar los fondos
               </CardDescription>
-            </CardHeader>
+            </CardHeader> */}
             <CardContent>
               <DepositFormWizard />
             </CardContent>
           </Card>
-
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription className="text-sm">
-              Asegúrate de que el comprobante sea legible y contenga toda la
-              información del depósito. El procesamiento puede tomar entre 24-48
-              horas hábiles.
-            </AlertDescription>
-          </Alert>
         </TabsContent>
       </Tabs>
     </div>
