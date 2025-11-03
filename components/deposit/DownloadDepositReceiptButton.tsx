@@ -22,7 +22,7 @@ interface DownloadDepositReceiptButtonProps {
 
 export function DownloadDepositReceiptButton({
   depositData,
-  className,
+  className ="text-violet-800",
   variant = "outline",
   size = "sm",
 }: DownloadDepositReceiptButtonProps) {
