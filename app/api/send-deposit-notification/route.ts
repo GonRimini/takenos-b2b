@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { sendSlackNotification } from "@/lib/slack";
-import { supabase } from "@/lib/supabase-client";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -17,27 +16,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-  const { data: deposit, error: dbError } = await supabase
-  .from("deposits_request")
-  .insert([
-    {
-      user_email: userEmail,
-      date: uploadDate,
-      file_url: fileUrl,
-    },
-  ])
-  .select()
-  .single();
-
-if (dbError) {
-  console.error("❌ Error al insertar depósito:", dbError.message);
-  return NextResponse.json(
-    { error: "Error al registrar el depósito en la base de datos" },
-    { status: 500 }
-  );
-}
-console.log("✅ Depósito registrado:", deposit);
     const textContent = `
 Nueva Solicitud de Depósito - Takenos B2B Portal
 
@@ -82,11 +60,8 @@ Usuario: ${userEmail} | Fecha: ${uploadDate}
       from: FROM_EMAIL,
       to: process.env.NODE_ENV === "production" ? [to] : ["grimini@takenos.com"],
       subject: subject,
-      // html: htmlContent, // Comentado - solo enviamos texto plano
       text: textContent,
-      // Agregar reply-to para facilitar respuesta
       replyTo: userEmail,
-      // Tags para organización (sanitizadas para cumplir con reglas de Resend)
       tags: [
         { name: "type", value: "deposit-notification" },
         { name: "user", value: sanitizeTagValue(userEmail) },
@@ -105,10 +80,8 @@ Usuario: ${userEmail} | Fecha: ${uploadDate}
       );
     }
 
-    // console.log("Email sent successfully:", data);
     return NextResponse.json({
       success: true,
-      // data,
       message: "Email enviado correctamente",
     });
   } catch (error) {
