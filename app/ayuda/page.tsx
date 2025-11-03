@@ -78,6 +78,7 @@ export default function AyudaPage() {
           <Progress value={percentage} className="h-3" />
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>Consumido: ${consumido.toLocaleString()}</span>
+
             <span>Restante: ${restante.toLocaleString()}</span>
           </div>
         </div>
