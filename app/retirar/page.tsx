@@ -41,76 +41,15 @@ import {
 } from "@/lib/withdrawal-schema";
 import { useToast } from "@/hooks/use-toast";
 import { useCacheInvalidation } from "@/hooks/use-cache-invalidation";
+import { useLoadAccountsQuery, useSubmitWithdrawalMutation, useFileUploadMutation } from "@/hooks/withdrawal/queries";
 import { AlertCircle, DollarSign, ChevronDown, ChevronUp, FileText } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { getApiEmailForUser } from "@/lib/utils";
 import { supabase } from "@/lib/supabase-client";
-
-const boliviaBanks = [
-  "Banco Mercantil",
-  "Banco Nacional de Bolivia S.A.",
-  "Banco de crédito de Bolivia S.A.",
-  "Banco de la Nación de Argentina",
-  "Banco do Brasil S.A.",
-  "Banco Bisa S.A.",
-  "Banco Unión S.A.",
-  "Banco Solidario S.A.",
-  "Banco Sol S.A.",
-  "Banco Ganadero S.A.",
-  "Banco Fie S.A.",
-  "Banco Fortaleza S.A.",
-  "Cooperativa Jesús Nazareno RL",
-  "Cooperativa Fátima LTDA",
-  "Cooperativa Quillacollo LTDA",
-  "Pago móvil E-fectivo S.A.",
-  "Móvil Entel Financiera SRL",
-  "Banco PYME Ecofuturo S.A.",
-  "Banco PYME de la comunidad S.A.",
-  "Tibo Money",
-  "Cooperativa Catedral Tarija",
-  "Cooperativa San José de Bermejo LTDA",
-  "Cooperativa San Anatonio RL",
-  "Cooperativa San José de Punata LTDA",
-  "Cooperativa Trinidad LTDA",
-  "Cooperativa Comarapa RL",
-  "Cooperativa San Roque RL",
-  "El Choroloque RA",
-  "Monseñor Felix Gainza RL",
-  "Cooperativa Madre y Maestra LTDA",
-  "Cooperativa Educadores Gran Chaco LTDA",
-  "Cooperativa Catedral RA",
-  "Cooperativa Asunción LTDA",
-  "Cooperativa Magisterio Rural de Chuquisaca LTDA",
-  "Cooperativa La Sagrada Familia RL",
-  "Cooperativa Progreso RL",
-  "Cooperativa Magisterio Rural de Chuquisaca",
-  "La Primera Entidad Financiera de Vivienda",
-  "Cooperativa Ina Huasi LTDA",
-  "Cooperativa Loyola RL",
-  "E.F. De Vivienda La Promotora",
-  "Cooperativa San Martin de Porres LTDA",
-  "Cooperativa San Carlos Borromeo LTDA",
-];
-
-const walletNetworks = [
-  { value: "BEP20", label: "Binance Smart Chain - BEP20 (instantáneo)" },
-  { value: "MATIC", label: "Polygon - MATIC (instantáneo)" },
-  { value: "TRC20", label: "Tron - TRC20 (4 días hábiles)" },
-];
+import { boliviaBanks, walletNetworks } from "@/lib/withdrawal-config"; 
 
 export default function RetirarPage() {
   const [showSummary, setShowSummary] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [accounts, setAccounts] = useState<any[]>([]);
-  const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [usedSavedAccount, setUsedSavedAccount] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
@@ -121,11 +60,28 @@ export default function RetirarPage() {
   >("select-account");
   const [selectedAccount, setSelectedAccount] = useState<any>(null);
   const [isCreatingNewAccount, setIsCreatingNewAccount] = useState(false);
-  const [isAccountsExpanded, setIsAccountsExpanded] = useState(true);
+  const [isAccountsExpanded, setIsAccountsExpanded] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
   const { invalidateWithdrawalsCache } = useCacheInvalidation();
   const { authenticatedFetch } = useAuthenticatedFetch();
+  
+  // React Query hook para cuentas de pago
+  const { 
+    data: accounts = [], 
+    isLoading: loadingAccounts, 
+    error: accountsError,
+    refetch: refetchAccounts 
+  } = useLoadAccountsQuery(true);
+
+  // React Query hook para envío de withdrawal
+  const submitWithdrawalMutation = useSubmitWithdrawalMutation();
+  
+  // React Query hook para subida de archivos
+  const fileUploadMutation = useFileUploadMutation();
+
+  // Estado de loading basado en las mutations
+  const isSubmitting = fileUploadMutation.isPending || submitWithdrawalMutation.isPending;
 
   // TODO: reemplazar por userId real de sesión
   const currentUserId = "<REEMPLAZAR_USER_ID>";
@@ -305,138 +261,47 @@ export default function RetirarPage() {
   };
 
   const handleConfirmSubmission = async () => {
-    setIsSubmitting(true);
     const formData = getValues();
-
+    
     try {
-      // Obtener el email directamente del localStorage como fuente principal
-      let userEmail = null;
-
-      try {
-        const storedUser = localStorage.getItem("takenos_user");
-        console.log("localStorage raw data:", storedUser);
-        if (storedUser) {
-          const parsedUser = JSON.parse(storedUser);
-          console.log("Parsed user from localStorage:", parsedUser);
-          userEmail = parsedUser.email;
-        }
-      } catch (e) {
-        console.error("Error reading from localStorage:", e);
-      }
-
-      // Fallback: usar useAuth si localStorage falla
-      if (!userEmail && user?.email) {
-        userEmail = user.email;
-        console.log("Using useAuth fallback:", userEmail);
-      }
+      // Obtener email del usuario usando la helper function
+      const userEmail = localStorage.getItem("takenos_user") 
+        ? JSON.parse(localStorage.getItem("takenos_user")!).email 
+        : user?.email;
 
       if (!userEmail) {
-        throw new Error(
-          "No se pudo obtener el email del usuario. Por favor, recarga la página."
-        );
+        throw new Error("No se pudo obtener el email del usuario. Por favor, recarga la página.");
       }
 
-      // Subir archivo PDF si existe
-      let fileUrl = uploadedFileUrl; // Usar la URL ya subida
+      let fileUrl = uploadedFileUrl;
+
+      // Subir archivo si es necesario usando React Query
       if (!fileUrl && selectedFile && selectedFile instanceof File) {
-        try {
-          // 1. Crear nombre de archivo único y seguro
-          const timestamp = Date.now();
-          const safeFileName = selectedFile.name
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "") // quitar tildes
-            .replace(/[^a-zA-Z0-9.\-_ ]/g, "") // solo caracteres válidos
-            .replace(/\s+/g, "_"); // reemplazar espacios por _
-
-          const filePath = `withdrawal-proofs/${userEmail}/${timestamp}_${safeFileName}`;
-
-          // 2. Subir archivo a Supabase Storage
-          const { data: uploadData, error: uploadError } = await supabase.storage
-            .from("proofs")
-            .upload(filePath, selectedFile, {
-              cacheControl: "3600",
-              upsert: false
-            });
-
-          if (uploadError) {
-            console.error("Error uploading file:", uploadError);
-            throw new Error("Error al subir el archivo: " + uploadError.message);
-          }
-
-          // 3. Generar URL pública del archivo
-          const { data: publicUrlData } = supabase.storage
-            .from("proofs")
-            .getPublicUrl(uploadData.path);
-
-          if (!publicUrlData.publicUrl) {
-            throw new Error("No se pudo generar la URL del archivo");
-          }
-
-          fileUrl = publicUrlData.publicUrl;
-          console.log("File uploaded successfully:", fileUrl);
-        } catch (uploadError) {
-          console.error("Error during file upload:", uploadError);
-          throw new Error(
-            uploadError instanceof Error 
-              ? uploadError.message 
-              : "Error al subir el comprobante PDF"
-          );
-        }
+        const uploadResult = await fileUploadMutation.mutateAsync({
+          file: selectedFile,
+          userEmail
+        });
+        fileUrl = uploadResult.publicUrl;
       }
 
-      console.log("Final user email being sent:", userEmail);
-      console.log("Making request to:", "/api/withdrawals");
-      console.log("Window location:", window.location.href);
-      console.log("Window origin:", window.location.origin);
-
-      const fullUrl = `${window.location.origin}/api/withdrawals`;
-      console.log("Full URL being requested:", fullUrl);
-
-      // Incluir la URL del archivo en los datos del formulario
+      // Preparar datos para envío
       const submitData = {
         ...formData,
         receiptFileUrl: fileUrl || uploadedFileUrl,
         receiptFileName: selectedFile?.name
       };
 
-      const response = await fetch("/api/withdrawals", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-email": getApiEmailForUser(userEmail),
-        },
-        body: JSON.stringify(submitData),
-      }).catch((error) => {
-        console.error("Fetch error details:", error);
-        console.error("Error name:", error.name);
-        console.error("Error message:", error.message);
-        throw error;
-      });
-
-      const responseData = await response.json();
-      console.log("Response from /api/withdrawals:", responseData);
-
-      if (!response.ok) {
-        // Mostrar mensaje específico del backend si está disponible
-        const errorMessage =
-          responseData.message ||
-          responseData.error ||
-          "Error al enviar la solicitud";
-        throw new Error(errorMessage);
-      }
-
-      toast({
-        title: "Solicitud enviada",
-        description: "Te contactaremos por email para confirmar tu retiro.",
+      // Enviar withdrawal usando React Query
+      await submitWithdrawalMutation.mutateAsync({
+        formData: submitData,
+        userEmail
       });
 
       // Invalidar caché de retiros pendientes
-      if (userEmail) {
-        invalidateWithdrawalsCache(getApiEmailForUser(userEmail));
-      }
+      invalidateWithdrawalsCache(getApiEmailForUser(userEmail));
 
+      // Limpiar formulario y estado
       setShowSummary(false);
-      // Reset form
       setValue("category", undefined as any);
       setValue("method", undefined as any);
       setValue("amount", "");
@@ -446,6 +311,7 @@ export default function RetirarPage() {
       setUsedSavedAccount(false);
       setSelectedFile(null);
       setUploadedFileUrl(null);
+      
       // Clear other fields
       Object.keys(formData).forEach((key) => {
         if (
@@ -461,16 +327,7 @@ export default function RetirarPage() {
       });
     } catch (error) {
       console.error("Error submitting withdrawal:", error);
-      toast({
-        title: "Error",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Hubo un problema al enviar tu solicitud. Inténtalo de nuevo.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
+      // Los errores ya son manejados por los mutations de React Query
     }
   };
 
@@ -490,53 +347,19 @@ export default function RetirarPage() {
     return "";
   };
 
-  // Función para cargar cuentas guardadas al iniciar el paso 1
-  async function loadSavedAccounts() {
-    setLoadingAccounts(true);
-
-    try {
-      // Obtener email del usuario
-      let userEmail = null;
-      try {
-        const storedUser = localStorage.getItem("takenos_user");
-        if (storedUser) {
-          const parsedUser = JSON.parse(storedUser);
-          userEmail = parsedUser.email;
-        }
-      } catch (e) {
-        console.error("Error reading from localStorage:", e);
-      }
-
-      if (!userEmail && user?.email) {
-        userEmail = user.email;
-      }
-
-      if (!userEmail) {
-        throw new Error("No se pudo obtener el email del usuario");
-      }
-
-      const response = await authenticatedFetch(`/api/payout-accounts`, {
-        method: "GET",
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Error al cargar cuentas");
-      }
-
-      setAccounts(data.data || []);
-    } catch (error) {
-      console.error("Error loading accounts:", error);
+  // Manejar errores de carga de cuentas
+  if (accountsError) {
+    console.error("Error loading accounts:", accountsError);
+    // Solo mostrar toast una vez cuando hay error
+    if (accountsError && !loadingAccounts) {
       toast({
         title: "Error",
         description:
-          error instanceof Error
-            ? error.message
+          accountsError instanceof Error
+            ? accountsError.message
             : "No se pudieron cargar las cuentas guardadas",
         variant: "destructive",
       });
-    } finally {
-      setLoadingAccounts(false);
     }
   }
 
@@ -746,7 +569,7 @@ export default function RetirarPage() {
                 <div className="text-center py-8">
                   <Button
                     variant="cta"
-                    onClick={loadSavedAccounts}
+                    onClick={() => refetchAccounts()}
                     disabled={loadingAccounts}
                     className="mb-4"
                   >
@@ -1604,7 +1427,7 @@ export default function RetirarPage() {
                         setSelectedAccount(null);
                         resetForm();
                         // Recargar las cuentas para mostrar la nueva
-                        await loadSavedAccounts();
+                        await refetchAccounts();
                       } else {
                         toast({
                           title: "No se pudo guardar la cuenta",
