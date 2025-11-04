@@ -46,7 +46,8 @@ import { AlertCircle, DollarSign, ChevronDown, ChevronUp, FileText } from "lucid
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { getApiEmailForUser } from "@/lib/utils";
 import { supabase } from "@/lib/supabase-client";
-import { boliviaBanks, walletNetworks } from "@/lib/withdrawal-config"; 
+import { boliviaBanks, walletNetworks } from "@/lib/withdrawal-config";
+import { getWithdrawalHelperText, formatCurrencyValue, getUserEmailFromStorage, fillFormFromAccount, resetWithdrawalForm } from "@/lib/withdrawal-helpers"; 
 
 export default function RetirarPage() {
   const [showSummary, setShowSummary] = useState(false);
@@ -83,8 +84,6 @@ export default function RetirarPage() {
   // Estado de loading basado en las mutations
   const isSubmitting = fileUploadMutation.isPending || submitWithdrawalMutation.isPending;
 
-  // TODO: reemplazar por userId real de sesión
-  const currentUserId = "<REEMPLAZAR_USER_ID>";
 
   // Debug: Log user info when component mounts
   useEffect(() => {
@@ -146,38 +145,8 @@ export default function RetirarPage() {
   const watchedWalletNetwork = watch("walletNetwork");
   const watchedLocalBank = watch("localBank");
 
-  const formatCurrency = (value: string) => {
-    // Permitir solo números y un punto decimal
-    let cleanValue = value.replace(/[^\d.]/g, "");
-    
-    // Evitar múltiples puntos decimales
-    const parts = cleanValue.split(".");
-    if (parts.length > 2) {
-      cleanValue = parts[0] + "." + parts.slice(1).join("");
-    }
-    
-    // Limitar a 2 decimales
-    if (parts[1] && parts[1].length > 2) {
-      cleanValue = parts[0] + "." + parts[1].substring(0, 2);
-    }
-    
-    if (!cleanValue) return "";
-    
-    // Si hay punto decimal, formatear manteniendo los decimales
-    if (cleanValue.includes(".")) {
-      const [integerPart, decimalPart] = cleanValue.split(".");
-      const formattedInteger = new Intl.NumberFormat("en-US").format(
-        Number.parseInt(integerPart || "0")
-      );
-      return decimalPart !== undefined ? `${formattedInteger}.${decimalPart}` : formattedInteger;
-    } else {
-      // Solo números enteros
-      return new Intl.NumberFormat("en-US").format(Number.parseInt(cleanValue));
-    }
-  };
-
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatCurrency(e.target.value);
+    const formatted = formatCurrencyValue(e.target.value);
     setValue("amount", formatted);
   };
 
@@ -265,9 +234,7 @@ export default function RetirarPage() {
     
     try {
       // Obtener email del usuario usando la helper function
-      const userEmail = localStorage.getItem("takenos_user") 
-        ? JSON.parse(localStorage.getItem("takenos_user")!).email 
-        : user?.email;
+      const userEmail = getUserEmailFromStorage(user);
 
       if (!userEmail) {
         throw new Error("No se pudo obtener el email del usuario. Por favor, recarga la página.");
@@ -331,21 +298,8 @@ export default function RetirarPage() {
     }
   };
 
-  const getHelperText = () => {
-    if (watchedCategory === "usd_bank" && watchedMethod === "wire") {
-      return "Para transferencias internacionales, utiliza el SWIFT/BIC o IBAN si aplica.";
-    }
-    if (watchedCategory === "usd_bank" && watchedMethod === "ach") {
-      return "Para cuentas en EE.UU., utiliza account number + routing number.";
-    }
-    if (watchedCategory === "crypto") {
-      return "Asegúrate que la red y la dirección coincidan; envíos a red equivocada se pierden.";
-    }
-    if (watchedCategory === "local_currency") {
-      return "Número de cuenta bancaria local del beneficiario.";
-    }
-    return "";
-  };
+  // Helper text basado en la función modularizada
+  const helperText = getWithdrawalHelperText(watchedCategory, watchedMethod);
 
   // Manejar errores de carga de cuentas
   if (accountsError) {
@@ -366,7 +320,7 @@ export default function RetirarPage() {
   // Función para seleccionar cuenta y avanzar al paso 2
   function selectAccountAndProceed(account: any) {
     setSelectedAccount(account);
-    fillFormFromAccount(account);
+    handleFillFormFromAccount(account);
     setCurrentStep("withdrawal-details");
     setUsedSavedAccount(true);
     setIsCreatingNewAccount(false);
@@ -381,7 +335,7 @@ export default function RetirarPage() {
   // Función para crear nueva cuenta y avanzar al paso 2
   function createNewAccountAndProceed() {
     setSelectedAccount(null);
-    resetForm();
+    handleResetForm();
     setCurrentStep("withdrawal-details");
     setUsedSavedAccount(false);
     setIsCreatingNewAccount(true);
@@ -396,124 +350,23 @@ export default function RetirarPage() {
     setCurrentStep("select-account");
     setSelectedAccount(null);
     setIsCreatingNewAccount(false);
-    resetForm();
+    handleResetForm();
   }
 
-  // Función para resetear formulario y bloquear inputs
-  function resetForm() {
-    setValue("category", undefined as any);
-    setValue("method", undefined as any);
-    setValue("accountOwnership", undefined as any);
-    setValue("beneficiaryName", "");
-    setValue("beneficiaryBank", "");
-    setValue("accountType", undefined as any);
-    setValue("accountNumber", "");
-    setValue("routingNumber", "");
-    setValue("swiftBic", "");
-    setValue("walletAlias", "");
-    setValue("walletAddress", "");
-    setValue("walletNetwork", undefined as any);
-    setValue("country", "");
-    setValue("localAccountName", "");
-    setValue("localBank", "");
-    setValue("localAccountNumber", "");
-    setValue("amount", "");
-    setValue("reference", "");
-    setValue("receiptFile", undefined);
-    setUsedSavedAccount(false);
-    setSelectedFile(null);
-    setUploadedFileUrl(null);
-  }
+  // Función para resetear formulario (modularizada)
+  const handleResetForm = () => {
+    resetWithdrawalForm(setValue, {
+      setUsedSavedAccount,
+      setSelectedFile,
+      setUploadedFileUrl
+    });
+  };
 
-  // Función para rellenar formulario desde cuenta guardada
-  function fillFormFromAccount(account: any) {
-    const { category } = account;
-    const methodFromAccount = account.method as string | undefined;
-    const details = account.details || {};
-
-    // Limpiar todos los campos primero
-    setValue("category", undefined as any);
-    setValue("method", undefined as any);
-    setValue("accountOwnership", undefined as any);
-    setValue("beneficiaryName", "");
-    setValue("beneficiaryBank", "");
-    setValue("accountType", undefined as any);
-    setValue("accountNumber", "");
-    setValue("routingNumber", "");
-    setValue("swiftBic", "");
-    setValue("walletAlias", "");
-    setValue("walletAddress", "");
-    setValue("walletNetwork", undefined as any);
-    setValue("country", "");
-    setValue("localAccountName", "");
-    setValue("localBank", "");
-    setValue("localAccountNumber", "");
-
-    // Establecer categoría y método inmediatamente
-    setValue("category", category as any);
-    if (category === "usd_bank" && methodFromAccount) {
-      setValue("method", methodFromAccount as any);
-    }
-
-    // Rellenar campos según la categoría con fallbacks desde el objeto raíz
-    if (category === "usd_bank") {
-      setValue(
-        "accountOwnership",
-        (details.accountOwnership ?? account.account_ownership) as any
-      );
-      setValue(
-        "beneficiaryName",
-        details.beneficiaryName ?? account.beneficiary_name ?? ""
-      );
-      setValue(
-        "beneficiaryBank",
-        details.beneficiaryBank ?? account.beneficiary_bank ?? ""
-      );
-      setValue(
-        "accountType",
-        (details.accountType ?? account.account_type) as any
-      );
-      setValue(
-        "accountNumber",
-        details.accountNumber ?? account.account_number ?? ""
-      );
-      if ((methodFromAccount ?? details.method) === "ach") {
-        setValue(
-          "routingNumber",
-          details.routingNumber ?? account.routing_number ?? ""
-        );
-      }
-      if ((methodFromAccount ?? details.method) === "wire") {
-        setValue("swiftBic", details.swiftBic ?? account.swift_bic ?? "");
-      }
-    } else if (category === "crypto") {
-      setValue(
-        "walletAlias",
-        details.walletAlias ?? account.wallet_alias ?? ""
-      );
-      setValue(
-        "walletAddress",
-        details.walletAddress ?? account.wallet_address ?? ""
-      );
-      setValue(
-        "walletNetwork",
-        (details.walletNetwork ?? account.wallet_network) as any
-      );
-    } else if (category === "local_currency") {
-      setValue("country", details.country ?? account.country ?? "");
-      setValue(
-        "localAccountName",
-        details.localAccountName ?? account.local_account_name ?? ""
-      );
-      setValue("localBank", details.localBank ?? account.local_bank ?? "");
-      setValue(
-        "localAccountNumber",
-        details.localAccountNumber ?? account.local_account_number ?? ""
-      );
-    }
-
+  // Función para rellenar formulario desde cuenta guardada (modularizada)
+  const handleFillFormFromAccount = (account: any) => {
+    fillFormFromAccount(account, setValue);
     setUsedSavedAccount(true);
-  }
+  };
 
   // Renderizado condicional según el paso actual
   if (currentStep === "select-account") {
@@ -1221,8 +1074,8 @@ export default function RetirarPage() {
             )}
 
             {/* Helper text */}
-            {getHelperText() && (
-              <p className="text-xs text-muted-foreground">{getHelperText()}</p>
+            {helperText && (
+              <p className="text-xs text-muted-foreground">{helperText}</p>
             )}
 
             {/* Guardar cuenta */}
@@ -1425,7 +1278,7 @@ export default function RetirarPage() {
                         setCurrentStep("select-account");
                         setIsCreatingNewAccount(false);
                         setSelectedAccount(null);
-                        resetForm();
+                        handleResetForm();
                         // Recargar las cuentas para mostrar la nueva
                         await refetchAccounts();
                       } else {
