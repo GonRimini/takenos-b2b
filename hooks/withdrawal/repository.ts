@@ -8,6 +8,21 @@ interface Account {
   category: string;
   method?: string;
   details: any;
+  // Campos legacy para compatibilidad con el componente existente
+  account_ownership?: string;
+  beneficiary_name?: string;
+  beneficiary_bank?: string;
+  account_type?: string;
+  account_number?: string;
+  routing_number?: string;
+  swift_bic?: string;
+  wallet_alias?: string;
+  wallet_address?: string;
+  wallet_network?: string;
+  country?: string;
+  local_account_name?: string;
+  local_bank?: string;
+  local_account_number?: string;
 }
 
 // --- Tipos útiles
