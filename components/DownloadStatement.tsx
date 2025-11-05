@@ -28,7 +28,7 @@ export const DownloadStatement = ({
       {({ loading }) => (
         <Button variant="cta" size="sm" disabled={loading}>
           <Download className="size-4" />
-          {loading ? "Generando..." : "Descargar PDF"}
+          {"Descargar PDF"}
         </Button>
       )}
     </PDFDownloadLink>
