@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth } from "@/components/auth";
 import { useAuthenticatedFetch } from "@/hooks/use-authenticated-fetch";
 import {
@@ -23,31 +22,41 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { WithdrawalSummaryModal } from "@/components/withdrawal-summary-modal";
-import {
-  withdrawalSchema,
-  type WithdrawalFormData,
-  withdrawalCategoryEnum,
-  usdMethodEnum,
-  accountOwnershipEnum,
-  accountTypeEnum,
-  walletNetworkEnum,
-} from "@/lib/withdrawal-schema";
+import { type WithdrawalFormData } from "@/lib/withdrawal-schema";
 import { useToast } from "@/hooks/use-toast";
 import { useCacheInvalidation } from "@/hooks/use-cache-invalidation";
-import { useLoadAccountsQuery, useSubmitWithdrawalMutation, useFileUploadMutation } from "@/hooks/withdrawal/queries";
-import { AlertCircle, DollarSign, ChevronDown, ChevronUp, FileText } from "lucide-react";
+import {
+  useLoadAccountsQuery,
+  useSubmitWithdrawalMutation,
+  useFileUploadMutation,
+  useSaveAccountMutation,
+} from "@/hooks/withdrawal/queries";
+import {
+  AlertCircle,
+  DollarSign,
+  ChevronDown,
+  ChevronUp,
+  FileText,
+} from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { getApiEmailForUser } from "@/lib/utils";
 import { supabase } from "@/lib/supabase-client";
 import { boliviaBanks, walletNetworks } from "@/lib/withdrawal-config";
-import { getWithdrawalHelperText, formatCurrencyValue, getUserEmailFromStorage, fillFormFromAccount, resetWithdrawalForm } from "@/lib/withdrawal-helpers"; 
+import {
+  getWithdrawalHelperText,
+  formatCurrencyValue,
+  getUserEmailFromStorage,
+  fillFormFromAccount,
+  resetWithdrawalForm,
+  validateAccountData,
+  buildAccountDetails,
+} from "@/lib/withdrawal-helpers";
 
 export default function RetirarPage() {
   const [showSummary, setShowSummary] = useState(false);
@@ -66,24 +75,27 @@ export default function RetirarPage() {
   const { user } = useAuth();
   const { invalidateWithdrawalsCache } = useCacheInvalidation();
   const { authenticatedFetch } = useAuthenticatedFetch();
-  
+
   // React Query hook para cuentas de pago
-  const { 
-    data: accounts = [], 
-    isLoading: loadingAccounts, 
+  const {
+    data: accounts = [],
+    isLoading: loadingAccounts,
     error: accountsError,
-    refetch: refetchAccounts 
+    refetch: refetchAccounts,
   } = useLoadAccountsQuery(true);
 
   // React Query hook para envío de withdrawal
   const submitWithdrawalMutation = useSubmitWithdrawalMutation();
-  
+
   // React Query hook para subida de archivos
   const fileUploadMutation = useFileUploadMutation();
 
-  // Estado de loading basado en las mutations
-  const isSubmitting = fileUploadMutation.isPending || submitWithdrawalMutation.isPending;
+  // React Query hook para guardar cuentas
+  const saveAccountMutation = useSaveAccountMutation();
 
+  // Estado de loading basado en las mutations
+  const isSubmitting =
+    fileUploadMutation.isPending || submitWithdrawalMutation.isPending;
 
   // Debug: Log user info when component mounts
   useEffect(() => {
@@ -151,77 +163,30 @@ export default function RetirarPage() {
   };
 
   const onSubmit = async (data: WithdrawalFormData) => {
-    // Si hay archivo seleccionado, subirlo antes de mostrar el modal
+    // Si hay archivo seleccionado, subirlo antes de mostrar el modal usando React Query
     if (selectedFile && selectedFile instanceof File) {
       try {
-        // Obtener el email del usuario
-        let userEmail = null;
-        try {
-          const storedUser = localStorage.getItem("takenos_user");
-          if (storedUser) {
-            const parsedUser = JSON.parse(storedUser);
-            userEmail = parsedUser.email;
-          }
-        } catch (e) {
-          console.error("Error reading from localStorage:", e);
+        const userEmail = getUserEmailFromStorage(user);
+        
+        if (!userEmail) {
+          toast({
+            title: "Error",
+            description: "No se pudo obtener el email del usuario",
+            variant: "destructive",
+          });
+          return;
         }
 
-        if (!userEmail && user?.email) {
-          userEmail = user.email;
-        }
-
-        if (userEmail) {
-          // Subir archivo a Supabase
-          const timestamp = Date.now();
-          const safeFileName = selectedFile.name
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
-            .replace(/[^a-zA-Z0-9.\-_ ]/g, "")
-            .replace(/\s+/g, "_");
-
-          const filePath = `withdrawal-proofs/${userEmail}/${timestamp}_${safeFileName}`;
-
-          const { data: uploadData, error: uploadError } = await supabase.storage
-            .from("proofs")
-            .upload(filePath, selectedFile, {
-              cacheControl: "3600",
-              upsert: false
-            });
-
-          if (uploadError) {
-            console.error("Error uploading file:", uploadError);
-            toast({
-              title: "Error",
-              description: "Error al subir el archivo: " + uploadError.message,
-              variant: "destructive"
-            });
-            return;
-          }
-
-          // Generar URL pública del archivo
-          const { data: publicUrlData } = supabase.storage
-            .from("proofs")
-            .getPublicUrl(uploadData.path);
-
-          if (!publicUrlData.publicUrl) {
-            toast({
-              title: "Error",
-              description: "No se pudo generar la URL del archivo",
-              variant: "destructive"
-            });
-            return;
-          }
-
-          setUploadedFileUrl(publicUrlData.publicUrl);
-          console.log("File uploaded successfully:", publicUrlData.publicUrl);
-        }
-      } catch (uploadError) {
-        console.error("Error during file upload:", uploadError);
-        toast({
-          title: "Error",
-          description: "Error al subir el comprobante PDF",
-          variant: "destructive"
+        // Subir archivo usando React Query mutation
+        const uploadResult = await fileUploadMutation.mutateAsync({
+          file: selectedFile,
+          userEmail
         });
+        
+        setUploadedFileUrl(uploadResult.publicUrl);
+      } catch (uploadError) {
+        // Los errores ya son manejados por el mutation
+        console.error("Error during file upload in onSubmit:", uploadError);
         return;
       }
     }
@@ -231,13 +196,15 @@ export default function RetirarPage() {
 
   const handleConfirmSubmission = async () => {
     const formData = getValues();
-    
+
     try {
       // Obtener email del usuario usando la helper function
       const userEmail = getUserEmailFromStorage(user);
 
       if (!userEmail) {
-        throw new Error("No se pudo obtener el email del usuario. Por favor, recarga la página.");
+        throw new Error(
+          "No se pudo obtener el email del usuario. Por favor, recarga la página."
+        );
       }
 
       let fileUrl = uploadedFileUrl;
@@ -246,7 +213,7 @@ export default function RetirarPage() {
       if (!fileUrl && selectedFile && selectedFile instanceof File) {
         const uploadResult = await fileUploadMutation.mutateAsync({
           file: selectedFile,
-          userEmail
+          userEmail,
         });
         fileUrl = uploadResult.publicUrl;
       }
@@ -255,13 +222,13 @@ export default function RetirarPage() {
       const submitData = {
         ...formData,
         receiptFileUrl: fileUrl || uploadedFileUrl,
-        receiptFileName: selectedFile?.name
+        receiptFileName: selectedFile?.name,
       };
 
       // Enviar withdrawal usando React Query
       await submitWithdrawalMutation.mutateAsync({
         formData: submitData,
-        userEmail
+        userEmail,
       });
 
       // Invalidar caché de retiros pendientes
@@ -278,7 +245,7 @@ export default function RetirarPage() {
       setUsedSavedAccount(false);
       setSelectedFile(null);
       setUploadedFileUrl(null);
-      
+
       // Clear other fields
       Object.keys(formData).forEach((key) => {
         if (
@@ -358,7 +325,7 @@ export default function RetirarPage() {
     resetWithdrawalForm(setValue, {
       setUsedSavedAccount,
       setSelectedFile,
-      setUploadedFileUrl
+      setUploadedFileUrl,
     });
   };
 
@@ -366,6 +333,62 @@ export default function RetirarPage() {
   const handleFillFormFromAccount = (account: any) => {
     fillFormFromAccount(account, setValue);
     setUsedSavedAccount(true);
+  };
+
+  // Función para guardar cuenta (modularizada)
+  const handleSaveAccount = async () => {
+    const formData = getValues();
+
+    // Validar datos básicos
+    const validation = validateAccountData(formData);
+    if (!validation.isValid) {
+      toast({
+        title: validation.error!.title,
+        description: validation.error!.description,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Obtener email del usuario
+    const userEmail = getUserEmailFromStorage(user);
+    if (!userEmail) {
+      toast({
+        title: "Error",
+        description: "No se pudo obtener el email del usuario",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Construir payload para el mutation
+    const { category, method } = formData;
+    const details = buildAccountDetails(formData);
+
+    const payload = {
+      user_email: userEmail,
+      category,
+      method: method ?? null,
+      nickname: validation.nickname!,
+      details,
+    };
+
+    try {
+      // Usar el mutation de React Query
+      await saveAccountMutation.mutateAsync(payload);
+
+      // Volver al paso de selección de cuenta
+      setCurrentStep("select-account");
+      setIsCreatingNewAccount(false);
+      setSelectedAccount(null);
+      handleResetForm();
+
+      // Recargar las cuentas para mostrar la nueva
+      await refetchAccounts();
+    } catch (error) {
+      // Los errores ya son manejados por el mutation
+      console.error("Error in handleSaveAccount:", error);
+    }
   };
 
   // Renderizado condicional según el paso actual
@@ -691,7 +714,12 @@ export default function RetirarPage() {
                       <Label htmlFor="accountType" className="text-sm">
                         Tipo de cuenta *
                       </Label>
-                      <Select onValueChange={(value) => setValue("accountType", value as any)} value={watchedAccountType as any}>
+                      <Select
+                        onValueChange={(value) =>
+                          setValue("accountType", value as any)
+                        }
+                        value={watchedAccountType as any}
+                      >
                         <SelectTrigger className="h-9">
                           <SelectValue placeholder="Selecciona" />
                         </SelectTrigger>
@@ -1012,62 +1040,65 @@ export default function RetirarPage() {
                   <Label htmlFor="receiptFile" className="text-sm">
                     Comprobante PDF *
                   </Label>
-              <Input
-                id="receiptFile"
-                type="file"
-                accept="application/pdf"
-                {...register("receiptFile")}
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (file) {
-                    // Validar tipo de archivo
-                    if (file.type !== "application/pdf") {
-                      toast({
-                        title: "Error",
-                        description: "Por favor, selecciona un archivo PDF",
-                        variant: "destructive"
-                      });
-                      e.target.value = ""; // Limpiar input
-                      setSelectedFile(null);
-                      setValue("receiptFile", undefined);
-                      return;
-                    }
-                    // Validar tamaño (10MB máximo)
-                    if (file.size > 10 * 1024 * 1024) {
-                      toast({
-                        title: "Error",
-                        description: "El archivo es muy grande. Máximo 10MB",
-                        variant: "destructive"
-                      });
-                      e.target.value = ""; // Limpiar input
-                      setSelectedFile(null);
-                      setValue("receiptFile", undefined);
-                      return;
-                    }
-                    setSelectedFile(file);
-                    setValue("receiptFile", file);
-                  } else {
-                    setSelectedFile(null);
-                    setValue("receiptFile", undefined);
-                  }
-                }}
-                className="h-9 cursor-pointer file:cursor-pointer file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-              />
-              {errors.receiptFile && (
-                <p className="text-xs text-destructive">
-                  {String(errors.receiptFile.message)}
-                </p>
-              )}
-              {selectedFile && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted p-2 rounded">
-                  <FileText className="h-3 w-3" />
-                  <span>
-                    {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
-                  </span>
-                </div>
-              )}
+                  <Input
+                    id="receiptFile"
+                    type="file"
+                    accept="application/pdf"
+                    {...register("receiptFile")}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        // Validar tipo de archivo
+                        if (file.type !== "application/pdf") {
+                          toast({
+                            title: "Error",
+                            description: "Por favor, selecciona un archivo PDF",
+                            variant: "destructive",
+                          });
+                          e.target.value = ""; // Limpiar input
+                          setSelectedFile(null);
+                          setValue("receiptFile", undefined);
+                          return;
+                        }
+                        // Validar tamaño (10MB máximo)
+                        if (file.size > 10 * 1024 * 1024) {
+                          toast({
+                            title: "Error",
+                            description:
+                              "El archivo es muy grande. Máximo 10MB",
+                            variant: "destructive",
+                          });
+                          e.target.value = ""; // Limpiar input
+                          setSelectedFile(null);
+                          setValue("receiptFile", undefined);
+                          return;
+                        }
+                        setSelectedFile(file);
+                        setValue("receiptFile", file);
+                      } else {
+                        setSelectedFile(null);
+                        setValue("receiptFile", undefined);
+                      }
+                    }}
+                    className="h-9 cursor-pointer file:cursor-pointer file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                  />
+                  {errors.receiptFile && (
+                    <p className="text-xs text-destructive">
+                      {String(errors.receiptFile.message)}
+                    </p>
+                  )}
+                  {selectedFile && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted p-2 rounded">
+                      <FileText className="h-3 w-3" />
+                      <span>
+                        {selectedFile.name} (
+                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                      </span>
+                    </div>
+                  )}
                   <p className="text-xs text-muted-foreground">
-                    Sube una factura, contrato, o documento PDF que justifique tu retiro (máx. 10MB)
+                    Sube una factura, contrato, o documento PDF que justifique
+                    tu retiro (máx. 10MB)
                   </p>
                 </div>
               </>
@@ -1098,209 +1129,13 @@ export default function RetirarPage() {
                   type="button"
                   variant="cta"
                   size="sm"
-                  onClick={async () => {
-                    const formData = getValues();
-                    const { category, method } = formData as any;
-
-                    // Validar que tengamos datos básicos
-                    if (!category) {
-                      toast({
-                        title: "Selecciona una categoría",
-                        description:
-                          "Primero completa la información básica de la cuenta",
-                        variant: "destructive",
-                      });
-                      return;
-                    }
-
-                    // Validar que tengamos un alias/apodo según la categoría
-                    let nickname = null;
-                    if (category === "crypto") {
-                      if (!formData.walletAlias) {
-                        toast({
-                          title: "Apodo requerido",
-                          description:
-                            "Para guardar una cuenta crypto, debes completar el 'Apodo de la billetera'",
-                          variant: "destructive",
-                        });
-                        return;
-                      }
-                      nickname = formData.walletAlias;
-                    } else if (category === "usd_bank") {
-                      if (!(formData as any).saveNickname) {
-                        toast({
-                          title: "Alias requerido",
-                          description:
-                            "Para guardar una cuenta bancaria, debes agregar un alias",
-                          variant: "destructive",
-                        });
-                        return;
-                      }
-                      nickname = (formData as any).saveNickname;
-                    } else if (category === "local_currency") {
-                      if (!(formData as any).saveNickname) {
-                        toast({
-                          title: "Alias requerido",
-                          description:
-                            "Para guardar una cuenta local, debes agregar un alias",
-                          variant: "destructive",
-                        });
-                        return;
-                      }
-                      nickname = (formData as any).saveNickname;
-                    }
-
-                    // Obtener email del usuario
-                    let userEmail = null;
-                    try {
-                      const storedUser = localStorage.getItem("takenos_user");
-                      if (storedUser) {
-                        const parsedUser = JSON.parse(storedUser);
-                        userEmail = parsedUser.email;
-                      }
-                    } catch (e) {
-                      console.error("Error reading from localStorage:", e);
-                    }
-
-                    if (!userEmail && user?.email) {
-                      userEmail = user.email;
-                    }
-
-                    if (!userEmail) {
-                      toast({
-                        title: "Error",
-                        description: "No se pudo obtener el email del usuario",
-                        variant: "destructive",
-                      });
-                      return;
-                    }
-
-                    // Construir detalles según categoría
-                    let details: any = {};
-                    if (category === "usd_bank") {
-                      details = {
-                        beneficiaryName: formData.beneficiaryName,
-                        beneficiaryBank: formData.beneficiaryBank,
-                        accountType: formData.accountType,
-                        accountNumber: formData.accountNumber,
-                        accountOwnership: formData.accountOwnership,
-                      };
-                      if (method === "ach") {
-                        details.routingNumber = formData.routingNumber;
-                      }
-                      if (method === "wire") {
-                        details.swiftBic = formData.swiftBic;
-                      }
-                    } else if (category === "crypto") {
-                      details = {
-                        walletAlias: formData.walletAlias,
-                        walletAddress: formData.walletAddress,
-                        walletNetwork: formData.walletNetwork,
-                      };
-                    } else if (category === "local_currency") {
-                      details = {
-                        localAccountName: formData.localAccountName,
-                        localBank: formData.localBank,
-                        localAccountNumber: formData.localAccountNumber,
-                      };
-                    }
-
-                    try {
-                      // Evitar alias duplicado
-                      const fetchEmail = async (): Promise<string | null> => {
-                        try {
-                          const storedUser =
-                            localStorage.getItem("takenos_user");
-                          if (storedUser) {
-                            const parsedUser = JSON.parse(storedUser);
-                            return parsedUser.email;
-                          }
-                        } catch {}
-                        return user?.email ?? null;
-                      };
-                      const emailForCheck = await fetchEmail();
-                      if (!emailForCheck) {
-                        toast({
-                          title: "Error",
-                          description:
-                            "No se pudo obtener el email del usuario",
-                          variant: "destructive",
-                        });
-                        return;
-                      }
-                      const existingRes = await authenticatedFetch(
-                        `/api/payout-accounts`,
-                        {
-                          method: "GET",
-                        }
-                      );
-                      const existingJson = await existingRes
-                        .json()
-                        .catch(() => ({}));
-                      const existing = Array.isArray(existingJson?.data)
-                        ? existingJson.data
-                        : [];
-                      const aliasExists = existing.some(
-                        (a: any) =>
-                          (a.nickname || "").toLowerCase() ===
-                          (nickname || "").toLowerCase()
-                      );
-                      if (aliasExists) {
-                        toast({
-                          title: "Alias ya usado",
-                          description:
-                            "Elegí un alias diferente para esta cuenta.",
-                          variant: "destructive",
-                        });
-                        return;
-                      }
-
-                      const saveResp = await authenticatedFetch(
-                        "/api/payout-accounts",
-                        {
-                          method: "POST",
-                          body: JSON.stringify({
-                            category,
-                            method: method ?? null,
-                            nickname,
-                            details,
-                          }),
-                        }
-                      );
-                      const saveJson = await saveResp.json().catch(() => ({}));
-                      if (saveResp.ok && saveJson?.ok) {
-                        toast({
-                          title: "Cuenta guardada",
-                          description:
-                            "La cuenta fue guardada correctamente. Ya puedes usarla para retiros.",
-                        });
-                        // Volver al paso de selección de cuenta
-                        setCurrentStep("select-account");
-                        setIsCreatingNewAccount(false);
-                        setSelectedAccount(null);
-                        handleResetForm();
-                        // Recargar las cuentas para mostrar la nueva
-                        await refetchAccounts();
-                      } else {
-                        toast({
-                          title: "No se pudo guardar la cuenta",
-                          description: saveJson?.error || "Intentá más tarde.",
-                          variant: "destructive",
-                        });
-                      }
-                    } catch (e) {
-                      console.error("Error guardando la cuenta:", e);
-                      toast({
-                        title: "Error",
-                        description:
-                          "No se pudo guardar la cuenta. Intentá más tarde.",
-                        variant: "destructive",
-                      });
-                    }
-                  }}
+                  onClick={handleSaveAccount}
+                  disabled={saveAccountMutation.isPending}
                   className="w-full"
                 >
-                  Guardar cuenta para futuros retiros
+                  {saveAccountMutation.isPending
+                    ? "Guardando..."
+                    : "Guardar cuenta para futuros retiros"}
                 </Button>
               </div>
             )}
@@ -1334,7 +1169,7 @@ export default function RetirarPage() {
           ...getValues(),
           receiptFile: selectedFile,
           receiptFileUrl: uploadedFileUrl || undefined,
-          receiptFileName: selectedFile?.name
+          receiptFileName: selectedFile?.name,
         }}
         isSubmitting={isSubmitting}
       />

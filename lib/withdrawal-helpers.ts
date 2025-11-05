@@ -163,3 +163,98 @@ export const resetWithdrawalForm = (setValue: any, setters?: {
   if (setters?.setSelectedFile) setters.setSelectedFile(null);
   if (setters?.setUploadedFileUrl) setters.setUploadedFileUrl(null);
 };
+
+/**
+ * Valida los datos básicos para guardar una cuenta
+ */
+export const validateAccountData = (formData: any) => {
+  const { category, method } = formData;
+
+  // Validar que tengamos datos básicos
+  if (!category) {
+    return {
+      isValid: false,
+      error: {
+        title: "Selecciona una categoría",
+        description: "Primero completa la información básica de la cuenta"
+      }
+    };
+  }
+
+  // Validar que tengamos un alias/apodo según la categoría
+  let nickname = null;
+  if (category === "crypto") {
+    if (!formData.walletAlias) {
+      return {
+        isValid: false,
+        error: {
+          title: "Apodo requerido",
+          description: "Para guardar una cuenta crypto, debes completar el 'Apodo de la billetera'"
+        }
+      };
+    }
+    nickname = formData.walletAlias;
+  } else if (category === "usd_bank") {
+    if (!formData.saveNickname) {
+      return {
+        isValid: false,
+        error: {
+          title: "Alias requerido",
+          description: "Para guardar una cuenta bancaria, debes agregar un alias"
+        }
+      };
+    }
+    nickname = formData.saveNickname;
+  } else if (category === "local_currency") {
+    if (!formData.saveNickname) {
+      return {
+        isValid: false,
+        error: {
+          title: "Alias requerido",
+          description: "Para guardar una cuenta local, debes agregar un alias"
+        }
+      };
+    }
+    nickname = formData.saveNickname;
+  }
+
+  return { isValid: true, nickname };
+};
+
+/**
+ * Construye los detalles de la cuenta según la categoría
+ */
+export const buildAccountDetails = (formData: any) => {
+  const { category, method } = formData;
+  let details: any = {};
+
+  if (category === "usd_bank") {
+    details = {
+      beneficiaryName: formData.beneficiaryName,
+      beneficiaryBank: formData.beneficiaryBank,
+      accountType: formData.accountType,
+      accountNumber: formData.accountNumber,
+      accountOwnership: formData.accountOwnership,
+    };
+    if (method === "ach") {
+      details.routingNumber = formData.routingNumber;
+    }
+    if (method === "wire") {
+      details.swiftBic = formData.swiftBic;
+    }
+  } else if (category === "crypto") {
+    details = {
+      walletAlias: formData.walletAlias,
+      walletAddress: formData.walletAddress,
+      walletNetwork: formData.walletNetwork,
+    };
+  } else if (category === "local_currency") {
+    details = {
+      localAccountName: formData.localAccountName,
+      localBank: formData.localBank,
+      localAccountNumber: formData.localAccountNumber,
+    };
+  }
+
+  return details;
+};
