@@ -1,5 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { useDashboardRepository } from "./repository";
+
+const STALE_30M = 30 * 60 * 1000;      // 30 min
+const GC_24H    = 24 * 60 * 60 * 1000; // 24 hs
 
 export function useBalanceQuery(userEmail?: string) {
   const repository = useDashboardRepository();
@@ -8,10 +11,14 @@ export function useBalanceQuery(userEmail?: string) {
     queryKey: ["balance", userEmail],
     queryFn: () => repository.getBalance(userEmail),
     enabled: !!userEmail,
-    staleTime: 2 * 60 * 1000, // 2 minutes (más agresivo)
-    gcTime: 5 * 60 * 1000, // 5 minutes cache
-    retry: 1, // Solo 1 retry para fallar rápido
-    refetchOnWindowFocus: false, // No refetch cuando cambia focus
+    staleTime: STALE_30M,
+    gcTime: GC_24H,
+    retry: 1,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    placeholderData: keepPreviousData,
+    networkMode: "offlineFirst",
   });
 }
 
@@ -22,7 +29,14 @@ export function useMovementsQuery(userEmail?: string) {
     queryKey: ["movements", userEmail],
     queryFn: () => repository.getMovements(userEmail),
     enabled: !!userEmail,
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: STALE_30M,
+    gcTime: GC_24H,
+    retry: 1,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    placeholderData: keepPreviousData,
+    networkMode: "offlineFirst",
   });
 }
 
@@ -33,6 +47,13 @@ export function usePendingWithdrawalsQuery(userEmail?: string) {
     queryKey: ["pendingWithdrawals", userEmail],
     queryFn: () => repository.getPendingWithdrawals(userEmail),
     enabled: !!userEmail,
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: STALE_30M,
+    gcTime: GC_24H,
+    retry: 1,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    placeholderData: keepPreviousData,
+    networkMode: "offlineFirst",
   });
-}  
+}
