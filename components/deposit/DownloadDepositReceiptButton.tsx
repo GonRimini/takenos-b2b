@@ -51,7 +51,7 @@ export function DownloadDepositReceiptButton({
           disabled={loading}
         >
           <Download className="h-4 w-4 mr-2" />
-          {loading ? "Generando..." : ""}
+          {""}
         </Button>
       )}
     </PDFDownloadLink>
