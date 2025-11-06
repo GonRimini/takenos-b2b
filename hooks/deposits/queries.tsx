@@ -84,3 +84,22 @@ export const useWhitelistedDepositAccountsQuery = (
     staleTime: 5 * 60 * 1000,
   });
 };
+
+// Nuevas queries para instrucciones de depósito
+export const useDepositInstructionsQuery = (
+  method: DepositMethod,
+  userEmail: string | undefined,
+  enabled: boolean = true
+) => {
+  const repository = useDepositsRepository();
+
+  return useQuery({
+    queryKey: ['deposit-instructions', method, userEmail ?? null],
+    queryFn: () => repository.loadDepositInstructions(method, userEmail!),
+    enabled: enabled && !!userEmail && !!method,
+    staleTime: 10 * 60 * 1000, // Cache por 10 minutos
+    gcTime: 30 * 60 * 1000, // Mantener en cache 30 minutos
+    retry: 2,
+    refetchOnWindowFocus: false, // No refetch al cambiar tabs del browser
+  });
+};
