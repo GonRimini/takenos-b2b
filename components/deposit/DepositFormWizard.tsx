@@ -94,6 +94,22 @@ export default function DepositFormWizard() {
     return false;
   };
 
+  // Si está creando nueva cuenta, mostrar solo ese componente
+  if (creatingNewAccount) {
+    return (
+      <div className="space-y-6">
+        <CreateDepositAccountPanel
+          userEmail={userEmail}
+          onCreated={async () => {
+            await refetch();
+            setCreatingNewAccount(false);
+          }}
+          onCancel={() => setCreatingNewAccount(false)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <DepositWizardProgress 
@@ -115,17 +131,6 @@ export default function DepositFormWizard() {
             setCreatingNewAccount(true);
             setExternalAccount(null);
           }}
-        />
-      )}
-
-      {step === 1 && creatingNewAccount && (
-        <CreateDepositAccountPanel
-          userEmail={userEmail}
-          onCreated={async () => {
-            await refetch();
-            setCreatingNewAccount(false);
-          }}
-          onCancel={() => setCreatingNewAccount(false)}
         />
       )}
 
