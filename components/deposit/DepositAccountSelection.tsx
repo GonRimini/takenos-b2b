@@ -177,7 +177,7 @@ export const AccountSelectionStep = ({
           <CardHeader className="pb-4">
             <CardTitle className="text-lg">Agregar nueva cuenta</CardTitle>
             <CardDescription>
-              Crea una nueva cuenta bancaria o wallet para este retiro
+              Crea una nueva cuenta bancaria o wallet para este depósito
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -190,7 +190,7 @@ export const AccountSelectionStep = ({
                 Crear nueva cuenta
               </Button>
               <p className="text-sm text-muted-foreground">
-                Completa los datos de una nueva cuenta de destino
+                Completa los datos de una nueva cuenta origen
               </p>
             </div>
           </CardContent>
