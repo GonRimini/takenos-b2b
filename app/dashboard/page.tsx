@@ -10,9 +10,11 @@ import {
   useMovementsQuery,
   usePendingWithdrawalsQuery,
 } from "@/hooks/dashboard/queries";
+import { useUSDCToBOBRateQuery } from "@/hooks/external";
 import { MovementsTable } from "@/components/MovementsTable";
 import { PendingWithdrawalsTable } from "@/components/PendingWithdrawalsTable";
 import { BalanceCard } from "@/components/BalanceCard";
+import ExchangeRate from "@/components/ExchangeRate";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -34,6 +36,13 @@ export default function Dashboard() {
     isLoading: isLoadingWithdrawals,
     refetch: refetchWithdrawals,
   } = usePendingWithdrawalsQuery(user?.email);
+  const {
+    data: exchangeRateData,
+    isLoading: isLoadingExchangeRate,
+    isError: isErrorExchangeRate,
+    error: exchangeRateError,
+    refetch: refetchExchangeRate,
+  } = useUSDCToBOBRateQuery(25000);
 
   // Función para actualizar todos los datos
   const refreshAllData = async () => {
@@ -41,6 +50,7 @@ export default function Dashboard() {
       refetchBalance(),
       refetchMovements(),
       refetchWithdrawals(),
+      refetchExchangeRate(),
     ]);
   };
 
@@ -69,13 +79,13 @@ export default function Dashboard() {
             size="sm"
             onClick={refreshAllData}
             disabled={
-              isLoadingBalance || isLoadingMovements || isLoadingWithdrawals
+              isLoadingBalance || isLoadingMovements || isLoadingWithdrawals || isLoadingExchangeRate
             }
             className="flex items-center space-x-2"
           >
             <RefreshCw
               className={`h-4 w-4 ${
-                isLoadingBalance || isLoadingMovements || isLoadingWithdrawals
+                isLoadingBalance || isLoadingMovements || isLoadingWithdrawals || isLoadingExchangeRate
                   ? "animate-spin"
                   : ""
               }`}
@@ -90,6 +100,13 @@ export default function Dashboard() {
         balanceData={balanceData}
         isLoadingBalance={isLoadingBalance}
         isErrorBalance={isErrorBalance}
+      />
+
+      {/* Exchange Rate */}
+      <ExchangeRate 
+        data={exchangeRateData}
+        isLoading={isLoadingExchangeRate}
+        error={isErrorExchangeRate ? exchangeRateError : null}
       />
 
       {/* Movements Table */}
