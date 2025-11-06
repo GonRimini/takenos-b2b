@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AccountSelectionStep } from "./DepositAccountSelection";
-import CreateDepositAccountPanel from "./CreateDepositAccountPanel";
+import CreateAccountWizard from "@/components/shared/CreateAccountWizard";
 import MethodAndDestinationCard from "./MethodAndDestinationCard";
 import UploadFile from "./UploadFile";
 import ReviewConfirmationCard from "./ReviewConfirmationCard";
@@ -98,13 +98,16 @@ export default function DepositFormWizard() {
   if (creatingNewAccount) {
     return (
       <div className="space-y-6">
-        <CreateDepositAccountPanel
+        <CreateAccountWizard
           userEmail={userEmail}
+          flowType="deposit"
           onCreated={async () => {
             await refetch();
             setCreatingNewAccount(false);
           }}
           onCancel={() => setCreatingNewAccount(false)}
+          title="Crear cuenta para depósito"
+          description="Selecciona el tipo de cuenta y completa los datos"
         />
       </div>
     );
