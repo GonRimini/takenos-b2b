@@ -558,27 +558,231 @@ export default function RetirarPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Información de la cuenta seleccionada (solo lectura) */}
-            {selectedAccount && (
-              <div className="p-4 bg-muted rounded-lg">
-                <h3 className="font-medium mb-2">Cuenta de destino:</h3>
-                <p className="text-sm text-muted-foreground">
-                  <span className="font-medium">
-                    {selectedAccount.nickname || "Sin nombre"}
-                  </span>
-                  <br />
-                  {selectedAccount.category === "usd_bank" &&
-                    `${selectedAccount.method?.toUpperCase()} - ${
-                      selectedAccount.beneficiary_bank
-                    }`}
-                  {selectedAccount.category === "crypto" &&
-                    `${
-                      selectedAccount.wallet_network
-                    } - ${selectedAccount.wallet_address?.slice(0, 10)}...`}
-                  {selectedAccount.category === "local_currency" &&
-                    `${selectedAccount.local_bank} - ${selectedAccount.country}`}
-                </p>
-              </div>
+            {/* Campos de cuenta seleccionada (disabled y auto-llenados) */}
+            {selectedAccount && !isCreatingNewAccount && (
+              <>
+                {/* Categoría */}
+                <div className="space-y-2">
+                  <Label className="text-sm">Categoría *</Label>
+                  <Input
+                    value={
+                      selectedAccount.category === "usd_bank"
+                        ? "USD - Cuenta bancaria"
+                        : selectedAccount.category === "crypto"
+                        ? "Criptomonedas"
+                        : "Moneda local"
+                    }
+                    disabled
+                    className="h-9 bg-muted"
+                  />
+                </div>
+
+                {/* Campos para USD Bank */}
+                {selectedAccount.category === "usd_bank" && (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm">Método</Label>
+                        <Input
+                          value={(selectedAccount.method || selectedAccount.details?.method || "").toUpperCase()}
+                          disabled
+                          className="h-9 bg-muted"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">Alias de la cuenta</Label>
+                        <Input
+                          value={selectedAccount.nickname || selectedAccount.details?.nickname || ""}
+                          disabled
+                          className="h-9 bg-muted"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm">Nombre del beneficiario</Label>
+                        <Input
+                          value={selectedAccount.details?.beneficiaryName || selectedAccount.beneficiary_name || ""}
+                          disabled
+                          className="h-9 bg-muted"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">Banco del beneficiario</Label>
+                        <Input
+                          value={selectedAccount.details?.beneficiaryBank || selectedAccount.beneficiary_bank || ""}
+                          disabled
+                          className="h-9 bg-muted"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm">Tipo de cuenta</Label>
+                        <Input
+                          value={selectedAccount.details?.accountType || selectedAccount.account_type || ""}
+                          disabled
+                          className="h-9 bg-muted"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">Número de cuenta</Label>
+                        <Input
+                          value={selectedAccount.details?.accountNumber || selectedAccount.account_number || ""}
+                          disabled
+                          className="h-9 bg-muted"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm">
+                          {(selectedAccount.method || selectedAccount.details?.method) === "wire" ? "SWIFT/BIC" : "Routing Number"}
+                        </Label>
+                        <Input
+                          value={
+                            (selectedAccount.method || selectedAccount.details?.method) === "wire"
+                              ? (selectedAccount.details?.swiftBic || selectedAccount.swift_bic || "")
+                              : (selectedAccount.details?.routingNumber || selectedAccount.routing_number || "")
+                          }
+                          disabled
+                          className="h-9 bg-muted"
+                        />
+                      </div>
+                      {(selectedAccount.details?.address || selectedAccount.bank_address) && (
+                        <div className="space-y-2">
+                          <Label className="text-sm">Dirección del banco</Label>
+                          <Input
+                            value={selectedAccount.details?.address || selectedAccount.bank_address || ""}
+                            disabled
+                            className="h-9 bg-muted"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Campos adicionales que pueden estar en algunos tipos de cuenta */}
+                    {(selectedAccount.details?.walletAddress || selectedAccount.wallet_address) && (
+                      <div className="grid grid-cols-1 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-sm">Wallet Address</Label>
+                          <Input
+                            value={selectedAccount.details?.walletAddress || selectedAccount.wallet_address || ""}
+                            disabled
+                            className="h-9 bg-muted font-mono text-xs"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {(selectedAccount.details?.network || selectedAccount.network) && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-sm">Network</Label>
+                          <Input
+                            value={selectedAccount.details?.network || selectedAccount.network || ""}
+                            disabled
+                            className="h-9 bg-muted"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Campos para Crypto */}
+                {selectedAccount.category === "crypto" && (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm">Alias del wallet</Label>
+                        <Input
+                          value={selectedAccount.details?.walletAlias || selectedAccount.wallet_alias || selectedAccount.nickname || ""}
+                          disabled
+                          className="h-9 bg-muted"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">Red</Label>
+                        <Input
+                          value={selectedAccount.details?.network || selectedAccount.wallet_network || selectedAccount.network || ""}
+                          disabled
+                          className="h-9 bg-muted"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm">Dirección del wallet</Label>
+                      <Input
+                        value={selectedAccount.details?.walletAddress || selectedAccount.wallet_address || ""}
+                        disabled
+                        className="h-9 bg-muted font-mono text-xs"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* Campos para Local Currency */}
+                {selectedAccount.category === "local_currency" && (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm">Alias de la cuenta</Label>
+                        <Input
+                          value={selectedAccount.details?.nickname || selectedAccount.nickname || ""}
+                          disabled
+                          className="h-9 bg-muted"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">País</Label>
+                        <Input
+                          value={selectedAccount.details?.country || selectedAccount.country || ""}
+                          disabled
+                          className="h-9 bg-muted"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm">Nombre del titular</Label>
+                        <Input
+                          value={selectedAccount.details?.localAccountName || selectedAccount.local_account_name || ""}
+                          disabled
+                          className="h-9 bg-muted"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">Banco</Label>
+                        <Input
+                          value={selectedAccount.details?.localBank || selectedAccount.local_bank || ""}
+                          disabled
+                          className="h-9 bg-muted"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm">Número de cuenta</Label>
+                      <Input
+                        value={selectedAccount.details?.localAccountNumber || selectedAccount.local_account_number || ""}
+                        disabled
+                        className="h-9 bg-muted"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* Separador visual */}
+                <div className="border-t pt-4 mt-6">
+                  <h3 className="text-base font-medium mb-4">Detalles del retiro</h3>
+                </div>
+              </>
             )}
 
             {/* Campos de retiro */}
