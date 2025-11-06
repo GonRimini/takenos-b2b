@@ -48,11 +48,7 @@ export default function DepositMainTabs() {
         </TabsContent>
 
         <TabsContent value="inform" className="space-y-4">
-          <Card className="rounded-lg">
-            <CardContent>
-              <DepositFormWizard />
-            </CardContent>
-          </Card>
+          <DepositFormWizard />
         </TabsContent>
       </Tabs>
     </div>
