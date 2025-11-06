@@ -49,13 +49,6 @@ export default function DepositMainTabs() {
 
         <TabsContent value="inform" className="space-y-4">
           <Card className="rounded-lg">
-            {/* <CardHeader className="pb-4">
-              <CardTitle className="text-base">Informar Depósito Realizado</CardTitle>
-              <CardDescription>
-                Sube el comprobante de tu depósito para que podamos procesar tu
-                solicitud y acreditar los fondos
-              </CardDescription>
-            </CardHeader> */}
             <CardContent>
               <DepositFormWizard />
             </CardContent>
