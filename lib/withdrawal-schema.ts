@@ -76,7 +76,7 @@ export const withdrawalSchema = baseSchema.superRefine((data, ctx) => {
 
   // Local currency
   if (data.category === "local_currency") {
-    if (!data.country) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "País requerido", path: ["country"] })
+    // if (!data.country) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "País requerido", path: ["country"] })
     if (!data.localAccountName) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Nombre de la cuenta requerido", path: ["localAccountName"] })
     if (!data.localBank) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Banco requerido", path: ["localBank"] })
     if (!data.localAccountNumber) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Número de cuenta destino requerido", path: ["localAccountNumber"] })
