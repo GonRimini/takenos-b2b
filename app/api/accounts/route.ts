@@ -6,7 +6,7 @@ const TABLE_BY_METHOD = {
   swift: "swift_accounts",
   wire: "swift_accounts", // alias
   crypto: "crypto_wallets",
-  local: "local_accounts",
+  local: "local",
 } as const;
 
 export async function GET(req: NextRequest) {
