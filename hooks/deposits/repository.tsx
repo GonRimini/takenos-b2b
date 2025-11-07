@@ -163,11 +163,35 @@ export const useDepositsRepository = () => {
     }
   }
 
+  const loadDepositInstructions = async (method: DepositMethod, userEmail: string) => {
+    // Import the deposit functions
+    const { 
+      getDepositoACH, 
+      getDepositoSWIFT, 
+      getDepositosCrypto, 
+      getDepositoLocal 
+    } = await import('@/lib/depositos');
+
+    switch (method) {
+      case 'ach':
+        return await getDepositoACH(userEmail);
+      case 'swift':
+        return await getDepositoSWIFT(userEmail);
+      case 'crypto':
+        return await getDepositosCrypto(userEmail);
+      case 'local':
+        return await getDepositoLocal(userEmail);
+      default:
+        throw new Error(`Método de depósito no soportado: ${method}`);
+    }
+  }
+
   return {
     uploadFile,
     submitDeposit,
     loadDepositAccounts,
     saveAccount,
-    loadWhitelistedDepositAccounts
+    loadWhitelistedDepositAccounts,
+    loadDepositInstructions
   };
 };

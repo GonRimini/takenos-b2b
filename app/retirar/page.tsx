@@ -46,17 +46,13 @@ import {
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { getApiEmailForUser } from "@/lib/utils";
-import { supabase } from "@/lib/supabase-client";
-import { boliviaBanks, walletNetworks } from "@/lib/withdrawal-config";
 import {
-  getWithdrawalHelperText,
   formatCurrencyValue,
   getUserEmailFromStorage,
   fillFormFromAccount,
   resetWithdrawalForm,
-  validateAccountData,
-  buildAccountDetails,
 } from "@/lib/withdrawal-helpers";
+import CreateAccountWizard from "@/components/shared/CreateAccountWizard";
 
 export default function RetirarPage() {
   const [showSummary, setShowSummary] = useState(false);
@@ -116,28 +112,6 @@ export default function RetirarPage() {
     }
   }, [user]);
 
-  // Persistir última categoría seleccionada
-  const [lastCategory, setLastCategory] = useState<string | null>(null);
-
-  // Cargar categoría guardada al montar
-  useEffect(() => {
-    const saved = localStorage.getItem("lastWithdrawalCategory");
-    if (saved) {
-      setLastCategory(saved);
-      // Asegurar que el Select muestre la categoría guardada
-      try {
-        setValue("category", saved as any);
-      } catch {}
-    }
-  }, []);
-
-  // Guardar categoría cuando cambie
-  const handleCategoryChange = (value: string) => {
-    setValue("category", value as any);
-    setLastCategory(value);
-    localStorage.setItem("lastWithdrawalCategory", value);
-  };
-
   const {
     register,
     handleSubmit,
@@ -149,14 +123,6 @@ export default function RetirarPage() {
     // resolver: zodResolver(withdrawalSchema),
   });
 
-  const watchedCategory = watch("category");
-  const watchedMethod = watch("method");
-  const watchedCountry = watch("country");
-  const watchedAccountOwnership = watch("accountOwnership");
-  const watchedAccountType = watch("accountType");
-  const watchedWalletNetwork = watch("walletNetwork");
-  const watchedLocalBank = watch("localBank");
-
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatCurrencyValue(e.target.value);
     setValue("amount", formatted);
@@ -167,7 +133,7 @@ export default function RetirarPage() {
     if (selectedFile && selectedFile instanceof File) {
       try {
         const userEmail = getUserEmailFromStorage(user);
-        
+
         if (!userEmail) {
           toast({
             title: "Error",
@@ -180,9 +146,9 @@ export default function RetirarPage() {
         // Subir archivo usando React Query mutation
         const uploadResult = await fileUploadMutation.mutateAsync({
           file: selectedFile,
-          userEmail
+          userEmail,
         });
-        
+
         setUploadedFileUrl(uploadResult.publicUrl);
       } catch (uploadError) {
         // Los errores ya son manejados por el mutation
@@ -265,9 +231,6 @@ export default function RetirarPage() {
     }
   };
 
-  // Helper text basado en la función modularizada
-  const helperText = getWithdrawalHelperText(watchedCategory, watchedMethod);
-
   // Manejar errores de carga de cuentas
   if (accountsError) {
     console.error("Error loading accounts:", accountsError);
@@ -333,62 +296,6 @@ export default function RetirarPage() {
   const handleFillFormFromAccount = (account: any) => {
     fillFormFromAccount(account, setValue);
     setUsedSavedAccount(true);
-  };
-
-  // Función para guardar cuenta (modularizada)
-  const handleSaveAccount = async () => {
-    const formData = getValues();
-
-    // Validar datos básicos
-    const validation = validateAccountData(formData);
-    if (!validation.isValid) {
-      toast({
-        title: validation.error!.title,
-        description: validation.error!.description,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Obtener email del usuario
-    const userEmail = getUserEmailFromStorage(user);
-    if (!userEmail) {
-      toast({
-        title: "Error",
-        description: "No se pudo obtener el email del usuario",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Construir payload para el mutation
-    const { category, method } = formData;
-    const details = buildAccountDetails(formData);
-
-    const payload = {
-      user_email: userEmail,
-      category,
-      method: method ?? null,
-      nickname: validation.nickname!,
-      details,
-    };
-
-    try {
-      // Usar el mutation de React Query
-      await saveAccountMutation.mutateAsync(payload);
-
-      // Volver al paso de selección de cuenta
-      setCurrentStep("select-account");
-      setIsCreatingNewAccount(false);
-      setSelectedAccount(null);
-      handleResetForm();
-
-      // Recargar las cuentas para mostrar la nueva
-      await refetchAccounts();
-    } catch (error) {
-      // Los errores ya son manejados por el mutation
-      console.error("Error in handleSaveAccount:", error);
-    }
   };
 
   // Renderizado condicional según el paso actual
@@ -568,6 +475,44 @@ export default function RetirarPage() {
     );
   }
 
+  // Si está creando nueva cuenta, mostrar solo el wizard
+  if (currentStep === "withdrawal-details" && isCreatingNewAccount) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Button variant="cta" size="sm" onClick={backToAccountSelection}>
+              ← Cambiar cuenta
+            </Button>
+          </div>
+          <h1 className="text-2xl font-bold text-foreground mb-2">
+            Crear nueva cuenta para retiro
+          </h1>
+          <p className="text-muted-foreground">
+            Completa los datos de la nueva cuenta de destino
+          </p>
+        </div>
+
+        <CreateAccountWizard
+          userEmail={getUserEmailFromStorage(user) || undefined}
+          flowType="withdrawal"
+          onCreated={async () => {
+            // Volver al paso de selección de cuenta
+            setCurrentStep("select-account");
+            setIsCreatingNewAccount(false);
+            setSelectedAccount(null);
+            handleResetForm();
+            // Recargar las cuentas para mostrar la nueva
+            await refetchAccounts();
+          }}
+          onCancel={backToAccountSelection}
+          title="Crear cuenta para retiro"
+          description="Selecciona el tipo de cuenta y completa los datos"
+        />
+      </div>
+    );
+  }
+
   // Paso 2: Detalles del retiro
   return (
     <div className="max-w-2xl mx-auto">
@@ -613,552 +558,349 @@ export default function RetirarPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Categoría de retiro */}
+            {/* Campos de cuenta seleccionada (disabled y auto-llenados) */}
+            {selectedAccount && !isCreatingNewAccount && (
+              <>
+                {/* Categoría */}
+                <div className="space-y-2">
+                  <Label className="text-sm">Categoría *</Label>
+                  <Input
+                    value={
+                      selectedAccount.category === "usd_bank"
+                        ? "USD - Cuenta bancaria"
+                        : selectedAccount.category === "crypto"
+                        ? "Criptomonedas"
+                        : "Moneda local"
+                    }
+                    disabled
+                    className="h-9 bg-muted"
+                  />
+                </div>
+
+                {/* Campos para USD Bank */}
+                {selectedAccount.category === "usd_bank" && (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm">Método</Label>
+                        <Input
+                          value={(selectedAccount.method || selectedAccount.details?.method || "").toUpperCase()}
+                          disabled
+                          className="h-9 bg-muted"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">Alias de la cuenta</Label>
+                        <Input
+                          value={selectedAccount.nickname || selectedAccount.details?.nickname || ""}
+                          disabled
+                          className="h-9 bg-muted"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm">Nombre del beneficiario</Label>
+                        <Input
+                          value={selectedAccount.details?.beneficiaryName || selectedAccount.beneficiary_name || ""}
+                          disabled
+                          className="h-9 bg-muted"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">Banco del beneficiario</Label>
+                        <Input
+                          value={selectedAccount.details?.beneficiaryBank || selectedAccount.beneficiary_bank || ""}
+                          disabled
+                          className="h-9 bg-muted"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm">Tipo de cuenta</Label>
+                        <Input
+                          value={selectedAccount.details?.accountType || selectedAccount.account_type || ""}
+                          disabled
+                          className="h-9 bg-muted"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">Número de cuenta</Label>
+                        <Input
+                          value={selectedAccount.details?.accountNumber || selectedAccount.account_number || ""}
+                          disabled
+                          className="h-9 bg-muted"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm">
+                          {(selectedAccount.method || selectedAccount.details?.method) === "wire" ? "SWIFT/BIC" : "Routing Number"}
+                        </Label>
+                        <Input
+                          value={
+                            (selectedAccount.method || selectedAccount.details?.method) === "wire"
+                              ? (selectedAccount.details?.swiftBic || selectedAccount.swift_bic || "")
+                              : (selectedAccount.details?.routingNumber || selectedAccount.routing_number || "")
+                          }
+                          disabled
+                          className="h-9 bg-muted"
+                        />
+                      </div>
+                      {(selectedAccount.details?.address || selectedAccount.bank_address) && (
+                        <div className="space-y-2">
+                          <Label className="text-sm">Dirección del banco</Label>
+                          <Input
+                            value={selectedAccount.details?.address || selectedAccount.bank_address || ""}
+                            disabled
+                            className="h-9 bg-muted"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Campos adicionales que pueden estar en algunos tipos de cuenta */}
+                    {(selectedAccount.details?.walletAddress || selectedAccount.wallet_address) && (
+                      <div className="grid grid-cols-1 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-sm">Wallet Address</Label>
+                          <Input
+                            value={selectedAccount.details?.walletAddress || selectedAccount.wallet_address || ""}
+                            disabled
+                            className="h-9 bg-muted font-mono text-xs"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {(selectedAccount.details?.network || selectedAccount.network) && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-sm">Network</Label>
+                          <Input
+                            value={selectedAccount.details?.network || selectedAccount.network || ""}
+                            disabled
+                            className="h-9 bg-muted"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Campos para Crypto */}
+                {selectedAccount.category === "crypto" && (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm">Alias del wallet</Label>
+                        <Input
+                          value={selectedAccount.details?.walletAlias || selectedAccount.wallet_alias || selectedAccount.nickname || ""}
+                          disabled
+                          className="h-9 bg-muted"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">Red</Label>
+                        <Input
+                          value={selectedAccount.details?.network || selectedAccount.wallet_network || selectedAccount.network || ""}
+                          disabled
+                          className="h-9 bg-muted"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm">Dirección del wallet</Label>
+                      <Input
+                        value={selectedAccount.details?.walletAddress || selectedAccount.wallet_address || ""}
+                        disabled
+                        className="h-9 bg-muted font-mono text-xs"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* Campos para Local Currency */}
+                {selectedAccount.category === "local_currency" && (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm">Alias de la cuenta</Label>
+                        <Input
+                          value={selectedAccount.details?.nickname || selectedAccount.nickname || ""}
+                          disabled
+                          className="h-9 bg-muted"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">País</Label>
+                        <Input
+                          value={selectedAccount.details?.country || selectedAccount.country || ""}
+                          disabled
+                          className="h-9 bg-muted"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm">Nombre del titular</Label>
+                        <Input
+                          value={selectedAccount.details?.localAccountName || selectedAccount.local_account_name || ""}
+                          disabled
+                          className="h-9 bg-muted"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">Banco</Label>
+                        <Input
+                          value={selectedAccount.details?.localBank || selectedAccount.local_bank || ""}
+                          disabled
+                          className="h-9 bg-muted"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm">Número de cuenta</Label>
+                      <Input
+                        value={selectedAccount.details?.localAccountNumber || selectedAccount.local_account_number || ""}
+                        disabled
+                        className="h-9 bg-muted"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* Separador visual */}
+                <div className="border-t pt-4 mt-6">
+                  <h3 className="text-base font-medium mb-4">Detalles del retiro</h3>
+                </div>
+              </>
+            )}
+
+            {/* Campos de retiro */}
             <div className="space-y-2">
-              <Label htmlFor="category" className="text-sm">
-                Categoría de retiro *
+              <Label htmlFor="amount" className="text-sm">
+                Monto (USD) *
               </Label>
-              <Select
-                onValueChange={handleCategoryChange}
-                value={watchedCategory}
-              >
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Selecciona una categoría" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="usd_bank">
-                    USD - Cuenta bancaria
-                  </SelectItem>
-                  <SelectItem value="crypto">Criptomonedas</SelectItem>
-                  <SelectItem value="local_currency">Moneda local</SelectItem>
-                </SelectContent>
-              </Select>
-              {errors.category && (
+              <div className="relative">
+                <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="amount"
+                  {...register("amount")}
+                  onChange={handleAmountChange}
+                  placeholder="0.00"
+                  className="pl-10 font-mono h-9"
+                />
+              </div>
+              {errors.amount && (
                 <p className="text-xs text-destructive">
-                  {errors.category.message}
+                  {errors.amount.message}
                 </p>
               )}
             </div>
 
-            {/* Campos específicos para USD Bank */}
-            {watchedCategory === "usd_bank" && (
-              <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="method" className="text-sm">
-                      Tipo de transferencia *
-                    </Label>
-                    <Select
-                      onValueChange={(value) =>
-                        setValue("method", value as any)
-                      }
-                      value={watchedMethod as any}
-                    >
-                      <SelectTrigger className="h-9">
-                        <SelectValue placeholder="Selecciona" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ach">ACH/WIRE</SelectItem>
-                        <SelectItem value="wire">SWIFT</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {errors.method && (
-                      <p className="text-xs text-destructive">
-                        {errors.method.message}
-                      </p>
-                    )}
-                  </div>
-                </div>
+            <div className="space-y-2">
+              <Label htmlFor="reference" className="text-sm">
+                Concepto / Referencia
+              </Label>
+              <Textarea
+                id="reference"
+                {...register("reference")}
+                placeholder="Descripción opcional del retiro"
+                rows={2}
+                className="resize-none"
+              />
+            </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="beneficiaryName" className="text-sm">
-                      Titular de la cuenta *
-                    </Label>
-                    <Input
-                      id="beneficiaryName"
-                      {...register("beneficiaryName")}
-                      placeholder="Nombre completo"
-                      className="h-9"
-                      disabled={!isCreatingNewAccount}
-                    />
-                    {errors.beneficiaryName && (
-                      <p className="text-xs text-destructive">
-                        {errors.beneficiaryName.message}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="beneficiaryBank" className="text-sm">
-                      Banco *
-                    </Label>
-                    <Input
-                      id="beneficiaryBank"
-                      {...register("beneficiaryBank")}
-                      placeholder="Nombre del banco"
-                      className="h-9"
-                      disabled={!isCreatingNewAccount}
-                    />
-                    {errors.beneficiaryBank && (
-                      <p className="text-xs text-destructive">
-                        {errors.beneficiaryBank.message}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {watchedMethod === "ach" ? (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="accountType" className="text-sm">
-                        Tipo de cuenta *
-                      </Label>
-                      <Select
-                        onValueChange={(value) =>
-                          setValue("accountType", value as any)
-                        }
-                        value={watchedAccountType as any}
-                      >
-                        <SelectTrigger className="h-9">
-                          <SelectValue placeholder="Selecciona" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="checking">Checking</SelectItem>
-                          <SelectItem value="saving">Saving</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {errors.accountType && (
-                        <p className="text-xs text-destructive">
-                          {errors.accountType.message}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="accountNumber" className="text-sm">
-                        Número de cuenta *
-                      </Label>
-                      <Input
-                        id="accountNumber"
-                        {...register("accountNumber")}
-                        placeholder="Número de cuenta"
-                        className="font-mono h-9"
-                        disabled={!isCreatingNewAccount}
-                      />
-                      {errors.accountNumber && (
-                        <p className="text-xs text-destructive">
-                          {errors.accountNumber.message}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <Label htmlFor="accountNumber" className="text-sm">
-                      Número de cuenta / IBAN *
-                    </Label>
-                    <Input
-                      id="accountNumber"
-                      {...register("accountNumber")}
-                      placeholder="Número de cuenta o IBAN"
-                      className="font-mono h-9"
-                      disabled={!isCreatingNewAccount}
-                    />
-                    {errors.accountNumber && (
-                      <p className="text-xs text-destructive">
-                        {errors.accountNumber.message}
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {watchedMethod === "ach" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="routingNumber" className="text-sm">
-                      Routing Number *
-                    </Label>
-                    <Input
-                      id="routingNumber"
-                      {...register("routingNumber")}
-                      placeholder="123456789"
-                      className="font-mono h-9"
-                      maxLength={9}
-                      disabled={!isCreatingNewAccount}
-                    />
-                    {errors.routingNumber && (
-                      <p className="text-xs text-destructive">
-                        {errors.routingNumber.message}
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {watchedMethod === "wire" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="swiftBic" className="text-sm">
-                      SWIFT/BIC *
-                    </Label>
-                    <Input
-                      id="swiftBic"
-                      {...register("swiftBic")}
-                      placeholder="ABCDUS33XXX"
-                      className="font-mono h-9"
-                      disabled={!isCreatingNewAccount}
-                    />
-                    {errors.swiftBic && (
-                      <p className="text-xs text-destructive">
-                        {errors.swiftBic.message}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* Campos específicos para Crypto */}
-            {watchedCategory === "crypto" && (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="walletAlias" className="text-sm">
-                    Apodo de la billetera *
-                  </Label>
-                  <Input
-                    id="walletAlias"
-                    {...register("walletAlias")}
-                    placeholder="Mi billetera principal"
-                    className="h-9"
-                    disabled={!isCreatingNewAccount}
-                  />
-                  {errors.walletAlias && (
-                    <p className="text-xs text-destructive">
-                      {errors.walletAlias.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="walletAddress" className="text-sm">
-                    Dirección de la billetera *
-                  </Label>
-                  <Input
-                    id="walletAddress"
-                    {...register("walletAddress")}
-                    placeholder="0x..."
-                    className="font-mono h-9"
-                    disabled={!isCreatingNewAccount}
-                  />
-                  {errors.walletAddress && (
-                    <p className="text-xs text-destructive">
-                      {errors.walletAddress.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="walletNetwork" className="text-sm">
-                    Red *
-                  </Label>
-                  <Select
-                    onValueChange={(value) =>
-                      setValue("walletNetwork", value as any)
+            {/* Comprobante PDF */}
+            <div className="space-y-2">
+              <Label htmlFor="receiptFile" className="text-sm">
+                Comprobante PDF *
+              </Label>
+              <Input
+                id="receiptFile"
+                type="file"
+                accept="application/pdf"
+                {...register("receiptFile")}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    // Validar tipo de archivo
+                    if (file.type !== "application/pdf") {
+                      toast({
+                        title: "Error",
+                        description: "Por favor, selecciona un archivo PDF",
+                        variant: "destructive",
+                      });
+                      e.target.value = ""; // Limpiar input
+                      setSelectedFile(null);
+                      setValue("receiptFile", undefined);
+                      return;
                     }
-                    value={watchedWalletNetwork as any}
-                  >
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Selecciona la red" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {walletNetworks.map((network, i) => (
-                        <SelectItem key={i} value={network.value}>
-                          {network.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.walletNetwork && (
-                    <p className="text-xs text-destructive">
-                      {errors.walletNetwork.message}
-                    </p>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    BEP20 y MATIC son instantáneos, TRC20 tarda 4 días hábiles
-                  </p>
+                    // Validar tamaño (10MB máximo)
+                    if (file.size > 10 * 1024 * 1024) {
+                      toast({
+                        title: "Error",
+                        description: "El archivo es muy grande. Máximo 10MB",
+                        variant: "destructive",
+                      });
+                      e.target.value = ""; // Limpiar input
+                      setSelectedFile(null);
+                      setValue("receiptFile", undefined);
+                      return;
+                    }
+                    setSelectedFile(file);
+                    setValue("receiptFile", file);
+                  } else {
+                    setSelectedFile(null);
+                    setValue("receiptFile", undefined);
+                  }
+                }}
+                className="h-9 cursor-pointer file:cursor-pointer file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+              />
+              {errors.receiptFile && (
+                <p className="text-xs text-destructive">
+                  {String(errors.receiptFile.message)}
+                </p>
+              )}
+              {selectedFile && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted p-2 rounded">
+                  <FileText className="h-3 w-3" />
+                  <span>
+                    {selectedFile.name} (
+                    {(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                  </span>
                 </div>
-              </>
-            )}
-
-            {/* Campos específicos para Moneda Local */}
-            {watchedCategory === "local_currency" && (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="country" className="text-sm">
-                    País *
-                  </Label>
-                  <Select onValueChange={(value) => setValue("country", value)}>
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Selecciona el país" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="BO">Bolivia</SelectItem>
-                      <SelectItem value="AR">Argentina</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {errors.country && (
-                    <p className="text-xs text-destructive">
-                      {errors.country.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="localAccountName" className="text-sm">
-                    Nombre de la cuenta *
-                  </Label>
-                  <Input
-                    id="localAccountName"
-                    {...register("localAccountName")}
-                    placeholder="Nombre completo del titular"
-                    className="h-9"
-                    disabled={!isCreatingNewAccount}
-                  />
-                  {errors.localAccountName && (
-                    <p className="text-xs text-destructive">
-                      {errors.localAccountName.message}
-                    </p>
-                  )}
-                </div>
-
-                {watchedCountry === "BO" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="localBank" className="text-sm">
-                      Banco *
-                    </Label>
-                    <Select
-                      onValueChange={(value) => setValue("localBank", value)}
-                      value={watchedLocalBank || undefined}
-                      disabled={!isCreatingNewAccount}
-                    >
-                      <SelectTrigger className="h-9">
-                        <SelectValue placeholder="Selecciona el banco" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {boliviaBanks.map((bank, i) => (
-                          <SelectItem key={i} value={bank}>
-                            {bank}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {errors.localBank && (
-                      <p className="text-xs text-destructive">
-                        {errors.localBank.message}
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {watchedCountry !== "BO" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="localBank" className="text-sm">
-                      Banco *
-                    </Label>
-                    <Input
-                      id="localBank"
-                      {...register("localBank")}
-                      placeholder="Nombre del banco"
-                      className="h-9"
-                      disabled={!isCreatingNewAccount}
-                    />
-                    {errors.localBank && (
-                      <p className="text-xs text-destructive">
-                        {errors.localBank.message}
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  <Label htmlFor="localAccountNumber" className="text-sm">
-                    Número de cuenta destino *
-                  </Label>
-                  <Input
-                    id="localAccountNumber"
-                    {...register("localAccountNumber")}
-                    placeholder="Número de cuenta"
-                    className="font-mono h-9"
-                    disabled={!isCreatingNewAccount}
-                  />
-                  {errors.localAccountNumber && (
-                    <p className="text-xs text-destructive">
-                      {errors.localAccountNumber.message}
-                    </p>
-                  )}
-                </div>
-              </>
-            )}
-
-            {/* Campos de retiro (solo cuando no está creando nueva cuenta) */}
-            {!isCreatingNewAccount && (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="amount" className="text-sm">
-                    Monto (USD) *
-                  </Label>
-                  <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="amount"
-                      {...register("amount")}
-                      onChange={handleAmountChange}
-                      placeholder="0.00"
-                      className="pl-10 font-mono h-9"
-                    />
-                  </div>
-                  {errors.amount && (
-                    <p className="text-xs text-destructive">
-                      {errors.amount.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="reference" className="text-sm">
-                    Concepto / Referencia
-                  </Label>
-                  <Textarea
-                    id="reference"
-                    {...register("reference")}
-                    placeholder="Descripción opcional del retiro"
-                    rows={2}
-                    className="resize-none"
-                  />
-                </div>
-
-                {/* Comprobante PDF */}
-                <div className="space-y-2">
-                  <Label htmlFor="receiptFile" className="text-sm">
-                    Comprobante PDF *
-                  </Label>
-                  <Input
-                    id="receiptFile"
-                    type="file"
-                    accept="application/pdf"
-                    {...register("receiptFile")}
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        // Validar tipo de archivo
-                        if (file.type !== "application/pdf") {
-                          toast({
-                            title: "Error",
-                            description: "Por favor, selecciona un archivo PDF",
-                            variant: "destructive",
-                          });
-                          e.target.value = ""; // Limpiar input
-                          setSelectedFile(null);
-                          setValue("receiptFile", undefined);
-                          return;
-                        }
-                        // Validar tamaño (10MB máximo)
-                        if (file.size > 10 * 1024 * 1024) {
-                          toast({
-                            title: "Error",
-                            description:
-                              "El archivo es muy grande. Máximo 10MB",
-                            variant: "destructive",
-                          });
-                          e.target.value = ""; // Limpiar input
-                          setSelectedFile(null);
-                          setValue("receiptFile", undefined);
-                          return;
-                        }
-                        setSelectedFile(file);
-                        setValue("receiptFile", file);
-                      } else {
-                        setSelectedFile(null);
-                        setValue("receiptFile", undefined);
-                      }
-                    }}
-                    className="h-9 cursor-pointer file:cursor-pointer file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-                  />
-                  {errors.receiptFile && (
-                    <p className="text-xs text-destructive">
-                      {String(errors.receiptFile.message)}
-                    </p>
-                  )}
-                  {selectedFile && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted p-2 rounded">
-                      <FileText className="h-3 w-3" />
-                      <span>
-                        {selectedFile.name} (
-                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
-                      </span>
-                    </div>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    Sube una factura, contrato, o documento PDF que justifique
-                    tu retiro (máx. 10MB)
-                  </p>
-                </div>
-              </>
-            )}
-
-            {/* Helper text */}
-            {helperText && (
-              <p className="text-xs text-muted-foreground">{helperText}</p>
-            )}
-
-            {/* Guardar cuenta */}
-            {isCreatingNewAccount && (
-              <div className="space-y-2">
-                {watchedCategory !== "crypto" && (
-                  <div className="space-y-2 mb-4">
-                    <Label htmlFor="saveNickname" className="text-sm">
-                      Alias para guardar cuenta
-                    </Label>
-                    <Input
-                      id="saveNickname"
-                      {...register("saveNickname" as any)}
-                      placeholder="Alias para la cuenta (requerido para guardar)"
-                      className="h-9"
-                    />
-                  </div>
-                )}
-                <Button
-                  type="button"
-                  variant="cta"
-                  size="sm"
-                  onClick={handleSaveAccount}
-                  disabled={saveAccountMutation.isPending}
-                  className="w-full"
-                >
-                  {saveAccountMutation.isPending
-                    ? "Guardando..."
-                    : "Guardar cuenta para futuros retiros"}
-                </Button>
-              </div>
-            )}
+              )}
+              <p className="text-xs text-muted-foreground">
+                Sube una factura, contrato, o documento PDF que justifique tu
+                retiro (máx. 10MB)
+              </p>
+            </div>
           </CardContent>
         </Card>
 
-        {!isCreatingNewAccount && (
-          <>
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription className="text-sm">
-                Verifica que todos los datos sean correctos. Los errores pueden
-                causar retrasos o devoluciones con cargos adicionales.
-              </AlertDescription>
-            </Alert>
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="text-sm">
+            Verifica que todos los datos sean correctos. Los errores pueden
+            causar retrasos o devoluciones con cargos adicionales.
+          </AlertDescription>
+        </Alert>
 
-            <div className="flex justify-end">
-              <Button type="submit" className="px-6">
-                Revisar solicitud
-              </Button>
-            </div>
-          </>
-        )}
+        <div className="flex justify-end">
+          <Button type="submit" className="px-6">
+            Revisar solicitud
+          </Button>
+        </div>
       </form>
 
       <WithdrawalSummaryModal

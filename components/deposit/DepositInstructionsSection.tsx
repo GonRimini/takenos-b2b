@@ -1,47 +1,87 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Download, AlertCircle, RefreshCw } from "lucide-react";
 import { useAuth } from "@/components/auth";
-import { useDepositInstructions, DepositMethod } from "@/hooks/deposits/useDepositInstructions";
+import { useDepositInstructionsQuery } from "@/hooks/deposits/queries";
+import { generatePDFFields, getPDFAddresses } from "@/lib/deposit-field-configs";
+import { downloadDepositInstructions } from "@/lib/pdf-generator";
 import InstructionsMethodTabs from "./InstructionsMethodTabs";
-import InstructionsContent from "./InstructionsContent";
+import { DepositMethodFields } from "./DepositMethodFields";
+
+export type DepositMethod = "ach" | "swift" | "crypto" | "local";
 
 export default function DepositInstructionsSection() {
   const [selectedMethod, setSelectedMethod] = useState<DepositMethod>("ach");
+  const [selectedCryptoWallet, setSelectedCryptoWallet] = useState(0);
   const { user } = useAuth();
   const userDisplayEmail = user?.email || "";
 
-  const {
-    achData,
-    swiftData,
-    cryptoData,
-    localData,
-    selectedCryptoWallet,
-    isLoading,
-    getError,
-    loadMethod,
-    setSelectedCryptoWallet,
-    downloadPDF,
-    hasData,
-  } = useDepositInstructions(userDisplayEmail);
+  // Queries directas - solo se ejecutan cuando están habilitadas
+  const achQuery = useDepositInstructionsQuery('ach', userDisplayEmail, !!userDisplayEmail);
+  const swiftQuery = useDepositInstructionsQuery('swift', userDisplayEmail, !!userDisplayEmail);
+  const cryptoQuery = useDepositInstructionsQuery('crypto', userDisplayEmail, !!userDisplayEmail);
+  const localQuery = useDepositInstructionsQuery('local', userDisplayEmail, !!userDisplayEmail);
 
-  // Cargar datos cuando cambia el método seleccionado o el email
-  useEffect(() => {
-    if (!userDisplayEmail) return;
-    loadMethod(selectedMethod);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedMethod, userDisplayEmail]);
+  // Helper functions - mucho más simples
+  const getQuery = (method: DepositMethod) => {
+    switch (method) {
+      case 'ach': return achQuery;
+      case 'swift': return swiftQuery;
+      case 'crypto': return cryptoQuery;
+      case 'local': return localQuery;
+    }
+  };
+
+  const getCurrentMethodData = (method: DepositMethod) => {
+    return getQuery(method).data;
+  };
+
+  const isLoading = (method: DepositMethod) => getQuery(method).isLoading;
+  const getError = (method: DepositMethod) => getQuery(method).error?.message ?? null;
+  const hasData = (method: DepositMethod) => {
+    const data = getCurrentMethodData(method);
+    return method === 'crypto' ? Array.isArray(data) && data.length > 0 : !!data;
+  };
 
   const handleRefresh = () => {
-    loadMethod(selectedMethod);
+    getQuery(selectedMethod).refetch();
   };
 
   const handleDownloadPDF = async () => {
     try {
-      await downloadPDF(selectedMethod);
+      const data = getCurrentMethodData(selectedMethod);
+      if (!data) return;
+
+      // Para crypto, usar el wallet seleccionado
+      const displayData = selectedMethod === 'crypto' && Array.isArray(data) 
+        ? data[selectedCryptoWallet] || data[0]
+        : data;
+
+      if (!displayData) return;
+
+      // Generar campos usando la configuración
+      const fields = generatePDFFields(selectedMethod, displayData);
+      if (fields.length === 0) return;
+
+      // Obtener direcciones solo para ACH/SWIFT
+      const addresses = (selectedMethod === 'ach' || selectedMethod === 'swift') 
+        ? getPDFAddresses(selectedMethod, displayData as any)
+        : undefined;
+
+      const pdfData = {
+        method: selectedMethod === "ach" ? "ACH/Wire" 
+              : selectedMethod === "crypto" ? "Crypto" 
+              : selectedMethod === "local" ? "Moneda Local" 
+              : selectedMethod.toUpperCase(),
+        userEmail: userDisplayEmail,
+        fields,
+        addresses,
+      };
+
+      await downloadDepositInstructions(pdfData);
     } catch (error: any) {
       alert(error.message || "Error al generar el PDF. Por favor, inténtelo de nuevo.");
     }
@@ -50,12 +90,9 @@ export default function DepositInstructionsSection() {
   const renderContent = (method: DepositMethod) => {
     return (
       <>
-        <InstructionsContent
+        <DepositMethodFields
           method={method}
-          achData={achData}
-          swiftData={swiftData}
-          cryptoData={cryptoData}
-          localData={localData}
+          data={getCurrentMethodData(method)}
           selectedCryptoWallet={selectedCryptoWallet}
           onSelectCryptoWallet={setSelectedCryptoWallet}
         />
