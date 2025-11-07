@@ -10,7 +10,7 @@ import {
   useMovementsQuery,
   usePendingWithdrawalsQuery,
 } from "@/hooks/dashboard/queries";
-import { useUSDCToBOBRateQuery } from "@/hooks/external";
+import { useCriptoYaExchangeRateQuery } from "@/hooks/external";
 import { MovementsTable } from "@/components/MovementsTable";
 import { PendingWithdrawalsTable } from "@/components/PendingWithdrawalsTable";
 import { BalanceCard } from "@/components/BalanceCard";
@@ -42,7 +42,7 @@ export default function Dashboard() {
     isError: isErrorExchangeRate,
     error: exchangeRateError,
     refetch: refetchExchangeRate,
-  } = useUSDCToBOBRateQuery(25000);
+  } = useCriptoYaExchangeRateQuery("USDT", "BOB", 25000);
 
   // Función para actualizar todos los datos
   const refreshAllData = async () => {

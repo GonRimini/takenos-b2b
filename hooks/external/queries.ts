@@ -21,7 +21,7 @@ export const useExchangeRateQuery = (coin: string, fiat: string, volumen: number
 
 // Hook específico para USDC/BOB (por compatibilidad)
 export const useUSDCToBOBRateQuery = (volumen: number = 25000) => {
-  return useExchangeRateQuery("USDC", "BOB", volumen);
+  return useExchangeRateQuery("USDT", "BOB", volumen);
 };
 
 // Hook genérico para CriptoYa

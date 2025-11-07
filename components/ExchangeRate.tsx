@@ -18,7 +18,7 @@ export default function ExchangeRate({
   data: exchangeRate,
   isLoading = false,
   error = null,
-  fromCurrency = "USDC",
+  fromCurrency = "USDT",
   toCurrency = "BOB",
   amount = 25000,
   title,
@@ -30,19 +30,7 @@ export default function ExchangeRate({
 
   if (error) {
     return (
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-destructive">
-            <AlertCircle className="h-5 w-5" />
-            Error al cargar tipo de cambio
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            No se pudo obtener la información del tipo de cambio. Inténtalo más tarde.
-          </p>
-        </CardContent>
-      </Card>
+      <></>
     );
   }
 
@@ -95,7 +83,7 @@ export default function ExchangeRate({
                 <span className="text-xs font-medium text-green-700 dark:text-green-300">Compra</span>
               </div>
               <p className="text-lg font-bold text-green-700 dark:text-green-300">
-                {(exchangeRate.buy * 1.005 * 1.02).toFixed(2)} {toCurrency}
+                {(exchangeRate.buy / 1.015).toFixed(2)} {toCurrency}
               </p>
             </div>
 
