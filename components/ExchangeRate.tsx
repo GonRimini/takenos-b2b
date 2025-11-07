@@ -80,7 +80,7 @@ export default function ExchangeRate({
             <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-md p-3">
               <div className="flex items-center gap-1 mb-1">
                 <TrendingUp className="h-3 w-3 text-green-600 dark:text-green-400" />
-                <span className="text-xs font-medium text-green-700 dark:text-green-300">Compra</span>
+                <span className="text-xs font-medium text-green-700 dark:text-green-300">Retiro</span>
               </div>
               <p className="text-lg font-bold text-green-700 dark:text-green-300">
                 {(exchangeRate.buy / 1.015).toFixed(2)} {toCurrency}
@@ -91,7 +91,7 @@ export default function ExchangeRate({
             <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-md p-3">
               <div className="flex items-center gap-1 mb-1">
                 <TrendingDown className="h-3 w-3 text-blue-600 dark:text-blue-400" />
-                <span className="text-xs font-medium text-blue-700 dark:text-blue-300">Venta</span>
+                <span className="text-xs font-medium text-blue-700 dark:text-blue-300">Depósito</span>
               </div>
               <p className="text-lg font-bold text-blue-700 dark:text-blue-300">
                 {(exchangeRate.sell * 1.005 * 1.02).toFixed(2)} {toCurrency}
