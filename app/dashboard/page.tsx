@@ -11,6 +11,7 @@ import {
   usePendingWithdrawalsQuery,
 } from "@/hooks/dashboard/queries";
 import { useCriptoYaExchangeRateQuery } from "@/hooks/external";
+import { useIsBolivianQuery } from "@/hooks/deposits/queries";
 import { MovementsTable } from "@/components/MovementsTable";
 import { PendingWithdrawalsTable } from "@/components/PendingWithdrawalsTable";
 import { BalanceCard } from "@/components/BalanceCard";
@@ -43,6 +44,9 @@ export default function Dashboard() {
     error: exchangeRateError,
     refetch: refetchExchangeRate,
   } = useCriptoYaExchangeRateQuery("USDT", "BOB", 25000);
+
+  // Verificar si el usuario es boliviano
+  const { data: isBolivian, isLoading: isLoadingBolivian } = useIsBolivianQuery(user?.email);
 
   // Función para actualizar todos los datos
   const refreshAllData = async () => {
@@ -102,12 +106,14 @@ export default function Dashboard() {
         isErrorBalance={isErrorBalance}
       />
 
-      {/* Exchange Rate */}
-      <ExchangeRate 
-        data={exchangeRateData}
-        isLoading={isLoadingExchangeRate}
-        error={isErrorExchangeRate ? exchangeRateError : null}
-      />
+      {/* Exchange Rate - Solo para usuarios bolivianos */}
+      {isBolivian && (
+        <ExchangeRate 
+          data={exchangeRateData}
+          isLoading={isLoadingExchangeRate}
+          error={isErrorExchangeRate ? exchangeRateError : null}
+        />
+      )}
 
       {/* Movements Table */}
       <MovementsTable 
