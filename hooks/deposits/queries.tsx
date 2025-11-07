@@ -103,3 +103,25 @@ export const useDepositInstructionsQuery = (
     refetchOnWindowFocus: false, // No refetch al cambiar tabs del browser
   });
 };
+
+/**
+ * Hook provisional para determinar si un usuario es boliviano
+ * Busca en las cuentas locales del usuario si alguna tiene banco = "CIDRE IFD"
+ * Esto es temporal hasta que la tabla user tenga el campo nacionalidad
+ */
+export const useIsBolivianQuery = (
+  userEmail: string | undefined,
+  enabled: boolean = true
+) => {
+  const repository = useDepositsRepository();
+
+  return useQuery({
+    queryKey: ['is-bolivian', userEmail ?? null],
+    queryFn: () => repository.checkIsBolivian(userEmail!),
+    enabled: enabled && !!userEmail,
+    staleTime: 30 * 60 * 1000, // Cache por 30 minutos (relativamente estable)
+    gcTime: 60 * 60 * 1000, // Mantener en cache 1 hora
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
+};

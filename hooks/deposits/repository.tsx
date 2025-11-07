@@ -186,12 +186,38 @@ export const useDepositsRepository = () => {
     }
   }
 
+  // Método provisional para verificar si un usuario es boliviano
+  // basándose en si tiene una cuenta local con banco = "CIDRE IFD"
+  const checkIsBolivian = async (userEmail: string): Promise<boolean> => {
+    try {
+      // Buscar cuentas locales del usuario
+      const localAccounts = await loadDepositAccounts('local', userEmail);
+
+      console.log('Local accounts for', userEmail, localAccounts);
+      
+      if (!Array.isArray(localAccounts) || localAccounts.length === 0) {
+        return false;
+      }
+
+      // Verificar si alguna cuenta tiene banco = "CIDRE IFD"
+      const isBolivian = localAccounts.some((account: any) => 
+        account.banco?.toLowerCase() === 'cidre ifd'
+      );
+
+      return isBolivian;
+    } catch (error) {
+      console.error('Error checking if user is Bolivian:', error);
+      return false;
+    }
+  };
+
   return {
     uploadFile,
     submitDeposit,
     loadDepositAccounts,
     saveAccount,
     loadWhitelistedDepositAccounts,
-    loadDepositInstructions
+    loadDepositInstructions,
+    checkIsBolivian
   };
 };
