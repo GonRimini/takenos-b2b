@@ -10,9 +10,12 @@ import {
   useMovementsQuery,
   usePendingWithdrawalsQuery,
 } from "@/hooks/dashboard/queries";
+import { useCriptoYaExchangeRateQuery } from "@/hooks/external";
+import { useIsBolivianQuery } from "@/hooks/deposits/queries";
 import { MovementsTable } from "@/components/MovementsTable";
 import { PendingWithdrawalsTable } from "@/components/PendingWithdrawalsTable";
 import { BalanceCard } from "@/components/BalanceCard";
+import ExchangeRate from "@/components/ExchangeRate";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -34,6 +37,16 @@ export default function Dashboard() {
     isLoading: isLoadingWithdrawals,
     refetch: refetchWithdrawals,
   } = usePendingWithdrawalsQuery(user?.email);
+  const {
+    data: exchangeRateData,
+    isLoading: isLoadingExchangeRate,
+    isError: isErrorExchangeRate,
+    error: exchangeRateError,
+    refetch: refetchExchangeRate,
+  } = useCriptoYaExchangeRateQuery("USDT", "BOB", 25000);
+
+  // Verificar si el usuario es boliviano
+  const { data: isBolivian, isLoading: isLoadingBolivian } = useIsBolivianQuery(user?.email);
 
   // Función para actualizar todos los datos
   const refreshAllData = async () => {
@@ -41,6 +54,7 @@ export default function Dashboard() {
       refetchBalance(),
       refetchMovements(),
       refetchWithdrawals(),
+      refetchExchangeRate(),
     ]);
   };
 
@@ -69,13 +83,13 @@ export default function Dashboard() {
             size="sm"
             onClick={refreshAllData}
             disabled={
-              isLoadingBalance || isLoadingMovements || isLoadingWithdrawals
+              isLoadingBalance || isLoadingMovements || isLoadingWithdrawals || isLoadingExchangeRate
             }
             className="flex items-center space-x-2"
           >
             <RefreshCw
               className={`h-4 w-4 ${
-                isLoadingBalance || isLoadingMovements || isLoadingWithdrawals
+                isLoadingBalance || isLoadingMovements || isLoadingWithdrawals || isLoadingExchangeRate
                   ? "animate-spin"
                   : ""
               }`}
@@ -91,6 +105,15 @@ export default function Dashboard() {
         isLoadingBalance={isLoadingBalance}
         isErrorBalance={isErrorBalance}
       />
+
+      {/* Exchange Rate - Solo para usuarios bolivianos */}
+      {isBolivian && (
+        <ExchangeRate 
+          data={exchangeRateData}
+          isLoading={isLoadingExchangeRate}
+          error={isErrorExchangeRate ? exchangeRateError : null}
+        />
+      )}
 
       {/* Movements Table */}
       <MovementsTable 
