@@ -1,4 +1,3 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, TrendingUp, TrendingDown, Clock } from "lucide-react";
 import type { ExchangeRateDTO } from "@/hooks/external";
@@ -18,7 +17,7 @@ export default function ExchangeRate({
   data: exchangeRate,
   isLoading = false,
   error = null,
-  fromCurrency = "USDT",
+  fromCurrency = "USD",
   toCurrency = "BOB",
   amount = 25000,
   title,
