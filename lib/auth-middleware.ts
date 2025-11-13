@@ -51,7 +51,7 @@ function getApiEmailForUser(displayEmail: string): string {
   return displayEmail
 }
 
-export async function getAuthenticatedUserEmail(request: NextRequest): Promise<{ email: string | null; error: string | null }> {
+export async function getAuthenticatedUserEmail(request: NextRequest): Promise<{ email: string | null; error: string | null; id?: string | null }> {
   const { user, error } = await validateAuthToken(request)
   
   if (error || !user) {
@@ -61,5 +61,5 @@ export async function getAuthenticatedUserEmail(request: NextRequest): Promise<{
   // Aplicar el mapeo de email si es necesario
   const mappedEmail = getApiEmailForUser(user.email)
   
-  return { email: mappedEmail, error: null }
+  return { id: user.id, email: mappedEmail, error: null }
 }

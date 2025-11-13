@@ -7,7 +7,6 @@ import { useEnrichedWithdrawals } from "@/lib/supabase-helper"
 import { useAuth } from "@/components/auth"
 import { pdf } from "@react-pdf/renderer"
 import { TransactionReceiptPDF } from "./TransactionReceiptPDF"
-import { useCompanyName } from "@/hooks/use-company-name"
 
 interface WithdrawalPDFButtonProps {
   withdrawalId: string
@@ -18,7 +17,7 @@ export function WithdrawalPDFButton({ withdrawalId, transaction }: WithdrawalPDF
   const [loading, setLoading] = useState(false)
   const { fetchEnrichedWithdrawal } = useEnrichedWithdrawals()
   const { user } = useAuth()
-  const { companyName } = useCompanyName()
+  const companyName = user?.dbUser?.company?.name
 
   const handleDownloadPDF = async () => {
     if (!user?.email) {

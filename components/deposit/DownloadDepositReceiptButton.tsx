@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import { DepositReceiptPDF, type DepositReceiptData } from "./DepositReceiptPDF";
 import { useAuth } from "@/components/auth";
-import { useCompanyName } from "@/hooks/use-company-name";
 
 interface DownloadDepositReceiptButtonProps {
   depositData: {
@@ -27,7 +26,7 @@ export function DownloadDepositReceiptButton({
   size = "sm",
 }: DownloadDepositReceiptButtonProps) {
   const { user } = useAuth();
-  const { companyName } = useCompanyName();
+  const companyName = user?.dbUser?.company?.name;
 
   // Preparar los datos para el PDF incluyendo información del usuario
   const pdfData: DepositReceiptData = {

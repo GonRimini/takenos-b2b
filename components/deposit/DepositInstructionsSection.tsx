@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Download, AlertCircle, RefreshCw } from "lucide-react";
 import { useAuth } from "@/components/auth";
-import { useDepositInstructionsQuery } from "@/hooks/deposits/queries";
+import { useDepositInstructionsQuery, useLoadDepositAccountQuery } from "@/hooks/deposits/queries";
 import { generatePDFFields, getPDFAddresses } from "@/lib/deposit-field-configs";
 import { downloadDepositInstructions } from "@/lib/pdf-generator";
 import InstructionsMethodTabs from "./InstructionsMethodTabs";
@@ -20,8 +20,8 @@ export default function DepositInstructionsSection() {
   const userDisplayEmail = user?.email || "";
 
   // Queries directas - solo se ejecutan cuando están habilitadas
-  const achQuery = useDepositInstructionsQuery('ach', userDisplayEmail, !!userDisplayEmail);
-  const swiftQuery = useDepositInstructionsQuery('swift', userDisplayEmail, !!userDisplayEmail);
+  const achQuery = useLoadDepositAccountQuery('ach');
+  const swiftQuery = useLoadDepositAccountQuery('swift');
   const cryptoQuery = useDepositInstructionsQuery('crypto', userDisplayEmail, !!userDisplayEmail);
   const localQuery = useDepositInstructionsQuery('local', userDisplayEmail, !!userDisplayEmail);
 

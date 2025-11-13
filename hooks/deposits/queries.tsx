@@ -125,3 +125,20 @@ export const useIsBolivianQuery = (
     refetchOnWindowFocus: false,
   });
 };
+
+export const useLoadDepositAccountQuery = (
+  method: DepositMethod,
+  enabled: boolean = true
+) => {
+  const repository = useDepositsRepository();
+
+  return useQuery({
+    queryKey: ['deposit-account', method ?? null],
+    queryFn: () => repository.loadDepositAccount(method!),
+    enabled: enabled && !!method,
+    staleTime: 10 * 60 * 1000, // Cache por 10 minutos
+    gcTime: 30 * 60 * 1000, // Mantener en cache 30 minutos
+    retry: 2,
+    refetchOnWindowFocus: false, // No refetch al cambiar tabs del browser
+  });
+};
