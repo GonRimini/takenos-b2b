@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
 
     // 🧠 Armar select según el método (rail)
     let selectClause =
-      "id, rail, currency_code, nickname, beneficiary_name, beneficiary_bank, status";
+      "id, rail, currency_code, nickname, status";
 
     switch (method) {
       case "ach":
@@ -78,7 +78,9 @@ export async function POST(req: NextRequest) {
             account_number,
             routing_number,
             receiver_bank,
-            beneficiary_bank_address
+            beneficiary_bank_address,
+            beneficiary_name,
+            account_type
           )
         `;
         break;
@@ -90,14 +92,16 @@ export async function POST(req: NextRequest) {
             swift_bic,
             account_number,
             receiver_bank,
-            beneficiary_bank_address
+            beneficiary_bank_address,
+            beneficiary_name,
+            account_type
           )
         `;
         break;
 
       case "crypto":
         selectClause += `,
-          crypto:crypto_accounts(
+          crypto:crypto_wallets(
             id,
             wallet_address,
             wallet_network
@@ -109,10 +113,16 @@ export async function POST(req: NextRequest) {
         selectClause += `,
           local:local_accounts(
             id,
-            cbu,
-            alias,
+            account_id,
+            country_code,
             bank_name,
-            account_holder
+            identifier_primary,
+            identifier_secondary,
+            identifier_primary_type,
+            identifier_secondary_type,
+            beneficiary_name,
+            holder_id,
+            account_number
           )
         `;
         break;
@@ -125,7 +135,7 @@ export async function POST(req: NextRequest) {
       .eq("rail", method)
     //   .eq("status", "ACTIVE");
 
-    console.log("ACCOUNTS FETCHED:", accounts?.[0] ? (accounts[0] as any)?.swift : undefined);
+    console.log("ACCOUNTS FETCHED:", accounts?.[0] ? (accounts[0] as any)?.local : undefined);
 
     if (accountsError) {
       console.error("❌ Error fetching funding accounts:", accountsError);

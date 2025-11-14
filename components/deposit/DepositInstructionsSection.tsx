@@ -22,8 +22,8 @@ export default function DepositInstructionsSection() {
   // Queries directas - solo se ejecutan cuando están habilitadas
   const achQuery = useLoadDepositAccountQuery('ach');
   const swiftQuery = useLoadDepositAccountQuery('swift');
-  const cryptoQuery = useDepositInstructionsQuery('crypto', userDisplayEmail, !!userDisplayEmail);
-  const localQuery = useDepositInstructionsQuery('local', userDisplayEmail, !!userDisplayEmail);
+  const cryptoQuery = useLoadDepositAccountQuery('crypto');
+  const localQuery = useLoadDepositAccountQuery('local');
 
   // Helper functions - mucho más simples
   const getQuery = (method: DepositMethod) => {
