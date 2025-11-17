@@ -37,17 +37,17 @@ export const DEPOSIT_FIELD_CONFIGS = {
 
   crypto: [
     { key: 'title', label: 'Wallet', copyable: false },
-    { key: 'deposit_address', label: 'Dirección de depósito', copyable: true },
-    { key: 'network', label: 'Red/Network', copyable: true },
+    { key: 'wallet_address', label: 'Dirección de Billetera', copyable: true },
+    { key: 'wallet_network', label: 'Red/Network', copyable: true },
   ] as FieldConfig[],
 
   local: [
-    { key: 'beneficiario', label: 'Beneficiario', copyable: true },
-    { key: 'banco', label: 'Banco', copyable: true },
-    { key: 'nro_de_cuenta', label: 'Número de cuenta', maskable: true, copyable: true },
-    { key: 'identificacion', label: 'Identificación', copyable: true },
-    { key: 'cbu', label: 'CBU', copyable: true },
-    { key: 'alias', label: 'Alias', copyable: true },
+    { key: 'beneficiary_name', label: 'Beneficiario', copyable: true },
+    { key: 'bank_name', label: 'Banco', copyable: true },
+    { key: 'account_number', label: 'Número de cuenta', maskable: true, copyable: true },
+    { key: 'holder_id', label: 'Identificación', copyable: true },
+    { key: 'identifier_primary', label: 'CBU', copyable: true },
+    { key: 'identifier_secondary', label: 'Alias', copyable: true },
   ] as FieldConfig[],
 } as const;
 

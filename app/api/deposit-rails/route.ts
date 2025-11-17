@@ -6,6 +6,7 @@ type DepositMethod = "ach" | "swift" | "local" | "crypto";
 
 export async function POST(req: NextRequest) {
   const sb = supabaseServer();
+
   try {
     // 🔐 Validar autenticación y obtener userId del token
     const {
@@ -18,136 +19,38 @@ export async function POST(req: NextRequest) {
 
     if (authError || !userEmail || !authUserId) {
       return NextResponse.json(
-        { ok: false, error: "Authentication First Paper" },
+        { ok: false, error: "Authentication required" },
         { status: 401 }
       );
     }
 
-    // 📥 Parsear body
+    // 📥 Body opcional: method (por compatibilidad con el código actual)
     const body = await req.json().catch(() => ({}));
-    const { method } = body as { method?: DepositMethod };
 
-    if (!method) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Missing parameter: method (ACH | SWIFT | LOCAL | CRYPTO)",
-        },
-        { status: 400 }
-      );
-    }
+    // 🚀 Llamar a la RPC que trae TODAS las funding accounts de la company
+    const { data, error } = await sb.rpc("get_funding_accounts", {
+      p_user_id: authUserId,
+    });
 
-    // 👤 Buscar usuario por ID y obtener company_id
-    const { data: user, error: userError } = await sb
-      .from("users")
-      .select("id, company_id")
-      .eq("id", authUserId)
-      .single();
-
-    console.log("USER FETCHED:", user);
-
-    if (userError) {
-      console.error(
-        "❌ Error fetching user in /api/funding-accounts:",
-        userError
-      );
-      return NextResponse.json(
-        { ok: false, error: "Could not load user" },
-        { status: 500 }
-      );
-    }
-
-    if (!user?.company_id) {
-      return NextResponse.json(
-        { ok: false, error: "User does not have an associated company" },
-        { status: 400 }
-      );
-    }
-
-    const companyId = user.company_id as string;
-
-    // 🧠 Armar select según el método (rail)
-    let selectClause =
-      "id, rail, currency_code, nickname, status";
-
-    switch (method) {
-      case "ach":
-        selectClause += `,
-          ach:ach_accounts(
-          id,
-            account_number,
-            routing_number,
-            receiver_bank,
-            beneficiary_bank_address,
-            beneficiary_name,
-            account_type
-          )
-        `;
-        break;
-
-      case "swift":
-        selectClause += `,
-          swift:swift_accounts(
-          id,
-            swift_bic,
-            account_number,
-            receiver_bank,
-            beneficiary_bank_address,
-            beneficiary_name,
-            account_type
-          )
-        `;
-        break;
-
-      case "crypto":
-        selectClause += `,
-          crypto:crypto_wallets(
-            id,
-            wallet_address,
-            wallet_network
-          )
-        `;
-        break;
-
-      case "local":
-        selectClause += `,
-          local:local_accounts(
-            id,
-            account_id,
-            country_code,
-            bank_name,
-            identifier_primary,
-            identifier_secondary,
-            identifier_primary_type,
-            identifier_secondary_type,
-            beneficiary_name,
-            holder_id,
-            account_number
-          )
-        `;
-        break;
-    }
-
-    const { data: accounts, error: accountsError } = await sb
-      .from("accounts")
-      .select(selectClause)
-      .eq("company_id", companyId)
-      .eq("rail", method)
-    //   .eq("status", "ACTIVE");
-
-    console.log("ACCOUNTS FETCHED:", accounts?.[0] ? (accounts[0] as any)?.local : undefined);
-
-    if (accountsError) {
-      console.error("❌ Error fetching funding accounts:", accountsError);
+    if (error) {
+      console.error("❌ Error calling get_funding_accounts RPC:", error);
       return NextResponse.json(
         { ok: false, error: "Could not load funding accounts" },
         { status: 500 }
       );
     }
 
+    let accounts = Array.isArray(data) ? data : [];
+
+    console.log("FUNDING ACCOUNTS RESULT:", {
+      total: (data as any[])?.length ?? 0,
+      returned: accounts.length,
+      data: accounts,
+    });
+
     return NextResponse.json({
       ok: true,
-      data: accounts ?? [],
+      data: accounts, // siempre array, filtrado o completo
     });
   } catch (e: any) {
     console.error("❌ Unexpected error in /api/funding-accounts:", e);

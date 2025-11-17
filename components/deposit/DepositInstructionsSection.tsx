@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Download, AlertCircle, RefreshCw } from "lucide-react";
 import { useAuth } from "@/components/auth";
-import { useDepositInstructionsQuery, useLoadDepositAccountQuery } from "@/hooks/deposits/queries";
+import { useAllDepositAccountsQuery } from "@/hooks/deposits/queries";
 import { generatePDFFields, getPDFAddresses } from "@/lib/deposit-field-configs";
 import { downloadDepositInstructions } from "@/lib/pdf-generator";
 import InstructionsMethodTabs from "./InstructionsMethodTabs";
@@ -19,56 +19,57 @@ export default function DepositInstructionsSection() {
   const { user } = useAuth();
   const userDisplayEmail = user?.email || "";
 
-  // Queries directas - solo se ejecutan cuando están habilitadas
-  const achQuery = useLoadDepositAccountQuery('ach');
-  const swiftQuery = useLoadDepositAccountQuery('swift');
-  const cryptoQuery = useLoadDepositAccountQuery('crypto');
-  const localQuery = useLoadDepositAccountQuery('local');
+  // Cargar todas las cuentas de una vez con la RPC
+  const { data: allAccounts, isLoading, error, refetch } = useAllDepositAccountsQuery();
 
-  // Helper functions - mucho más simples
-  const getQuery = (method: DepositMethod) => {
-    switch (method) {
-      case 'ach': return achQuery;
-      case 'swift': return swiftQuery;
-      case 'crypto': return cryptoQuery;
-      case 'local': return localQuery;
-    }
-  };
-
+  // Helper function para obtener la cuenta del método
   const getCurrentMethodData = (method: DepositMethod) => {
-    return getQuery(method).data;
+    if (!allAccounts || !Array.isArray(allAccounts)) {
+      return null;
+    }
+
+    // Buscar la cuenta que coincide con el rail y devolver el objeto completo
+    const account = allAccounts.find((acc: any) => acc.rail === method);
+    
+
+console.log(`ALL ACCOUNTS:`, JSON.stringify(allAccounts, null, 2));
+console.log(`Looking for rail: ${method}`);
+console.log(`Found account:`, JSON.stringify(account, null, 2));    
+    return account || null;
   };
 
-  const isLoading = (method: DepositMethod) => getQuery(method).isLoading;
-  const getError = (method: DepositMethod) => getQuery(method).error?.message ?? null;
+  const getError = () => error?.message ?? null;
   const hasData = (method: DepositMethod) => {
     const data = getCurrentMethodData(method);
-    return method === 'crypto' ? Array.isArray(data) && data.length > 0 : !!data;
+    return data !== null && data !== undefined;
   };
 
   const handleRefresh = () => {
-    getQuery(selectedMethod).refetch();
+    refetch();
   };
 
   const handleDownloadPDF = async () => {
     try {
-      const data = getCurrentMethodData(selectedMethod);
-      if (!data) return;
+      const accountData = getCurrentMethodData(selectedMethod);
+      if (!accountData) return;
 
-      // Para crypto, usar el wallet seleccionado
-      const displayData = selectedMethod === 'crypto' && Array.isArray(data) 
-        ? data[selectedCryptoWallet] || data[0]
-        : data;
+      // Extraer los datos específicos del rail
+      const railData = accountData[selectedMethod];
+      if (!railData) return;
 
-      if (!displayData) return;
+      console.log('PDF - Method:', selectedMethod);
+      console.log('PDF - Rail Data:', railData);
 
       // Generar campos usando la configuración
-      const fields = generatePDFFields(selectedMethod, displayData);
+      const fields = generatePDFFields(selectedMethod, railData);
+      
+      console.log('PDF - Generated Fields:', fields);
+      
       if (fields.length === 0) return;
 
       // Obtener direcciones solo para ACH/SWIFT
       const addresses = (selectedMethod === 'ach' || selectedMethod === 'swift') 
-        ? getPDFAddresses(selectedMethod, displayData as any)
+        ? getPDFAddresses(selectedMethod, railData as any)
         : undefined;
 
       const pdfData = {
@@ -129,10 +130,10 @@ export default function DepositInstructionsSection() {
           variant="cta"
           size="sm"
           onClick={handleRefresh}
-          disabled={isLoading(selectedMethod)}
+          disabled={isLoading}
           className="flex items-center space-x-2"
         >
-          <RefreshCw className={`h-4 w-4 ${isLoading(selectedMethod) ? "animate-spin" : ""}`} />
+          <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
           <span>Actualizar</span>
         </Button>
       </div>
@@ -141,8 +142,8 @@ export default function DepositInstructionsSection() {
         <InstructionsMethodTabs
           selectedMethod={selectedMethod}
           onMethodChange={setSelectedMethod}
-          loading={isLoading(selectedMethod)}
-          error={getError(selectedMethod)}
+          loading={isLoading}
+          error={getError()}
           hasData={hasData(selectedMethod)}
           userEmail={userDisplayEmail}
           renderContent={renderContent}

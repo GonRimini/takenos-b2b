@@ -229,6 +229,32 @@ export const useDepositsRepository = () => {
       throw new Error(json?.error || "Failed to load deposit accounts");
     }
 
+    console.log("Deposit account data:", json);
+
+    return Array.isArray(json?.data) ? json.data : [];
+  };
+
+  /**
+   * Nueva función que trae TODAS las cuentas de depósito de una vez
+   * usando la RPC get_funding_accounts
+   */
+  const loadAllDepositAccounts = async (): Promise<DepositAccount[]> => {
+    const resp = await authenticatedFetch("/api/deposit-rails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
+    });
+
+    const json = await resp.json();
+
+    if (!resp.ok || !json?.ok) {
+      throw new Error(json?.error || "Failed to load deposit accounts");
+    }
+
+    console.log("All deposit accounts data:", json);
+
     return Array.isArray(json?.data) ? json.data : [];
   };
 
@@ -266,5 +292,6 @@ export const useDepositsRepository = () => {
     loadDepositInstructions,
     checkIsBolivian,
     loadDepositAccount,
+    loadAllDepositAccounts,
   };
 };

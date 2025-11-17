@@ -14,8 +14,6 @@ interface DepositMethodFieldsProps {
 export function DepositMethodFields({ 
   method, 
   data, 
-  selectedCryptoWallet = 0,
-  onSelectCryptoWallet,
   className = ""
 }: DepositMethodFieldsProps) {
   if (!data) {
@@ -26,15 +24,16 @@ export function DepositMethodFields({
     );
   }
 
-  // Para crypto, usar el wallet seleccionado
-  const displayData = method === 'crypto' && Array.isArray(data) 
-    ? data[selectedCryptoWallet] || data[0]
-    : data;
-
-  if (!displayData) {
+  // Extraer los datos específicos del rail (ach, swift, crypto, local)
+  const railData = data[method];
+ console.log('FULL DATA:', JSON.stringify(data, null, 2));
+console.log('METHOD:', method);
+console.log('RAIL DATA:', JSON.stringify(railData, null, 2));
+  
+  if (!railData) {
     return (
       <div className="text-center py-8 text-muted-foreground">
-        No hay datos disponibles
+        No hay información de {method} disponible
       </div>
     );
   }
@@ -43,32 +42,12 @@ export function DepositMethodFields({
   
   return (
     <div className={`grid gap-4 ${className}`}>
-      {/* Para crypto, mostrar selector de wallet si hay múltiples */}
-      {method === 'crypto' && Array.isArray(data) && data.length > 1 && (
-        <div className="mb-4">
-          <label className="text-sm font-medium text-muted-foreground mb-2 block">
-            Wallet disponibles ({data.length})
-          </label>
-          <select 
-            value={selectedCryptoWallet} 
-            onChange={(e) => {
-              onSelectCryptoWallet?.(Number(e.target.value));
-            }}
-            className="w-full p-2 border rounded-md"
-          >
-            {data.map((wallet, index) => (
-              <option key={index} value={index}>
-                {wallet.title || `Wallet ${index + 1}`} - {wallet.network}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
       {/* Renderizar campos dinámicamente */}
       <div className="grid gap-3 md:grid-cols-2">
         {fieldConfig.map((field) => {
-          const value = getFieldValue(displayData, field.key);
+          const value = getFieldValue(railData, field.key);
+          
+         console.log(`Buscando ${field.key} en railData, encontré:`, value);
           
           // No mostrar campos vacíos
           if (!value) return null;
