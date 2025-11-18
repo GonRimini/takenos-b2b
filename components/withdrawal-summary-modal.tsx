@@ -11,12 +11,14 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 
 interface WithdrawalSummaryModalProps {
   isOpen: boolean
   onClose: () => void
   onConfirm: () => void
   data: WithdrawalFormData
+  selectedAccount: any
   isSubmitting: boolean
 }
 
@@ -25,6 +27,7 @@ export function WithdrawalSummaryModal({
   onClose,
   onConfirm,
   data,
+  selectedAccount,
   isSubmitting,
 }: WithdrawalSummaryModalProps) {
   const formatAmount = (amount: string) => {
@@ -39,6 +42,16 @@ export function WithdrawalSummaryModal({
       style: "currency",
       currency: "USD",
     }).format(num)
+  }
+
+  const getRailLabel = (rail: string) => {
+    const labels: Record<string, string> = {
+      ach: "ACH/Wire",
+      swift: "SWIFT",
+      crypto: "Criptomonedas",
+      local: "Moneda Local",
+    }
+    return labels[rail] || rail
   }
 
   const getCategoryLabel = (category: string) => {
@@ -96,141 +109,157 @@ export function WithdrawalSummaryModal({
 
         <Card className="bg-gray-50 border-gray-200">
           <CardContent className="pt-6 space-y-4">
-            {/* Información general */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <div className="text-sm font-medium text-muted-foreground">Categoría</div>
-                <div className="text-sm">{getCategoryLabel(data.category)}</div>
-              </div>
-              <div>
-                <div className="text-sm font-medium text-muted-foreground">Monto</div>
-                <div className="text-lg font-semibold text-primary">{formatAmount(data.amount)}</div>
+            {/* Información del retiro */}
+            <div>
+              <h3 className="text-sm font-semibold mb-3">Detalles del retiro</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-sm font-medium text-muted-foreground">Monto a retirar</div>
+                  <div className="text-xl font-bold text-primary">{formatAmount(data.amount)}</div>
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-muted-foreground">Moneda</div>
+                  <div className="text-sm">{selectedAccount?.currency_code || "USD"}</div>
+                </div>
               </div>
             </div>
 
-            {/* Campos específicos para USD Bank */}
-            {data.category === "usd_bank" && (
-              <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <div className="text-sm font-medium text-muted-foreground">Propietario</div>
-                    <div className="text-sm">{getAccountOwnershipLabel(data.accountOwnership || "")}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-muted-foreground">Método</div>
-                    <div className="text-sm">{getMethodLabel(data.method || "")}</div>
-                  </div>
-                </div>
+            {/* Información de la cuenta destino */}
+            <div className="pt-4 border-t">
+              <h3 className="text-sm font-semibold mb-3">Cuenta destino</h3>
+              <div className="space-y-3">
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <div className="text-sm font-medium text-muted-foreground">Titular</div>
-                    <div className="text-sm">{data.beneficiaryName}</div>
+                    <div className="text-sm font-medium text-muted-foreground">Alias de cuenta</div>
+                    <div className="text-sm font-semibold">{selectedAccount?.nickname || "Sin nombre"}</div>
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-muted-foreground">Banco</div>
-                    <div className="text-sm">{data.beneficiaryBank}</div>
+                    <div className="text-sm font-medium text-muted-foreground">Tipo</div>
+                    <Badge variant="outline">{getRailLabel(selectedAccount?.rail)}</Badge>
                   </div>
                 </div>
 
-                {data.method === "ach" ? (
-                  <div className="grid grid-cols-2 gap-4">
+                {/* ACH */}
+                {selectedAccount?.rail === "ach" && selectedAccount?.ach && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <div className="text-sm font-medium text-muted-foreground">Beneficiario</div>
+                        <div className="text-sm">{selectedAccount.ach.beneficiary_name}</div>
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium text-muted-foreground">Banco</div>
+                        <div className="text-sm">{selectedAccount.ach.receiver_bank}</div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <div className="text-sm font-medium text-muted-foreground">Cuenta</div>
+                        <div className="text-sm font-mono">****{selectedAccount.ach.account_number?.slice(-4)}</div>
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium text-muted-foreground">Routing</div>
+                        <div className="text-sm font-mono">{selectedAccount.ach.routing_number}</div>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* SWIFT */}
+                {selectedAccount?.rail === "swift" && selectedAccount?.swift && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <div className="text-sm font-medium text-muted-foreground">Beneficiario</div>
+                        <div className="text-sm">{selectedAccount.swift.beneficiary_name}</div>
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium text-muted-foreground">Banco</div>
+                        <div className="text-sm">{selectedAccount.swift.receiver_bank}</div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <div className="text-sm font-medium text-muted-foreground">SWIFT/BIC</div>
+                        <div className="text-sm font-mono">{selectedAccount.swift.swift_bic}</div>
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium text-muted-foreground">Cuenta</div>
+                        <div className="text-sm font-mono">****{selectedAccount.swift.account_number?.slice(-4)}</div>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Crypto */}
+                {selectedAccount?.rail === "crypto" && selectedAccount?.crypto && (
+                  <>
                     <div>
-                      <div className="text-sm font-medium text-muted-foreground">Tipo de cuenta</div>
-                      <div className="text-sm">{getAccountTypeLabel(data.accountType || "")}</div>
+                      <div className="text-sm font-medium text-muted-foreground">Red</div>
+                      <div className="text-sm">{selectedAccount.crypto.wallet_network}</div>
                     </div>
                     <div>
-                      <div className="text-sm font-medium text-muted-foreground">Número de cuenta</div>
-                      <div className="text-sm font-mono">{data.accountNumber}</div>
+                      <div className="text-sm font-medium text-muted-foreground">Dirección</div>
+                      <div className="text-xs font-mono break-all bg-muted p-2 rounded">{selectedAccount.crypto.wallet_address}</div>
                     </div>
-                  </div>
-                ) : (
-                  <div>
-                    <div className="text-sm font-medium text-muted-foreground">Número de cuenta / IBAN</div>
-                    <div className="text-sm font-mono">{data.accountNumber}</div>
-                  </div>
+                  </>
                 )}
 
-                {data.method === "ach" && data.routingNumber && (
-                  <div>
-                    <div className="text-sm font-medium text-muted-foreground">Routing Number</div>
-                    <div className="text-sm font-mono">{data.routingNumber}</div>
-                  </div>
+                {/* Local */}
+                {selectedAccount?.rail === "local" && selectedAccount?.local && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <div className="text-sm font-medium text-muted-foreground">País</div>
+                        <div className="text-sm">{selectedAccount.local.country_code}</div>
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium text-muted-foreground">Banco</div>
+                        <div className="text-sm">{selectedAccount.local.bank_name}</div>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-muted-foreground">Beneficiario</div>
+                      <div className="text-sm">{selectedAccount.local.beneficiary_name}</div>
+                    </div>
+                    {selectedAccount.local.identifier_primary && (
+                      <div>
+                        <div className="text-sm font-medium text-muted-foreground">
+                          {selectedAccount.local.identifier_primary_type || "Identificador"}
+                        </div>
+                        <div className="text-sm font-mono">{selectedAccount.local.identifier_primary}</div>
+                      </div>
+                    )}
+                  </>
                 )}
-
-                {data.method === "wire" && data.swiftBic && (
-                  <div>
-                    <div className="text-sm font-medium text-muted-foreground">SWIFT/BIC</div>
-                    <div className="text-sm font-mono">{data.swiftBic}</div>
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* Campos específicos para Crypto */}
-            {data.category === "crypto" && (
-              <>
-                <div>
-                  <div className="text-sm font-medium text-muted-foreground">Apodo de la billetera</div>
-                  <div className="text-sm">{data.walletAlias}</div>
-                </div>
-
-                <div>
-                  <div className="text-sm font-medium text-muted-foreground">Dirección</div>
-                  <div className="text-sm font-mono break-all">{data.walletAddress}</div>
-                </div>
-
-                <div>
-                  <div className="text-sm font-medium text-muted-foreground">Red</div>
-                  <div className="text-sm">{getWalletNetworkLabel(data.walletNetwork || "")}</div>
-                </div>
-              </>
-            )}
-
-            {/* Campos específicos para Moneda Local */}
-            {data.category === "local_currency" && (
-              <>
-                <div>
-                  <div className="text-sm font-medium text-muted-foreground">País</div>
-                  <div className="text-sm">{data.country}</div>
-                </div>
-
-                <div>
-                  <div className="text-sm font-medium text-muted-foreground">Nombre de la cuenta</div>
-                  <div className="text-sm">{data.localAccountName}</div>
-                </div>
-
-                <div>
-                  <div className="text-sm font-medium text-muted-foreground">Banco</div>
-                  <div className="text-sm">{data.localBank}</div>
-                </div>
-
-                <div>
-                  <div className="text-sm font-medium text-muted-foreground">Número de cuenta</div>
-                  <div className="text-sm font-mono">{data.localAccountNumber}</div>
-                </div>
-              </>
-            )}
-
-            {/* Referencia (común a todas las categorías) */}
-            {data.reference && (
-              <div>
-                <div className="text-sm font-medium text-muted-foreground">Referencia</div>
-                <div className="text-sm">{data.reference}</div>
               </div>
-            )}
+            </div>
 
-            {/* Comprobante PDF */}
-            {data.receiptFile && data.receiptFile instanceof File && (
-              <div>
-                <div className="text-sm font-medium text-muted-foreground">Comprobante PDF</div>
-                <div className="text-sm flex items-center gap-2">
-                  <span className="font-mono bg-gray-100 px-2 py-1 rounded text-xs">
-                    📄 {data.receiptFile.name}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    ({(data.receiptFile.size / 1024 / 1024).toFixed(2)} MB)
-                  </span>
+            {/* Información adicional */}
+            {(data.reference || data.receiptFile) && (
+              <div className="pt-4 border-t">
+                <h3 className="text-sm font-semibold mb-3">Información adicional</h3>
+                <div className="space-y-3">
+                  {data.reference && (
+                    <div>
+                      <div className="text-sm font-medium text-muted-foreground">Concepto / Referencia</div>
+                      <div className="text-sm">{data.reference}</div>
+                    </div>
+                  )}
+                  {data.receiptFile && data.receiptFile instanceof File && (
+                    <div>
+                      <div className="text-sm font-medium text-muted-foreground">Comprobante PDF</div>
+                      <div className="text-sm flex items-center gap-2">
+                        <span className="font-mono bg-gray-100 px-2 py-1 rounded text-xs">
+                          📄 {data.receiptFile.name}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          ({(data.receiptFile.size / 1024 / 1024).toFixed(2)} MB)
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
