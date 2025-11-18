@@ -14,13 +14,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import {
   Collapsible,
@@ -52,7 +45,7 @@ import {
   fillFormFromAccount,
   resetWithdrawalForm,
 } from "@/lib/withdrawal-helpers";
-import CreateAccountWizard from "@/components/shared/CreateAccountWizard";
+import { CreateExternalAccountWizard } from "@/components/external-accounts";
 
 export default function RetirarPage() {
   const [showSummary, setShowSummary] = useState(false);
@@ -493,9 +486,7 @@ export default function RetirarPage() {
           </p>
         </div>
 
-        <CreateAccountWizard
-          userEmail={getUserEmailFromStorage(user) || undefined}
-          flowType="withdrawal"
+        <CreateExternalAccountWizard
           onCreated={async () => {
             // Volver al paso de selección de cuenta
             setCurrentStep("select-account");

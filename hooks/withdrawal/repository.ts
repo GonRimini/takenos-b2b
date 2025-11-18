@@ -113,7 +113,8 @@ export const useWithdrawalRepository = () => {
 
   const loadAccounts = async (): Promise<Account[]> => {
     try {
-      const response = await authenticatedFetch('/api/payout-accounts', {
+      // Usar el endpoint de external accounts que trae todas las cuentas de la company
+      const response = await authenticatedFetch('/api/external-accounts', {
         method: 'GET',
       });
       
