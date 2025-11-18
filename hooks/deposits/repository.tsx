@@ -1,6 +1,8 @@
 import { supabase } from "@/lib/supabase-client";
 import { useAuthenticatedFetch } from "@/hooks/use-authenticated-fetch";
 //import { getApiEmailForUser } from '@/lib/utils';
+import { useAuth } from "@/components/auth";
+
 
 interface Account {
   id: string;
@@ -41,45 +43,36 @@ type DepositAccountPayload = {
 
 export const useDepositsRepository = () => {
   const { authenticatedFetch } = useAuthenticatedFetch();
+  const { session } = useAuth();
 
   const uploadFile = async (file: File, userEmail: string) => {
-    // Crear nombre de archivo único y seguro
-    const timestamp = Date.now();
-    const safeFileName = file.name
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-zA-Z0-9.\-_ ]/g, "")
-      .replace(/\s+/g, "_");
-
-    const filePath = `deposit-proofs/${userEmail}/${timestamp}_${safeFileName}`;
-
-    // Subir archivo a Supabase
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from("proofs")
-      .upload(filePath, file, {
-        cacheControl: "3600",
-        upsert: false,
-      });
-
-    if (uploadError) {
-      throw new Error("Error al subir el archivo: " + uploadError.message);
+    if (!session?.access_token) {
+      throw new Error("No authentication token available");
     }
 
-    // Generar URL pública del archivo
-    const { data: publicUrlData } = supabase.storage
-      .from("proofs")
-      .getPublicUrl(uploadData.path);
+    const formData = new FormData();
+    formData.append("file", file);
 
-    if (!publicUrlData.publicUrl) {
-      throw new Error("No se pudo generar la URL del archivo");
+    const response = await fetch("/api/upload-proof", {
+      method: "POST",
+      // 👇 NO ponemos Content-Type, solo el Authorization
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: formData,
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result?.ok) {
+      throw new Error(result?.error || "Error al subir el archivo");
     }
 
     return {
-      publicUrl: publicUrlData.publicUrl,
-      filePath: uploadData.path,
+      publicUrl: result.data.publicUrl,
+      filePath: result.data.filePath,
     };
   };
-
   const submitDeposit = async ({
     formData,
     userEmail,

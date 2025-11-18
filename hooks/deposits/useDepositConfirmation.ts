@@ -1,64 +1,97 @@
-// import { useSubmitDepositMutation } from "@/hooks/deposits/queries";
-// import { useDepositsRepository } from "@/hooks/deposits/repository";
-// import { useDepositNotification } from "@/hooks/notifications/useDepositNotification";
-// import { getId } from "@/utils/id-helpers";
-// import type { DepositConfirmationParams, DepositRequestInsert } from "@/types/deposit-types";
+import { useDepositsRepository } from "@/hooks/deposits/repository";
+import { useDepositNotification } from "@/hooks/notifications/useDepositNotification";
+import { useAuthenticatedFetch } from "@/hooks/use-authenticated-fetch";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
+import type { DepositConfirmationParams } from "@/types/deposit-types";
 
-// export const useDepositConfirmation = () => {
-//   const { mutateAsync, isPending } = useSubmitDepositMutation();
-//   const repo = useDepositsRepository();
-//   const { sendDepositNotification } = useDepositNotification();
+export const useDepositConfirmation = () => {
+  const repo = useDepositsRepository();
+  const { sendDepositNotification } = useDepositNotification();
+  const { authenticatedFetch } = useAuthenticatedFetch();
+  const { toast } = useToast();
+  const [isPending, setIsPending] = useState(false);
 
-//   const confirmDeposit = async ({
-//     userEmail,
-//     externalAccount,
-//     destinationAccount,
-//     file,
-//     onSuccess
-//   }: DepositConfirmationParams): Promise<void> => {
-//     if (!userEmail) return;
+  const confirmDeposit = async ({
+    userEmail,
+    externalAccount,
+    destinationAccount,
+    file,
+    onSuccess
+  }: DepositConfirmationParams): Promise<void> => {
+    if (!userEmail) return;
 
-//     // Subir archivo (opcional)
-//     let fileUrl: string | null = null;
-//     if (file) {
-//       const uploaded = await repo.uploadFile(file, userEmail);
-//       fileUrl = uploaded?.publicUrl ?? null;
-//     }
+    setIsPending(true);
 
-//     const depositAccountId = getId(externalAccount);
-//     const payoutAccountId = getId(destinationAccount);
-    
-//     if (!depositAccountId || !payoutAccountId) {
-//       console.error("Faltan IDs: deposit_account_id o payout_account_id");
-//       return;
-//     }
+    try {
+      // Subir archivo (opcional)
+      let fileUrl: string | null = null;
+      if (file) {
+        const uploaded = await repo.uploadFile(file, userEmail);
+        fileUrl = uploaded?.publicUrl ?? null;
+      }
 
-//     const formData: DepositRequestInsert = {
-//       user_email: userEmail,
-//       file_url: fileUrl,
-//       date: new Date().toISOString(),
-//       deposit_account_id: String(depositAccountId),
-//       payout_account_id: String(payoutAccountId),
-//     };
-    
-//     // Enviar deposit request
-//     await mutateAsync({ formData, userEmail });
+      const externalAccountId = externalAccount?.id;
+      const fundingAccountId = destinationAccount?.id;
+      const rail = destinationAccount?.rail;
+      const currencyCode = destinationAccount?.currency_code;
+      
+      if (!fundingAccountId || !rail || !currencyCode) {
+        console.error("Faltan campos requeridos:", { fundingAccountId, rail, currencyCode });
+        throw new Error("Datos incompletos para crear la solicitud de depósito");
+      }
 
-//     // Enviar notificación después del éxito
-//     if (fileUrl) {
-//       await sendDepositNotification({
-//         userEmail,
-//         fileName: file?.name || "comprobante_deposito.pdf",
-//         fileUrl
-//       });
-//     }
+      // Llamar al nuevo endpoint /api/deposit-request
+      const response = await authenticatedFetch("/api/deposit-request", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          externalAccountId: externalAccountId || null,
+          fundingAccountId,
+          rail,
+          currencyCode,
+          fileUrl: fileUrl || null,
+        }),
+      });
 
-//     // Ejecutar callback de éxito
-//     onSuccess?.();
-//   };
+      const result = await response.json();
 
-//   return {
-//     confirmDeposit,
-//     isLoading: isPending
-//   };
-// };
+      if (!response.ok || !result?.ok) {
+        throw new Error(result?.error || "Error al crear la solicitud de depósito");
+      }
+
+      if (fileUrl && file) {
+        await sendDepositNotification({
+          userEmail,
+          fileName: file.name || "comprobante_deposito.pdf",
+          fileUrl
+        });
+      }
+
+      toast({
+        title: "Solicitud enviada",
+        description: "Tu depósito fue registrado correctamente. Te contactaremos pronto.",
+      });
+
+      // Ejecutar callback de éxito
+      onSuccess?.();
+    } catch (error) {
+      console.error("Error al confirmar depósito:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "No se pudo confirmar el depósito",
+        variant: "destructive",
+      });
+      throw error;
+    } finally {
+      setIsPending(false);
+    }
+  };
+
+  return {
+    confirmDeposit,
+    isLoading: isPending
+  };
+};
