@@ -3,6 +3,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/auth';
 import { useWithdrawalRepository } from './repository';
 import { getUserEmail } from '@/lib/user-helpers';
+import { CreateWithdrawalRequestPayload } from './repository';
 
 // Hook para subir archivos
 interface FileUploadParams {
@@ -106,6 +107,41 @@ export const useSubmitWithdrawalMutation = () => {
       toast({
         title: "Error",
         description: error.message || "Hubo un problema al enviar tu solicitud. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    },
+  });
+};
+
+export const useCreateWithdrawalRequestMutation = () => {
+  const { toast } = useToast();
+  const repository = useWithdrawalRepository();
+
+  return useMutation({
+    mutationFn: (payload: CreateWithdrawalRequestPayload) =>
+      repository.createWithdrawalRequest(payload),
+    onSuccess: (result) => {
+      if (result.ok) {
+        toast({
+          title: "Solicitud enviada",
+          description: "Te contactaremos por email para confirmar tu retiro.",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description:
+            result.error || "No se pudo enviar la solicitud de retiro.",
+          variant: "destructive",
+        });
+      }
+    },
+    onError: (error: Error) => {
+      console.error("Error submitting withdrawal:", error);
+      toast({
+        title: "Error",
+        description:
+          error.message ||
+          "Hubo un problema al enviar tu solicitud. Inténtalo de nuevo.",
         variant: "destructive",
       });
     },

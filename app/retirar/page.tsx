@@ -30,6 +30,7 @@ import {
   useFileUploadMutation,
   useSaveAccountMutation,
 } from "@/hooks/withdrawal/queries";
+import { useExternalAccountQuery } from "@/hooks/external-accounts/queries";
 import {
   AlertCircle,
   DollarSign,
@@ -72,6 +73,15 @@ export default function RetirarPage() {
     error: accountsError,
     refetch: refetchAccounts,
   } = useLoadAccountsQuery(true);
+
+  // React Query hook para detalles de la cuenta seleccionada
+  const {
+    data: accountDetails,
+    isLoading: loadingAccountDetails,
+  } = useExternalAccountQuery(
+    selectedAccount?.id,
+    !!selectedAccount?.id && currentStep === "withdrawal-details"
+  );
 
   // React Query hook para envío de withdrawal
   const submitWithdrawalMutation = useSubmitWithdrawalMutation();
@@ -549,60 +559,69 @@ export default function RetirarPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Loading state */}
+            {selectedAccount && !isCreatingNewAccount && loadingAccountDetails && (
+              <div className="text-center py-8 text-muted-foreground">
+                Cargando detalles de la cuenta...
+              </div>
+            )}
+
             {/* Campos de cuenta seleccionada (disabled y auto-llenados) */}
-            {selectedAccount && !isCreatingNewAccount && (
+            {selectedAccount && !isCreatingNewAccount && accountDetails && (
               <>
-                {/* Categoría */}
+                {/* Información básica */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm">Tipo de cuenta</Label>
+                    <Input
+                      value={
+                        accountDetails.rail === "ach"
+                          ? "ACH/Wire"
+                          : accountDetails.rail === "swift"
+                          ? "SWIFT"
+                          : accountDetails.rail === "crypto"
+                          ? "Criptomonedas"
+                          : "Moneda Local"
+                      }
+                      disabled
+                      className="h-9 bg-muted"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm">Moneda</Label>
+                    <Input
+                      value={accountDetails.currency_code || ""}
+                      disabled
+                      className="h-9 bg-muted"
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-2">
-                  <Label className="text-sm">Categoría *</Label>
+                  <Label className="text-sm">Alias de la cuenta</Label>
                   <Input
-                    value={
-                      selectedAccount.category === "usd_bank"
-                        ? "USD - Cuenta bancaria"
-                        : selectedAccount.category === "crypto"
-                        ? "Criptomonedas"
-                        : "Moneda local"
-                    }
+                    value={accountDetails.nickname || ""}
                     disabled
                     className="h-9 bg-muted"
                   />
                 </div>
 
-                {/* Campos para USD Bank */}
-                {selectedAccount.category === "usd_bank" && (
+                {/* Campos para ACH */}
+                {accountDetails.rail === "ach" && accountDetails.ach && (
                   <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label className="text-sm">Método</Label>
-                        <Input
-                          value={(selectedAccount.method || selectedAccount.details?.method || "").toUpperCase()}
-                          disabled
-                          className="h-9 bg-muted"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-sm">Alias de la cuenta</Label>
-                        <Input
-                          value={selectedAccount.nickname || selectedAccount.details?.nickname || ""}
-                          disabled
-                          className="h-9 bg-muted"
-                        />
-                      </div>
-                    </div>
-
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label className="text-sm">Nombre del beneficiario</Label>
                         <Input
-                          value={selectedAccount.details?.beneficiaryName || selectedAccount.beneficiary_name || ""}
+                          value={accountDetails.ach?.beneficiary_name || ""}
                           disabled
                           className="h-9 bg-muted"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-sm">Banco del beneficiario</Label>
+                        <Label className="text-sm">Banco receptor</Label>
                         <Input
-                          value={selectedAccount.details?.beneficiaryBank || selectedAccount.beneficiary_bank || ""}
+                          value={accountDetails.ach?.receiver_bank || ""}
                           disabled
                           className="h-9 bg-muted"
                         />
@@ -613,7 +632,7 @@ export default function RetirarPage() {
                       <div className="space-y-2">
                         <Label className="text-sm">Tipo de cuenta</Label>
                         <Input
-                          value={selectedAccount.details?.accountType || selectedAccount.account_type || ""}
+                          value={accountDetails.ach?.account_type || ""}
                           disabled
                           className="h-9 bg-muted"
                         />
@@ -621,7 +640,7 @@ export default function RetirarPage() {
                       <div className="space-y-2">
                         <Label className="text-sm">Número de cuenta</Label>
                         <Input
-                          value={selectedAccount.details?.accountNumber || selectedAccount.account_number || ""}
+                          value={accountDetails.ach?.account_number || ""}
                           disabled
                           className="h-9 bg-muted"
                         />
@@ -630,76 +649,89 @@ export default function RetirarPage() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label className="text-sm">
-                          {(selectedAccount.method || selectedAccount.details?.method) === "wire" ? "SWIFT/BIC" : "Routing Number"}
-                        </Label>
+                        <Label className="text-sm">Routing Number</Label>
                         <Input
-                          value={
-                            (selectedAccount.method || selectedAccount.details?.method) === "wire"
-                              ? (selectedAccount.details?.swiftBic || selectedAccount.swift_bic || "")
-                              : (selectedAccount.details?.routingNumber || selectedAccount.routing_number || "")
-                          }
+                          value={accountDetails.ach?.routing_number || ""}
                           disabled
                           className="h-9 bg-muted"
                         />
                       </div>
-                      {(selectedAccount.details?.address || selectedAccount.bank_address) && (
+                      {accountDetails.ach?.beneficiary_bank_address && (
                         <div className="space-y-2">
                           <Label className="text-sm">Dirección del banco</Label>
                           <Input
-                            value={selectedAccount.details?.address || selectedAccount.bank_address || ""}
+                            value={accountDetails.ach?.beneficiary_bank_address || ""}
                             disabled
                             className="h-9 bg-muted"
                           />
                         </div>
                       )}
                     </div>
+                  </>
+                )}
 
-                    {/* Campos adicionales que pueden estar en algunos tipos de cuenta */}
-                    {(selectedAccount.details?.walletAddress || selectedAccount.wallet_address) && (
-                      <div className="grid grid-cols-1 gap-4">
-                        <div className="space-y-2">
-                          <Label className="text-sm">Wallet Address</Label>
-                          <Input
-                            value={selectedAccount.details?.walletAddress || selectedAccount.wallet_address || ""}
-                            disabled
-                            className="h-9 bg-muted font-mono text-xs"
-                          />
-                        </div>
+                {/* Campos para SWIFT */}
+                {accountDetails.rail === "swift" && accountDetails.swift && (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm">Nombre del beneficiario</Label>
+                        <Input
+                          value={accountDetails.swift.beneficiary_name || ""}
+                          disabled
+                          className="h-9 bg-muted"
+                        />
                       </div>
-                    )}
+                      <div className="space-y-2">
+                        <Label className="text-sm">Banco receptor</Label>
+                        <Input
+                          value={accountDetails.swift.receiver_bank || ""}
+                          disabled
+                          className="h-9 bg-muted"
+                        />
+                      </div>
+                    </div>
 
-                    {(selectedAccount.details?.network || selectedAccount.network) && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label className="text-sm">Network</Label>
-                          <Input
-                            value={selectedAccount.details?.network || selectedAccount.network || ""}
-                            disabled
-                            className="h-9 bg-muted"
-                          />
-                        </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm">SWIFT/BIC</Label>
+                        <Input
+                          value={accountDetails.swift.swift_bic || ""}
+                          disabled
+                          className="h-9 bg-muted"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">Número de cuenta</Label>
+                        <Input
+                          value={accountDetails.swift.account_number || ""}
+                          disabled
+                          className="h-9 bg-muted"
+                        />
+                      </div>
+                    </div>
+
+                    {accountDetails.swift.beneficiary_bank_address && (
+                      <div className="space-y-2">
+                        <Label className="text-sm">Dirección del banco</Label>
+                        <Input
+                          value={accountDetails.swift.beneficiary_bank_address}
+                          disabled
+                          className="h-9 bg-muted"
+                        />
                       </div>
                     )}
                   </>
                 )}
 
                 {/* Campos para Crypto */}
-                {selectedAccount.category === "crypto" && (
+                {accountDetails.rail === "crypto" && accountDetails.crypto && (
                   <>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label className="text-sm">Alias del wallet</Label>
-                        <Input
-                          value={selectedAccount.details?.walletAlias || selectedAccount.wallet_alias || selectedAccount.nickname || ""}
-                          disabled
-                          className="h-9 bg-muted"
-                        />
-                      </div>
-                      <div className="space-y-2">
                         <Label className="text-sm">Red</Label>
                         <Input
-                          value={selectedAccount.details?.network || selectedAccount.wallet_network || selectedAccount.network || ""}
+                          value={accountDetails.crypto.wallet_network || ""}
                           disabled
                           className="h-9 bg-muted"
                         />
@@ -709,7 +741,7 @@ export default function RetirarPage() {
                     <div className="space-y-2">
                       <Label className="text-sm">Dirección del wallet</Label>
                       <Input
-                        value={selectedAccount.details?.walletAddress || selectedAccount.wallet_address || ""}
+                        value={accountDetails.crypto.wallet_address || ""}
                         disabled
                         className="h-9 bg-muted font-mono text-xs"
                       />
@@ -718,32 +750,13 @@ export default function RetirarPage() {
                 )}
 
                 {/* Campos para Local Currency */}
-                {selectedAccount.category === "local_currency" && (
+                {accountDetails.rail === "local" && accountDetails.local && (
                   <>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label className="text-sm">Alias de la cuenta</Label>
-                        <Input
-                          value={selectedAccount.details?.nickname || selectedAccount.nickname || ""}
-                          disabled
-                          className="h-9 bg-muted"
-                        />
-                      </div>
-                      <div className="space-y-2">
                         <Label className="text-sm">País</Label>
                         <Input
-                          value={selectedAccount.details?.country || selectedAccount.country || ""}
-                          disabled
-                          className="h-9 bg-muted"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label className="text-sm">Nombre del titular</Label>
-                        <Input
-                          value={selectedAccount.details?.localAccountName || selectedAccount.local_account_name || ""}
+                          value={accountDetails.local.country_code || ""}
                           disabled
                           className="h-9 bg-muted"
                         />
@@ -751,21 +764,71 @@ export default function RetirarPage() {
                       <div className="space-y-2">
                         <Label className="text-sm">Banco</Label>
                         <Input
-                          value={selectedAccount.details?.localBank || selectedAccount.local_bank || ""}
+                          value={accountDetails.local.bank_name || ""}
                           disabled
                           className="h-9 bg-muted"
                         />
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label className="text-sm">Número de cuenta</Label>
-                      <Input
-                        value={selectedAccount.details?.localAccountNumber || selectedAccount.local_account_number || ""}
-                        disabled
-                        className="h-9 bg-muted"
-                      />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm">Nombre del beneficiario</Label>
+                        <Input
+                          value={accountDetails.local.beneficiary_name || ""}
+                          disabled
+                          className="h-9 bg-muted"
+                        />
+                      </div>
+                      {accountDetails.local.holder_id && (
+                        <div className="space-y-2">
+                          <Label className="text-sm">ID del titular</Label>
+                          <Input
+                            value={accountDetails.local.holder_id}
+                            disabled
+                            className="h-9 bg-muted"
+                          />
+                        </div>
+                      )}
                     </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {accountDetails.local.identifier_primary && (
+                        <div className="space-y-2">
+                          <Label className="text-sm">
+                            {accountDetails.local.identifier_primary_type || "Identificador primario"}
+                          </Label>
+                          <Input
+                            value={accountDetails.local.identifier_primary}
+                            disabled
+                            className="h-9 bg-muted"
+                          />
+                        </div>
+                      )}
+                      {accountDetails.local.identifier_secondary && (
+                        <div className="space-y-2">
+                          <Label className="text-sm">
+                            {accountDetails.local.identifier_secondary_type || "Identificador secundario"}
+                          </Label>
+                          <Input
+                            value={accountDetails.local.identifier_secondary}
+                            disabled
+                            className="h-9 bg-muted"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {accountDetails.local.account_number && (
+                      <div className="space-y-2">
+                        <Label className="text-sm">Número de cuenta</Label>
+                        <Input
+                          value={accountDetails.local.account_number}
+                          disabled
+                          className="h-9 bg-muted"
+                        />
+                      </div>
+                    )}
                   </>
                 )}
 

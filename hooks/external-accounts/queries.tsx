@@ -162,3 +162,30 @@ export const useDeleteExternalAccountMutation = () => {
     },
   });
 };
+
+export const useExternalAccountDetailQuery = (
+  id?: string,
+  enabled: boolean = true
+) => {
+  const repository = useExternalAccountsRepository();
+  const { toast } = useToast();
+
+  return useQuery({
+    queryKey: ["external-account-detail", id],
+    enabled: enabled && !!id,
+    retry: 1,
+    queryFn: async () => {
+      if (!id) {
+        throw new Error("Missing external account id");
+      }
+
+      const data = await repository.loadExternalAccountById(id);
+
+      if (!data) {
+        throw new Error("No se encontró la cuenta externa");
+      }
+
+      return data;
+    },
+  });
+};

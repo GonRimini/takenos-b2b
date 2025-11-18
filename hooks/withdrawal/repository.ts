@@ -1,6 +1,6 @@
-import { supabase } from '@/lib/supabase-client';
-import { useAuthenticatedFetch } from '@/hooks/use-authenticated-fetch';
-import { getApiEmailForUser } from '@/lib/utils';
+import { supabase } from "@/lib/supabase-client";
+import { useAuthenticatedFetch } from "@/hooks/use-authenticated-fetch";
+import { getApiEmailForUser } from "@/lib/utils";
 
 interface Account {
   id: string;
@@ -28,10 +28,10 @@ interface Account {
 // --- Tipos útiles
 export type PayoutAccountPayload = {
   user_email: string;
-  category: string;                 // "usd_bank" | "local" | "crypto" | etc.
-  method?: string | null;           // "ACH" | "SWIFT" | ...
+  category: string; // "usd_bank" | "local" | "crypto" | etc.
+  method?: string | null; // "ACH" | "SWIFT" | ...
   nickname: string;
-  is_default?: boolean;             // default false
+  is_default?: boolean; // default false
   details?: any;
   // Campos planos posibles (solo si vienen en el form)
   beneficiary_name?: string;
@@ -48,6 +48,25 @@ export type PayoutAccountPayload = {
   last4?: string;
 };
 
+export type WithdrawalRail = "ach" | "swift" | "crypto" | "local";
+
+export interface CreateWithdrawalRequestPayload {
+  external_account_id: string;
+  currency_code: string;
+  rail: WithdrawalRail;
+  initial_amount: number;
+  external_reference?: string | null;
+  file_url?: string | null;
+  // si querés, podés meter acá external_id, fee, etc. cuando los uses
+}
+
+export interface CreateWithdrawalResult {
+  ok: boolean;
+  data?: {
+    withdrawal_request_id: string;
+  };
+  error?: string;
+}
 
 export const useWithdrawalRepository = () => {
   const { authenticatedFetch } = useAuthenticatedFetch();
@@ -68,7 +87,7 @@ export const useWithdrawalRepository = () => {
       .from("proofs")
       .upload(filePath, file, {
         cacheControl: "3600",
-        upsert: false
+        upsert: false,
       });
 
     if (uploadError) {
@@ -86,11 +105,17 @@ export const useWithdrawalRepository = () => {
 
     return {
       publicUrl: publicUrlData.publicUrl,
-      filePath: uploadData.path
+      filePath: uploadData.path,
     };
   };
 
-  const submitWithdrawal = async ({ formData, userEmail }: { formData: any; userEmail: string }) => {
+  const submitWithdrawal = async ({
+    formData,
+    userEmail,
+  }: {
+    formData: any;
+    userEmail: string;
+  }) => {
     const response = await authenticatedFetch("/api/withdrawals", {
       method: "POST",
       headers: {
@@ -114,57 +139,91 @@ export const useWithdrawalRepository = () => {
   const loadAccounts = async (): Promise<Account[]> => {
     try {
       // Usar el endpoint de external accounts que trae todas las cuentas de la company
-      const response = await authenticatedFetch('/api/external-accounts', {
-        method: 'GET',
+      const response = await authenticatedFetch("/api/external-accounts", {
+        method: "GET",
       });
-      
+
       if (!response.ok) {
-        throw new Error('Failed to load accounts');
+        throw new Error("Failed to load accounts");
       }
-      
+
       const result = await response.json();
       return Array.isArray(result?.data) ? result.data : [];
     } catch (error) {
-      console.error('Error loading accounts:', error);
+      console.error("Error loading accounts:", error);
       throw error;
     }
   };
 
   // --- saveAccount: ahora acepta TODO el payload
-const saveAccount = async (payload: PayoutAccountPayload): Promise<void> => {
-  try {
-    // Chequeo alias duplicado (sigue siendo útil client-side; ideal mover al server también)
-    const existingAccounts = await loadAccounts();
-    const aliasExists = existingAccounts.some(
-      (a: any) =>
-        (a.nickname || "").toLowerCase() ===
-        (payload.nickname || "").toLowerCase()
-    );
-    if (aliasExists) {
-      throw new Error(
-        "Alias ya usado. Elegí un alias diferente para esta cuenta."
+  const saveAccount = async (payload: PayoutAccountPayload): Promise<void> => {
+    try {
+      // Chequeo alias duplicado (sigue siendo útil client-side; ideal mover al server también)
+      const existingAccounts = await loadAccounts();
+      const aliasExists = existingAccounts.some(
+        (a: any) =>
+          (a.nickname || "").toLowerCase() ===
+          (payload.nickname || "").toLowerCase()
       );
-    }
+      if (aliasExists) {
+        throw new Error(
+          "Alias ya usado. Elegí un alias diferente para esta cuenta."
+        );
+      }
 
-    const response = await authenticatedFetch("/api/payout-accounts", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
+      const response = await authenticatedFetch("/api/payout-accounts", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
 
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok || !result?.ok) {
-      throw new Error(result?.error || "No se pudo guardar la cuenta. Intentá más tarde.");
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result?.ok) {
+        throw new Error(
+          result?.error || "No se pudo guardar la cuenta. Intentá más tarde."
+        );
+      }
+    } catch (error) {
+      console.error("Error saving account:", error);
+      throw error;
     }
-  } catch (error) {
-    console.error("Error saving account:", error);
-    throw error;
-  }
-};
+  };
+
+  const createWithdrawalRequest = async (
+    payload: CreateWithdrawalRequestPayload
+  ): Promise<CreateWithdrawalResult> => {
+    try {
+      const response = await authenticatedFetch("/api/withdrawal-requests", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result?.ok) {
+        throw new Error(result?.error || "Failed to create withdrawal request");
+      }
+
+      return {
+        ok: true,
+        data: result.data,
+      };
+    } catch (error) {
+      console.error("Error creating withdrawal request:", error);
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  };
 
   return {
     uploadFile,
     submitWithdrawal,
     loadAccounts,
     saveAccount,
+    createWithdrawalRequest,
   };
 };
