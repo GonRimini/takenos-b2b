@@ -26,6 +26,9 @@ export interface DepositoSWIFT {
   account_type: string
   beneficiary_address: string
   beneficiary_bank_address: string
+  intermediary_bank?: string
+  intermediary_routing_number?: string
+  intermediary_bic_code?: string
 }
 
 export interface DepositoCrypto {

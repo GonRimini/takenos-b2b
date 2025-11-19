@@ -16,6 +16,10 @@ interface DepositInstructionsProps {
     alias?: string;
     cbu?: string;
     nitOrCuit?: string;
+    // Campos del banco intermediario (SWIFT)
+    intermediaryBank?: string;
+    intermediaryRoutingNumber?: string;
+    intermediaryBicCode?: string;
   };
 }
 
@@ -180,6 +184,40 @@ const DepositInstructions: React.FC<DepositInstructionsProps> = ({
             </tbody>
           </table>
         </section>
+
+        {/* BANCO INTERMEDIARIO (solo SWIFT si existe) */}
+        {method === "SWIFT" && (data.intermediaryBank || data.intermediaryRoutingNumber || data.intermediaryBicCode) && (
+          <section style={{ marginBottom: 36 }}>
+            <h2
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: "rgb(109, 55, 213)",
+                textTransform: "uppercase",
+                marginBottom: 10,
+                letterSpacing: ".6px",
+              }}
+            >
+              Banco Intermediario
+            </h2>
+
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                border: "1px solid #ECECEC",
+                borderRadius: 14,
+                overflow: "hidden",
+              }}
+            >
+              <tbody>
+                {renderRow("Nombre del Banco Intermediario", data.intermediaryBank)}
+                {renderRow("SWIFT/BIC Code Intermediario", data.intermediaryBicCode)}
+                {renderRow("Routing Number Intermediario", data.intermediaryRoutingNumber)}
+              </tbody>
+            </table>
+          </section>
+        )}
 
         {/* BENEFICIARIO */}
         {!isCrypto && method !== "LOCAL" && (
