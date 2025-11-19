@@ -93,17 +93,17 @@ export async function POST(request: NextRequest) {
         );
         const failedEmails = emailResults.filter((result) => !result.success);
 
-        if (successfulEmails.length === 0) {
-          console.error("All emails failed:", failedEmails);
-          return NextResponse.json(
-            {
-              success: false,
-              message: "Error al enviar todas las notificaciones por email",
-              emailResults,
-            },
-            { status: 500 }
-          );
-        }
+        // if (successfulEmails.length === 0) {
+        //   console.error("All emails failed:", failedEmails);
+        //   return NextResponse.json(
+        //     {
+        //       success: false,
+        //       message: "Error al enviar todas las notificaciones por email",
+        //       emailResults,
+        //     },
+        //     { status: 500 }
+        //   );
+        // }
 
         if (failedEmails.length > 0) {
           console.warn("Some emails failed:", failedEmails);
