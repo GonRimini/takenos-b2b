@@ -246,12 +246,12 @@ function UnifiedAccountForm({
           local_account_name: formData.localAccountName,
           local_bank: formData.localBank,
           local_account_number: formData.localAccountNumber,
-          country: formData.country,
+          // country: formData.country,
           details: {
             local_account_name: formData.localAccountName,
             local_bank: formData.localBank,
             local_account_number: formData.localAccountNumber,
-            country: formData.country,
+            // country: formData.country,
           },
         };
       }
@@ -465,7 +465,7 @@ function UnifiedAccountForm({
       {/* Campos específicos para Moneda Local */}
       {watchedCategory === "local_currency" && (
         <>
-          <div className="space-y-2">
+          {/* <div className="space-y-2">
             <Label htmlFor="country" className="text-sm">
               País *
             </Label>
@@ -478,7 +478,7 @@ function UnifiedAccountForm({
                 <SelectItem value="AR">Argentina</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </div> */}
 
           <div className="space-y-2">
             <Label htmlFor="localAccountName" className="text-sm">
