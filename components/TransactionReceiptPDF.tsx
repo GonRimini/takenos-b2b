@@ -252,10 +252,10 @@ export const TransactionReceiptPDF = ({
 
         {/* Datos de la transferencia */}
         <View style={styles.detailsSection}>
-          <View style={styles.detailRow}>
+          {/* <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Cuenta destino</Text>
             <Text style={styles.detailValue}></Text>
-          </View>
+          </View> */}
 
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Titular cuenta destino</Text>
