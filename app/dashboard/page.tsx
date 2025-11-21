@@ -38,6 +38,7 @@ export default function Dashboard() {
     isLoading: isLoadingWithdrawals,
     refetch: refetchWithdrawals,
   } = usePendingWithdrawalsQuery(user?.email);
+  console.log("movementsData", movementsData);
   const {
     data: exchangeRateData,
     isLoading: isLoadingExchangeRate,

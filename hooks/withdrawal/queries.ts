@@ -147,3 +147,25 @@ export const useCreateWithdrawalRequestMutation = () => {
     },
   });
 };
+
+export const useWithdrawalDetailByExternalIdQuery = (
+  externalId: string | null,
+  enabled: boolean = true
+) => {
+  const repo = useWithdrawalRepository();
+
+  return useQuery({
+    queryKey: ["withdrawal-detail-by-external-id", externalId],
+    queryFn: () => {
+      if (!externalId) {
+        throw new Error("Missing externalId");
+      }
+      return repo.loadWithdrawalDetailByExternalId(externalId);
+    },
+    enabled: enabled && !!externalId,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    retry: 2,
+    refetchOnWindowFocus: false,
+  });
+};

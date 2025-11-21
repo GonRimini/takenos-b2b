@@ -211,11 +211,38 @@ export const useWithdrawalRepository = () => {
     }
   };
 
+
+  const loadWithdrawalDetailByExternalId = async (
+    externalId: string
+  ): Promise<any> => {
+    const resp = await authenticatedFetch(
+      "/api/withdrawals/detail-by-external-id",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ externalId }),
+      }
+    );
+
+    const json = await resp.json();
+
+    if (!resp.ok || !json?.ok) {
+      throw new Error(json?.error || "Failed to load withdrawal detail");
+    }
+
+    // La RPC devuelve un jsonb con todo el blob enriquecido
+    return json.data;
+  };
+
+
   return {
     uploadFile,
     submitWithdrawal,
     loadAccounts,
     saveAccount,
     createWithdrawalRequest,
+    loadWithdrawalDetailByExternalId,
   };
 };
