@@ -1,49 +1,24 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import { Footer } from "@/components/footer"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Progress } from "@/components/ui/progress"
+// import { Progress } from "@/components/ui/progress" // TODO: Add back when ready
 import { HelpCircle, Mail, Phone, Clock, CreditCard, Banknote, AlertTriangle, TrendingUp, Loader2 } from "lucide-react"
 import { useAuth } from "@/components/auth"
-import { getLimitesByEmail, LimitesData } from "@/lib/limites"
+import { useCompanyLimitsQuery } from "@/hooks/companies/queries"
 
 export default function AyudaPage() {
   const { user } = useAuth()
-  const userDisplayEmail = user?.email || ""
+  const companyId = user?.dbUser?.company_id
 
-  // Estado para datos de límites
-  const [limitsData, setLimitsData] = useState<LimitesData | null>(null)
-  const [limitsLoading, setLimitsLoading] = useState<boolean>(false)
-  const [limitsError, setLimitsError] = useState<string | null>(null)
-
-  // Cargar datos de límites desde Supabase
-  useEffect(() => {
-    async function loadLimits() {
-      if (!userDisplayEmail) return
-
-      try {
-        setLimitsLoading(true)
-        setLimitsError(null)
-        const userLimits = await getLimitesByEmail(userDisplayEmail)
-        
-        if (userLimits) {
-          setLimitsData(userLimits)
-        } else {
-          setLimitsError('No se encontraron límites para este usuario')
-        }
-      } catch (e: any) {
-        setLimitsError(e?.message || 'Error cargando límites')
-      } finally {
-        setLimitsLoading(false)
-      }
-    }
-
-    loadLimits()
-  }, [userDisplayEmail])
+  // Cargar límites usando nueva query del BFF
+  const { data: limitsData, isLoading: limitsLoading, isError: limitsError } = useCompanyLimitsQuery(
+    companyId,
+    !!companyId
+  )
 
   // Componente para mostrar la barra de límites
   const LimitsBar = () => {
@@ -56,7 +31,7 @@ export default function AyudaPage() {
       )
     }
 
-    if (limitsError || !limitsData) {
+    if (limitsError || !limitsData || limitsData.length === 0) {
       return (
         <div className="text-sm text-muted-foreground">
           No se pudieron cargar los datos de límites.
@@ -64,28 +39,35 @@ export default function AyudaPage() {
       )
     }
 
-    const { limite, consumido, restante } = limitsData
-    const percentage = limite > 0 ? (consumido / limite) * 100 : 0
+    // Usar el primer límite disponible
+    const limit = limitsData[0]
+    const limitAmount = limit?.limit_amount || 0
+
+    // TODO: Add back when ready - progress bar with consumed/remaining amounts
+    // const consumedAmount = limit?.consumed_amount || 0
+    // const remainingAmount = limit?.remaining_amount || 0
+    // const percentage = limitAmount > 0 ? (consumedAmount / limitAmount) * 100 : 0
 
     return (
       <div className="space-y-3">
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">Límite mensual</span>
-          <span className="font-medium">${limite.toLocaleString()}</span>
+          <span className="font-medium">${limitAmount.toLocaleString()}</span>
         </div>
         
+        {/* TODO: Add back when ready - Progress bar
         <div className="space-y-2">
           <Progress value={percentage} className="h-3" />
           <div className="flex justify-between text-xs text-muted-foreground">
-            <span>Consumido: ${consumido.toLocaleString()}</span>
-
-            <span>Restante: ${restante.toLocaleString()}</span>
+            <span>Consumido: ${consumedAmount.toLocaleString()}</span>
+            <span>Restante: ${remainingAmount.toLocaleString()}</span>
           </div>
         </div>
         
         <div className="text-center text-xs text-muted-foreground">
           {percentage.toFixed(1)}% utilizado
         </div>
+        */}
       </div>
     )
   }
