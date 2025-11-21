@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getAuthenticatedUserEmail } from "@/lib/auth-middleware"
+import { supabaseServer } from "@/lib/supabase-server"
 
 export const runtime = "nodejs"
 
@@ -111,52 +112,93 @@ function toUi(tx: RawTx, idx: number): UiTx {
 
 export async function POST(request: NextRequest) {
   try {
-    // Validar autenticación y obtener email del token
-    const { email: userEmail, error: authError } = await getAuthenticatedUserEmail(request)
-    
-    if (authError || !userEmail) {
-      return NextResponse.json({ error: authError || "Authentication required" }, { status: 401 })
+    // 🔐 Validar autenticación y obtener email + id
+    const { email: userEmail, id: userId, error: authError } =
+      await getAuthenticatedUserEmail(request);
+
+    if (authError || !userEmail || !userId) {
+      return NextResponse.json(
+        { error: authError || "Authentication required" },
+        { status: 401 }
+      );
     }
 
-    // Normalizar email a lowercase para que no sea case sensitive
-    const normalizedEmail = userEmail.toLowerCase().trim()
+    // Normalizar email
+    const normalizedEmail = userEmail.toLowerCase().trim();
 
-    const key = process.env.RETOOL_TRANSACTIONS_API_KEY
+    // 🧬 Buscar perfil + company para ver si tiene retool_lookup_email
+    const sb = supabaseServer();
+    const { data: profile, error: profileError } = await sb
+      .from("users")
+      .select("*, company:companies(*)")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (profileError) {
+      console.error("❌ Error fetching user profile in /api/movements:", profileError);
+    }
+
+    // Si la company tiene retool_lookup_email, usar ese; si no, el mail del user
+    const emailForRetool = profile?.company?.retool_lookup_email
+      ? profile.company.retool_lookup_email.toLowerCase().trim()
+      : normalizedEmail;
+
+    console.log("[movements] User email:", normalizedEmail);
+    console.log("[movements] Company retool email:", profile?.company?.retool_lookup_email);
+    console.log("[movements] Email used for Retool:", emailForRetool);
+
+    const key = process.env.RETOOL_TRANSACTIONS_API_KEY;
     if (!key) {
-      return NextResponse.json({ error: "Server configuration error" }, { status: 500 })
+      return NextResponse.json(
+        { error: "Server configuration error" },
+        { status: 500 }
+      );
     }
 
-    // Llamada al workflow de Retool (usa tu ID)
+    // 🚀 Llamada al workflow de Retool (transactions)
     const ret = await fetch(
       "https://api.retool.com/v1/workflows/62090e2f-ae2e-4034-8e1d-b1d09d9e81d7/startTrigger?environment=production",
       {
-      method: "POST",
-      headers: {
-        "X-Workflow-Api-Key": key,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({ userEmail: normalizedEmail }),
-      cache: "no-store",
+        method: "POST",
+        headers: {
+          "X-Workflow-Api-Key": key.trim(),
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({ userEmail: emailForRetool }),
+        cache: "no-store",
       }
-    )
+    );
 
     if (!ret.ok) {
-      const msg = await ret.text()
-      return NextResponse.json({ error: `Retool error ${ret.status}: ${msg}` }, { status: ret.status })
+      const msg = await ret.text();
+      return NextResponse.json(
+        { error: `Retool error ${ret.status}: ${msg}` },
+        { status: ret.status }
+      );
     }
 
-    const payload = await ret.json()
-    
-    // Los datos están directamente en data
-    const raw: RawTx[] = Array.isArray(payload?.data) ? payload.data : []
-    console.log("[v0] Raw transactions data:", JSON.stringify(payload?.data, null, 2))
-    console.log("[v0] Raw transactions structure:", raw.length > 0 ? Object.keys(raw[0]) : "No transactions")
-    const ui: UiTx[] = raw.map(toUi)
+    const payload = await ret.json();
 
+    // Los datos vienen en payload.data
+    const raw: RawTx[] = Array.isArray(payload?.data) ? payload.data : [];
+    console.log("[movements] Raw transactions data:", JSON.stringify(payload?.data, null, 2));
+    console.log(
+      "[movements] Raw transactions structure:",
+      raw.length > 0 ? Object.keys(raw[0]) : "No transactions"
+    );
 
-    return NextResponse.json({ email: normalizedEmail, data: ui })
+    const ui: UiTx[] = raw.map(toUi);
+
+    return NextResponse.json({
+      email: emailForRetool,
+      data: ui,
+    });
   } catch (e) {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error("❌ Internal error in /api/movements:", e);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
