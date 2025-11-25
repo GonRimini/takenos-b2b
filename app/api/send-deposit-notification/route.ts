@@ -58,7 +58,7 @@ Usuario: ${userEmail} | Fecha: ${uploadDate}
 
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
-      to: process.env.NODE_ENV === "production" ? [to] : ["grimini@takenos.com"],
+      to: process.env.NODE_ENV === "production" ? [to] : ["grimini@takenos.com", "fermin@takenos.com"],
       subject: subject,
       text: textContent,
       replyTo: userEmail,
