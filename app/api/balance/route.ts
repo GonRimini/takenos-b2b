@@ -57,27 +57,36 @@ export async function POST(request: NextRequest) {
     console.log("Authenticated user email:", userEmail)
     console.log("Authenticated user ID:", userId)
     
-    if (authError || !userEmail || !userId) {
+    if (authError || !userEmail) {
       return NextResponse.json({ error: authError || "Authentication required" }, { status: 401 })
     }
 
     // Normalizar email a lowercase para que no sea case sensitive
     const normalizedEmail = userEmail.toLowerCase().trim()
 
-    const sb = supabaseServer()
-    const { data: profile } = await sb
-      .from("users")
-      .select("*, company:companies(*)")
-      .eq("id", userId)
-      .maybeSingle()
+    // Intentar obtener retool_lookup_email de la compañía si userId está disponible
+    let emailForRetool = normalizedEmail
+    if (userId) {
+      try {
+        const sb = supabaseServer()
+        const { data: profile } = await sb
+          .from("users")
+          .select("*, company:companies(*)")
+          .eq("id", userId)
+          .maybeSingle()
 
-      console.log("User profile data:", profile)
+        console.log("User profile data:", profile)
 
-    let emailForRetool = profile?.company?.retool_lookup_email
-      ? profile.company.retool_lookup_email.toLowerCase().trim()
-      : normalizedEmail
+        if (profile?.company?.retool_lookup_email) {
+          emailForRetool = profile.company.retool_lookup_email.toLowerCase().trim()
+        }
+      } catch (error) {
+        console.log("Error fetching user profile, using normalized email:", error)
+        // Si falla, usar normalizedEmail (ya está asignado)
+      }
+    }
 
-    console.log("RETOOLLL EMAIILLLL", emailForRetool)
+    console.log("[v0] Email used for Retool:", emailForRetool)
 
     const RETOOL_API_KEY = process.env.RETOOL_API_KEY
     if (!RETOOL_API_KEY) {
@@ -85,11 +94,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Server configuration error" }, { status: 500 })
     }
 
-    const RETOOL_URL = process.env.RETOOL_URL
-    if (!RETOOL_URL) {
-      logError("Missing RETOOL_URL environment variable", "balance-api")
-      return NextResponse.json({ error: "Server configuration error" }, { status: 500 })
-    }
+    // Usar URL de env o fallback a la URL hardcodeada (como en backup)
+    const RETOOL_URL = process.env.RETOOL_URL || 
+      "https://api.retool.com/v1/workflows/26f0a051-0712-4184-854e-638edd43e929/startTrigger?environment=production"
 
     console.log("[v0] Fetching balance for user:", emailForRetool)
     console.log("[v0] API key length:", RETOOL_API_KEY.length)
@@ -131,10 +138,10 @@ export async function POST(request: NextRequest) {
       console.log("[v0] User has no balance data, setting to $0.00")
       const zeroBalance = "0.00"
       
-      // Cache the zero balance (SIN CAMBIOS)
+      // Cache the zero balance usando normalizedEmail para consistencia
       try {
-        balanceCache.set(userEmail, { balance: zeroBalance, timestamp: Date.now() })
-        console.log(`[v0] Cached zero balance for ${userEmail}: ${zeroBalance}`)
+        balanceCache.set(normalizedEmail, { balance: zeroBalance, timestamp: Date.now() })
+        console.log(`[v0] Cached zero balance for ${normalizedEmail}: ${zeroBalance}`)
       } catch (e) {
         console.log("[v0] Could not cache zero balance:", e)
       }
@@ -147,12 +154,13 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // NEW: handle direct data payloads from Retool (SIN CAMBIOS en cache)
+    // NEW: handle direct data payloads from Retool
     const directBalance = extractBalanceFromRetool(data)
     if (directBalance !== null) {
+      // Cache usando normalizedEmail para consistencia
       try {
-        balanceCache.set(userEmail, { balance: directBalance, timestamp: Date.now() })
-        console.log(`[v0] Cached balance for ${userEmail}: ${directBalance}`)
+        balanceCache.set(normalizedEmail, { balance: directBalance, timestamp: Date.now() })
+        console.log(`[v0] Cached balance for ${normalizedEmail}: ${directBalance}`)
       } catch (e) {
         console.log("[v0] Could not cache balance:", e)
       }
