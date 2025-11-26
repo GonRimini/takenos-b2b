@@ -19,7 +19,6 @@ export function useBalanceQuery(userEmail?: string) {
     gcTime: GC_24H,
     retry: 1,
     refetchOnWindowFocus: false,
-    retryDelay: 8000,
     refetchOnMount: false,
     refetchOnReconnect: false,
     placeholderData: keepPreviousData,
