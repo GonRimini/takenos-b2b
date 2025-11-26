@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { logError } from "@/lib/error-handler"
 import { balanceCache } from "@/lib/balance-cache"
 import { getAuthenticatedUserEmail } from "@/lib/auth-middleware"
+import { supabaseServer } from "@/lib/supabase-server"
 
 export const runtime = "nodejs"
 
@@ -17,7 +18,7 @@ function extractBalanceFromRetool(ret: any): string | null {
     if (typeof payload === "number" || typeof payload === "string") {
       return String(payload)
     }
-
+ 
     // If payload is an object
     if (typeof payload === "object") {
       // Array case: [{ balance: 123.45 }]
@@ -50,15 +51,33 @@ function extractBalanceFromRetool(ret: any): string | null {
 
 export async function POST(request: NextRequest) {
   try {
-    // Validar autenticación y obtener email del token
-    const { email: userEmail, error: authError } = await getAuthenticatedUserEmail(request)
+    // Validar autenticación y obtener email + id
+    const { email: userEmail, id: userId, error: authError } = await getAuthenticatedUserEmail(request)
+
+    console.log("Authenticated user email:", userEmail)
+    console.log("Authenticated user ID:", userId)
     
-    if (authError || !userEmail) {
+    if (authError || !userEmail || !userId) {
       return NextResponse.json({ error: authError || "Authentication required" }, { status: 401 })
     }
 
     // Normalizar email a lowercase para que no sea case sensitive
     const normalizedEmail = userEmail.toLowerCase().trim()
+
+    const sb = supabaseServer()
+    const { data: profile } = await sb
+      .from("users")
+      .select("*, company:companies(*)")
+      .eq("id", userId)
+      .maybeSingle()
+
+      console.log("User profile data:", profile)
+
+    let emailForRetool = profile?.company?.retool_lookup_email
+      ? profile.company.retool_lookup_email.toLowerCase().trim()
+      : normalizedEmail
+
+    console.log("RETOOLLL EMAIILLLL", emailForRetool)
 
     const RETOOL_API_KEY = process.env.RETOOL_API_KEY
     if (!RETOOL_API_KEY) {
@@ -66,16 +85,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Server configuration error" }, { status: 500 })
     }
 
-    console.log("[v0] Fetching balance for user:", normalizedEmail)
+    const RETOOL_URL = process.env.RETOOL_URL
+    if (!RETOOL_URL) {
+      logError("Missing RETOOL_URL environment variable", "balance-api")
+      return NextResponse.json({ error: "Server configuration error" }, { status: 500 })
+    }
+
+    console.log("[v0] Fetching balance for user:", emailForRetool)
     console.log("[v0] API key length:", RETOOL_API_KEY.length)
     console.log("[v0] API key first 10 chars:", RETOOL_API_KEY.substring(0, 10))
 
     const key = RETOOL_API_KEY.trim()
-    const requestBody = { userEmail: normalizedEmail }
+    const requestBody = { userEmail: emailForRetool }
     console.log("[v0] Request body being sent:", JSON.stringify(requestBody))
 
     const response = await fetch(
-      "https://api.retool.com/v1/workflows/26f0a051-0712-4184-854e-638edd43e929/startTrigger?environment=production",
+      RETOOL_URL,
       {
         method: "POST",
         headers: {
@@ -106,7 +131,7 @@ export async function POST(request: NextRequest) {
       console.log("[v0] User has no balance data, setting to $0.00")
       const zeroBalance = "0.00"
       
-      // Cache the zero balance
+      // Cache the zero balance (SIN CAMBIOS)
       try {
         balanceCache.set(userEmail, { balance: zeroBalance, timestamp: Date.now() })
         console.log(`[v0] Cached zero balance for ${userEmail}: ${zeroBalance}`)
@@ -122,10 +147,9 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // NEW: handle direct data payloads from Retool (e.g., { "data": "160.44" } or { data: { balance: ... } })
+    // NEW: handle direct data payloads from Retool (SIN CAMBIOS en cache)
     const directBalance = extractBalanceFromRetool(data)
     if (directBalance !== null) {
-      // Cache it for this user
       try {
         balanceCache.set(userEmail, { balance: directBalance, timestamp: Date.now() })
         console.log(`[v0] Cached balance for ${userEmail}: ${directBalance}`)
@@ -141,12 +165,11 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Legacy path: Retool sometimes returns a workflow_run for long tasks
+    // Legacy path (SIN CAMBIOS en cache)
     if ((data as any).success && (data as any).workflow_run) {
       console.log("[v0] Workflow triggered successfully, ID:", (data as any).workflow_run.id)
       console.log("[v0] Workflow status:", (data as any).workflow_run.status)
 
-      // Check if we have cached balance data for this user
       const cachedBalance = balanceCache.get(normalizedEmail)
 
       if (cachedBalance) {
@@ -166,7 +189,6 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // No recent cache, return workflow ID for polling
       return NextResponse.json({
         message: "Workflow triggered, poll for results",
         email: normalizedEmail,
@@ -176,7 +198,6 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Unexpected response format from Retool
     console.log("[v0] Unexpected response format from Retool")
     return NextResponse.json({ error: "Unexpected response format" }, { status: 500 })
   } catch (error) {

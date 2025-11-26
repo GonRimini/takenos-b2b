@@ -10,12 +10,13 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AccountSelectionStep } from "./DepositAccountSelection";
-import CreateAccountWizard from "@/components/shared/CreateAccountWizard";
+// import CreateAccountWizard from "@/components/shared/CreateAccountWizard";
+import { CreateExternalAccountWizard } from "../external-accounts";
 import MethodAndDestinationCard from "./MethodAndDestinationCard";
 import UploadFile from "./UploadFile";
 import ReviewConfirmationCard from "./ReviewConfirmationCard";
 import { useAuth } from "@/components/auth";
-import { useWhitelistedDepositAccountsQuery } from "@/hooks/deposits/queries";
+import { useExternalAccountsQuery } from "@/hooks/external-accounts/queries";
 import { useDepositConfirmation } from "@/hooks/deposits/useDepositConfirmation";
 import DepositWizardProgress from "./DepositWizardProgress";
 
@@ -42,10 +43,8 @@ export default function DepositFormWizard() {
     data: accounts = [],
     isLoading,
     refetch,
-  } = useWhitelistedDepositAccountsQuery(
-    // Para el paso 1 listamos todas las cuentas del usuario sin filtrar por método
-    // El endpoint acepta method; usamos undefined y hacemos refetch por método si hiciera falta luego
-    userEmail,
+  } = useExternalAccountsQuery(
+    undefined, // Sin filtrar por rail, traemos todas las cuentas
     step === 1 && !creatingNewAccount
   );
 
@@ -98,9 +97,7 @@ export default function DepositFormWizard() {
   if (creatingNewAccount) {
     return (
       <div className="space-y-6">
-        <CreateAccountWizard
-          userEmail={userEmail}
-          flowType="deposit"
+        <CreateExternalAccountWizard
           onCreated={async () => {
             await refetch();
             setCreatingNewAccount(false);

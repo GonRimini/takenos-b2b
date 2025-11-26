@@ -9,14 +9,13 @@ import { usePathname, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/components/auth"
 import { toast } from "@/hooks/use-toast"
-import { useCompanyName } from "@/hooks/use-company-name"
 
 export function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
   const { user, signOut, loading } = useAuth()
-  const { companyName, loading: companyLoading } = useCompanyName()
+  const companyName = user?.dbUser?.company?.name
 
   // Debug logs
   console.log("🔍 Navbar render - User:", user?.email || "No user")
@@ -120,7 +119,7 @@ export function Navbar() {
             {/* DEBUG BUTTON - ALWAYS VISIBLE */}
             <div className="flex items-center space-x-4 bg-yellow-200 p-2 rounded border-4 border-red-500">
               <span className="text-sm font-bold text-black">
-                Usuario: {companyLoading ? "Cargando..." : (companyName || user?.email || "NO USER")}
+                Usuario: {(companyName || user?.email || "NO USER")}
               </span>
               <span className="text-xs text-black">Loading: {loading ? "true" : "false"}</span>
               <button 
@@ -197,7 +196,7 @@ export function Navbar() {
               {/* Mobile logout - SUPER VISIBLE */}
               <div className="pt-4 border-t border-border bg-yellow-200 p-3 rounded">
                 <div className="text-sm font-bold text-black mb-2">
-                  Usuario: {companyLoading ? "Cargando..." : (companyName || user?.email || "NO USER")}
+                  Usuario: {(companyName || user?.email || "NO USER")}
                 </div>
                 <button
                   className="w-full px-4 py-3 bg-red-600 text-white font-bold rounded hover:bg-red-700 border-2 border-red-800"

@@ -125,3 +125,40 @@ export const useIsBolivianQuery = (
     refetchOnWindowFocus: false,
   });
 };
+
+export const useLoadDepositAccountQuery = (
+  method: DepositMethod,
+  enabled: boolean = true
+) => {
+  const repository = useDepositsRepository();
+
+  return useQuery({
+    queryKey: ['deposit-account', method ?? null],
+    queryFn: () => repository.loadDepositAccount(method!),
+    enabled: enabled && !!method,
+    staleTime: 10 * 60 * 1000, // Cache por 10 minutos
+    gcTime: 30 * 60 * 1000, // Mantener en cache 30 minutos
+    retry: 2,
+    refetchOnWindowFocus: false, // No refetch al cambiar tabs del browser
+  });
+};
+
+/**
+ * Hook optimizado que trae TODAS las cuentas de depósito de una vez
+ * Usa la RPC get_funding_accounts que devuelve un array con todas las cuentas
+ * La data se puede filtrar por rail en el componente
+ */
+export const useAllDepositAccountsQuery = () => {
+  const repository = useDepositsRepository();
+
+  return useQuery({
+    queryKey: ['all-deposit-accounts'],
+    queryFn: () => repository.loadAllDepositAccounts(),
+    staleTime: Infinity, // Nunca marcar como stale - solo refetch manual
+    gcTime: 30 * 60 * 1000, // Mantener en cache 30 minutos
+    retry: 2,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+  });
+};
