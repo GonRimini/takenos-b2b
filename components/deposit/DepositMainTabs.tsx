@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+// import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+// import { Alert, AlertDescription } from "@/components/ui/alert";
+// import { AlertCircle } from "lucide-react";
 import DepositInstructionsSection from "./DepositInstructionsSection";
 import DepositFormWizard from "./DepositFormWizard";
 

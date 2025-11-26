@@ -9,7 +9,6 @@ import { clearUserSession, getUserSession } from "@/lib/auth";
 import { useAuth } from "@/components/auth";
 import { toast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
-import { useCompanyName } from "@/hooks/use-company-name";
 
 const DepositIcon = () => (
   <svg
@@ -109,7 +108,8 @@ export function Sidebar() {
   const router = useRouter();
   const [userEmail, setUserEmail] = useState<string>("");
   const { signOut, user } = useAuth();
-  const { companyName, loading: companyLoading } = useCompanyName();
+  const companyName = user?.dbUser?.company?.name
+  const userName = `${user?.dbUser?.name || ""} ${user?.dbUser?.last_name || ""}`.trim();
 
   useEffect(() => {
     const sessionUser = getUserSession();
@@ -123,16 +123,9 @@ export function Sidebar() {
   }, [user]);
 
   const handleLogout = async () => {
-    console.log("🚪🚪🚪 SIDEBAR LOGOUT CLICKED!");
-    console.log("🚪 Current userEmail from sidebar:", userEmail);
-    console.log("🚪 Current user from auth:", user?.email);
-    console.log("🚪 SignOut function type:", typeof signOut);
 
     try {
-      console.log("🔥 Calling signOut function...");
-      const result = await signOut();
-      console.log("🔥 SignOut result:", result);
-
+      await signOut();
       // También limpiar la sesión antigua por si acaso
       clearUserSession();
 
@@ -144,7 +137,6 @@ export function Sidebar() {
       // Forzar recarga completa
       window.location.href = "/login";
     } catch (error) {
-      console.error("🔥 Error in sidebar logout:", error);
       alert("Error in logout: " + error);
 
       // Fallback al método antiguo
@@ -210,11 +202,7 @@ export function Sidebar() {
         <div className="mb-3">
           <p className="text-xs text-gray-500 mb-1">Usuario conectado:</p>
           <p className="text-sm font-medium text-gray-900 truncate">
-            {companyLoading ? (
-              <span className="animate-pulse">Cargando...</span>
-            ) : (
-              companyName || userEmail
-            )}
+            {userName || userEmail}
           </p>
         </div>
         <Button onClick={handleLogout} variant="logout" size="sm">
