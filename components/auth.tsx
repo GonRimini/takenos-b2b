@@ -4,7 +4,6 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { User, Session, AuthError } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase-client";
-import { setupGlobalAuthErrorHandler, clearAllSessionData } from "@/lib/session-cleanup";
 
 // 👇 agregá esto
 interface DbUser {
@@ -88,137 +87,45 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   useEffect(() => {
-    // Función para validar si un token es válido
-    const validateToken = async (token: string | undefined): Promise<boolean> => {
-      if (!token) return false;
-      
-      try {
-        const { data: { user }, error } = await supabase.auth.getUser(token);
-        return !error && !!user;
-      } catch (error) {
-        console.error("Error validating token:", error);
-        return false;
-      }
-    };
-
-    // Función para limpiar sesión inválida (NO bloquea el loading)
-    const clearInvalidSession = () => {
-      console.log("🔒 Limpiando sesión inválida...");
-      setIsSigningOut(true);
-      setUser(null);
-      setSession(null);
-      
-      try {
-        localStorage.clear();
-        sessionStorage.clear();
-      } catch (err) {
-        console.error("Error clearing storage:", err);
-      }
-      
-      setIsSigningOut(false);
-      setLoading(false); // CRÍTICO: Detener loading INMEDIATAMENTE
-      
-      // Hacer signOut en background (no bloquear)
-      supabase.auth.signOut({ scope: "global" }).catch((err) => {
-        console.error("Error signing out:", err);
-      });
-      
-      // Redirigir solo si no estamos ya en login
-      if (pathname !== "/login") {
-        router.push("/login");
-      }
-    };
-
     // Obtener sesión inicial SOLO si no estamos haciendo logout
     const getInitialSession = async () => {
       if (isSigningOut) {
-        setLoading(false);
         return;
       }
 
       try {
-        // Timeout de seguridad para getSession (5 segundos max)
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error("Timeout getting session")), 5000);
-        });
-
         const {
           data: { session },
           error,
-        } = await Promise.race([sessionPromise, timeoutPromise]) as any;
+        } = await supabase.auth.getSession();
 
-        // Si hay error al obtener la sesión, limpiar y detener loading
+        // Si hay error al obtener la sesión, dejamos al usuario como no autenticado
         if (error) {
           console.error("❌ Error obteniendo sesión:", error);
           setUser(null);
           setSession(null);
-          setLoading(false);
-          clearInvalidSession();
           return;
         }
 
-        // Si no hay sesión, limpiar y detener loading
+        // Si no hay sesión, dejamos al usuario como no autenticado
         if (!session) {
           setUser(null);
           setSession(null);
-          setLoading(false);
           return;
-        }
-
-        // Si hay una sesión, validar que el token sea válido (con timeout)
-        if (session?.access_token) {
-          try {
-            const validationPromise = validateToken(session.access_token);
-            const timeoutPromise = new Promise<boolean>((resolve) => {
-              setTimeout(() => resolve(false), 3000); // 3 segundos max
-            });
-            
-            const isValid = await Promise.race([validationPromise, timeoutPromise]);
-            
-            if (!isValid) {
-              console.error("❌ Token inválido detectado, limpiando sesión...");
-              setUser(null);
-              setSession(null);
-              setLoading(false);
-              clearInvalidSession();
-              return;
-            }
-          } catch (validationError) {
-            console.error("❌ Error validando token:", validationError);
-            setUser(null);
-            setSession(null);
-            setLoading(false);
-            clearInvalidSession();
-            return;
-          }
         }
 
         // Sesión válida, continuar normalmente
         setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-        
-        // Cargar datos del usuario en background (no bloquear)
-        loadUserWithDbData(session?.user ?? null).catch((err) => {
-          console.error("Error loading user DB data:", err);
-        });
+        await loadUserWithDbData(session?.user ?? null);
       } catch (error) {
         console.error("❌ Error inesperado en getInitialSession:", error);
         setUser(null);
         setSession(null);
-        setLoading(false);
-        clearInvalidSession();
       }
+      setLoading(false);
     };
 
     getInitialSession();
-
-    // Timeout de seguridad: si después de 8 segundos todavía está cargando, forzar detener
-    const safetyTimeout = setTimeout(() => {
-      console.warn("⚠️ Timeout de seguridad: deteniendo loading después de 8 segundos");
-      setLoading(false);
-    }, 8000);
 
     // Escuchar cambios de autenticación
     const {
@@ -229,80 +136,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return;
       }
 
-      // Si el evento es SIGNED_OUT o no hay sesión, limpiar todo
-      if (event === "SIGNED_OUT" || !session) {
+      // Si no hay sesión (o se ha cerrado), limpiar todo
+      if (!session) {
         setSession(null);
         setUser(null);
         setIsSigningOut(false);
         setLoading(false);
-        try {
-          localStorage.clear();
-          sessionStorage.clear();
-        } catch (err) {
-          console.error("Error clearing storage:", err);
-        }
         return;
       }
 
-      // Si el evento es TOKEN_REFRESHED o SIGNED_IN, validar el token (con timeout)
-      if (session?.access_token && (event === "TOKEN_REFRESHED" || event === "SIGNED_IN")) {
-        try {
-          const validationPromise = validateToken(session.access_token);
-          const timeoutPromise = new Promise<boolean>((resolve) => {
-            setTimeout(() => resolve(false), 3000);
-          });
-          
-          const isValid = await Promise.race([validationPromise, timeoutPromise]);
-          
-          if (!isValid) {
-            console.error("❌ Token inválido después de refresh, limpiando sesión...");
-            setSession(null);
-            setUser(null);
-            setLoading(false);
-            clearInvalidSession();
-            return;
-          }
-        } catch (validationError) {
-          console.error("❌ Error validando token en refresh:", validationError);
-          setSession(null);
-          setUser(null);
-          setLoading(false);
-          clearInvalidSession();
-          return;
-        }
-      }
-
-      // Actualizar sesión y usuario INMEDIATAMENTE
+      // Actualizar sesión y usuario
       setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false); // CRÍTICO: Detener loading antes de cargar datos adicionales
-
-      // Cargar datos del usuario en background (no bloquear)
-      loadUserWithDbData(session?.user ?? null).catch((error) => {
-        console.error("Error loading user DB data:", error);
-      });
+      await loadUserWithDbData(session?.user ?? null);
+      setLoading(false);
     });
-
-    // Validar token periódicamente cada 5 minutos
-    const tokenValidationInterval = setInterval(async () => {
-      if (!isSigningOut) {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        if (currentSession?.access_token) {
-          const isValid = await validateToken(currentSession.access_token);
-          if (!isValid) {
-            console.error("❌ Token inválido en validación periódica, limpiando sesión...");
-            await clearInvalidSession();
-          }
-        }
-      }
-    }, 5 * 60 * 1000); // 5 minutos
 
     return () => {
       subscription.unsubscribe();
-      clearInterval(tokenValidationInterval);
-      clearTimeout(safetyTimeout);
     };
-  }, [isSigningOut, router]);
+  }, [isSigningOut]);
 
   // Manejo de rutas protegidas
   useEffect(() => {
@@ -379,25 +231,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     signOut,
     resetPassword,
   };
-
-  // Configurar interceptor global para detectar errores de autenticación en todas las peticiones
-  useEffect(() => {
-    const handleAuthError = async () => {
-      // Solo limpiar si hay una sesión activa (evitar loops en páginas públicas)
-      if (session || user) {
-        console.log("🔒 Error de autenticación detectado globalmente, limpiando sesión...");
-        await signOut();
-        clearAllSessionData();
-        router.push("/login");
-      }
-    };
-
-    const cleanupFetch = setupGlobalAuthErrorHandler(handleAuthError);
-
-    return () => {
-      cleanupFetch();
-    };
-  }, [signOut, router, session, user]);
 
   // Mostrar loading mientras se inicializa la autenticación
   if (loading) {
