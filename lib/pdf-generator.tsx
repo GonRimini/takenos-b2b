@@ -678,6 +678,10 @@ function adaptInstructions(instructions: any) {
       accountNumber: findValue(instructions.fields, "Número de cuenta"),
       accountType: findValue(instructions.fields, "Tipo de cuenta"),
       beneficiaryAddress: instructions.addresses?.beneficiary || "",
+      // Campos del intermediario (SWIFT)
+      intermediaryBank: findValue(instructions.fields, "Banco Intermediario"),
+      intermediaryRoutingNumber: findValue(instructions.fields, "Routing Number Intermediario"),
+      intermediaryBicCode: findValue(instructions.fields, "SWIFT/BIC Code Intermediario"),
     },
   };
 }
