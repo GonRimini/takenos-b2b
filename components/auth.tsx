@@ -147,15 +147,28 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return;
       }
 
-      // Actualizar sesión y usuario INMEDIATAMENTE (sin esperar nada)
-      setSession(session);
-      setUser(session.user as EnrichedUser);
-      setLoading(false);
-
-      // Cargar datos adicionales en background (NO bloquear)
-      loadUserWithDbData(session.user).catch(() => {
-        // Si falla, ya tenemos el usuario básico
+      // Verificar si ya tenemos este usuario con dbUser cargado antes de actualizar
+      setUser((prevUser) => {
+        // Si es el mismo usuario y ya tiene dbUser cargado, mantenerlo
+        if (prevUser?.id === session.user.id && prevUser?.dbUser) {
+          // Actualizar datos básicos pero mantener dbUser existente
+          return {
+            ...session.user,
+            dbUser: prevUser.dbUser,
+          } as EnrichedUser;
+        }
+        
+        // Usuario nuevo o sin dbUser - establecer básico y cargar datos en background
+        const newUser = session.user as EnrichedUser;
+        loadUserWithDbData(session.user).catch(() => {
+          // Si falla, ya tenemos el usuario básico
+        });
+        return newUser;
       });
+
+      // Actualizar sesión
+      setSession(session);
+      setLoading(false);
     });
 
     return () => {
