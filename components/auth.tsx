@@ -101,78 +101,124 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
     };
 
-    // Función para limpiar sesión inválida
-    const clearInvalidSession = async () => {
+    // Función para limpiar sesión inválida (NO bloquea el loading)
+    const clearInvalidSession = () => {
       console.log("🔒 Limpiando sesión inválida...");
       setIsSigningOut(true);
       setUser(null);
       setSession(null);
-      localStorage.clear();
-      sessionStorage.clear();
       
       try {
-        await supabase.auth.signOut({ scope: "global" });
+        localStorage.clear();
+        sessionStorage.clear();
       } catch (err) {
-        console.error("Error signing out:", err);
+        console.error("Error clearing storage:", err);
       }
       
       setIsSigningOut(false);
-      setLoading(false);
-      router.push("/login");
+      setLoading(false); // CRÍTICO: Detener loading INMEDIATAMENTE
+      
+      // Hacer signOut en background (no bloquear)
+      supabase.auth.signOut({ scope: "global" }).catch((err) => {
+        console.error("Error signing out:", err);
+      });
+      
+      // Redirigir solo si no estamos ya en login
+      if (pathname !== "/login") {
+        router.push("/login");
+      }
     };
 
     // Obtener sesión inicial SOLO si no estamos haciendo logout
     const getInitialSession = async () => {
       if (isSigningOut) {
+        setLoading(false);
         return;
       }
 
       try {
+        // Timeout de seguridad para getSession (5 segundos max)
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error("Timeout getting session")), 5000);
+        });
+
         const {
           data: { session },
           error,
-        } = await supabase.auth.getSession();
+        } = await Promise.race([sessionPromise, timeoutPromise]) as any;
 
-        // Si hay error al obtener la sesión o la sesión es null/undefined, limpiar todo
+        // Si hay error al obtener la sesión, limpiar y detener loading
         if (error) {
           console.error("❌ Error obteniendo sesión:", error);
-          await clearInvalidSession();
+          setUser(null);
+          setSession(null);
+          setLoading(false);
+          clearInvalidSession();
           return;
         }
 
-        // Si hay una sesión, validar que el token sea válido
-        if (session?.access_token) {
-          const isValid = await validateToken(session.access_token);
-          
-          if (!isValid) {
-            console.error("❌ Token inválido detectado, limpiando sesión...");
-            await clearInvalidSession();
-            return;
-          }
-        }
-
-        // Si no hay sesión, asegurarse de que todo esté limpio
+        // Si no hay sesión, limpiar y detener loading
         if (!session) {
-          localStorage.clear();
-          sessionStorage.clear();
           setUser(null);
           setSession(null);
           setLoading(false);
           return;
         }
 
+        // Si hay una sesión, validar que el token sea válido (con timeout)
+        if (session?.access_token) {
+          try {
+            const validationPromise = validateToken(session.access_token);
+            const timeoutPromise = new Promise<boolean>((resolve) => {
+              setTimeout(() => resolve(false), 3000); // 3 segundos max
+            });
+            
+            const isValid = await Promise.race([validationPromise, timeoutPromise]);
+            
+            if (!isValid) {
+              console.error("❌ Token inválido detectado, limpiando sesión...");
+              setUser(null);
+              setSession(null);
+              setLoading(false);
+              clearInvalidSession();
+              return;
+            }
+          } catch (validationError) {
+            console.error("❌ Error validando token:", validationError);
+            setUser(null);
+            setSession(null);
+            setLoading(false);
+            clearInvalidSession();
+            return;
+          }
+        }
+
         // Sesión válida, continuar normalmente
         setSession(session);
         setUser(session?.user ?? null);
+        setLoading(false);
+        
+        // Cargar datos del usuario en background (no bloquear)
+        loadUserWithDbData(session?.user ?? null).catch((err) => {
+          console.error("Error loading user DB data:", err);
+        });
       } catch (error) {
         console.error("❌ Error inesperado en getInitialSession:", error);
-        await clearInvalidSession();
-      } finally {
+        setUser(null);
+        setSession(null);
         setLoading(false);
+        clearInvalidSession();
       }
     };
 
     getInitialSession();
+
+    // Timeout de seguridad: si después de 8 segundos todavía está cargando, forzar detener
+    const safetyTimeout = setTimeout(() => {
+      console.warn("⚠️ Timeout de seguridad: deteniendo loading después de 8 segundos");
+      setLoading(false);
+    }, 8000);
 
     // Escuchar cambios de autenticación
     const {
@@ -183,35 +229,58 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return;
       }
 
-      // Si el evento es TOKEN_REFRESHED o SIGNED_IN, validar el token
+      // Si el evento es SIGNED_OUT o no hay sesión, limpiar todo
+      if (event === "SIGNED_OUT" || !session) {
+        setSession(null);
+        setUser(null);
+        setIsSigningOut(false);
+        setLoading(false);
+        try {
+          localStorage.clear();
+          sessionStorage.clear();
+        } catch (err) {
+          console.error("Error clearing storage:", err);
+        }
+        return;
+      }
+
+      // Si el evento es TOKEN_REFRESHED o SIGNED_IN, validar el token (con timeout)
       if (session?.access_token && (event === "TOKEN_REFRESHED" || event === "SIGNED_IN")) {
-        const isValid = await validateToken(session.access_token);
-        if (!isValid) {
-          console.error("❌ Token inválido después de refresh, limpiando sesión...");
-          await clearInvalidSession();
+        try {
+          const validationPromise = validateToken(session.access_token);
+          const timeoutPromise = new Promise<boolean>((resolve) => {
+            setTimeout(() => resolve(false), 3000);
+          });
+          
+          const isValid = await Promise.race([validationPromise, timeoutPromise]);
+          
+          if (!isValid) {
+            console.error("❌ Token inválido después de refresh, limpiando sesión...");
+            setSession(null);
+            setUser(null);
+            setLoading(false);
+            clearInvalidSession();
+            return;
+          }
+        } catch (validationError) {
+          console.error("❌ Error validando token en refresh:", validationError);
+          setSession(null);
+          setUser(null);
+          setLoading(false);
+          clearInvalidSession();
           return;
         }
       }
 
-      // Si el evento es SIGNED_OUT, limpiar todo
-      if (event === "SIGNED_OUT" || !session) {
-        setSession(null);
-        setUser(null);
-        localStorage.clear();
-        sessionStorage.clear();
-        setIsSigningOut(false);
-        setLoading(false);
-        return;
-      }
-
+      // Actualizar sesión y usuario INMEDIATAMENTE
       setSession(session);
-      await loadUserWithDbData(session?.user ?? null);
-      setLoading(false);
+      setUser(session?.user ?? null);
+      setLoading(false); // CRÍTICO: Detener loading antes de cargar datos adicionales
 
-      // Limpiar flag de logout cuando se complete
-      if (event === "SIGNED_OUT") {
-        setIsSigningOut(false);
-      }
+      // Cargar datos del usuario en background (no bloquear)
+      loadUserWithDbData(session?.user ?? null).catch((error) => {
+        console.error("Error loading user DB data:", error);
+      });
     });
 
     // Validar token periódicamente cada 5 minutos
@@ -231,6 +300,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => {
       subscription.unsubscribe();
       clearInterval(tokenValidationInterval);
+      clearTimeout(safetyTimeout);
     };
   }, [isSigningOut, router]);
 
