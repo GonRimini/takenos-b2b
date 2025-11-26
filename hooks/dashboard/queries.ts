@@ -9,7 +9,11 @@ export function useBalanceQuery(userEmail?: string) {
 
   return useQuery({
     queryKey: ["balance", userEmail],
-    queryFn: () => repository.getBalance(userEmail),
+    queryFn: async () => {
+      // Esperar un momento para asegurar que el usuario esté completamente cargado
+      await new Promise(resolve => setTimeout(resolve, 500));
+      return repository.getBalance(userEmail);
+    },
     enabled: !!userEmail,
     staleTime: STALE_30M,
     gcTime: GC_24H,
