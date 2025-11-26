@@ -87,7 +87,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   useEffect(() => {
-    // Obtener sesión inicial SOLO si no estamos haciendo logout
+    let mounted = true;
+
+    // Obtener sesión inicial
     const getInitialSession = async () => {
       if (isSigningOut) {
         setLoading(false);
@@ -100,27 +102,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
           error,
         } = await supabase.auth.getSession();
 
-        // Si hay error al obtener la sesión, dejamos al usuario como no autenticado
-        if (error) {
-          console.error("❌ Error obteniendo sesión:", error);
-          setUser(null);
-          setSession(null);
-        } else if (!session) {
-          // Si no hay sesión, dejamos al usuario como no autenticado
+        if (!mounted) return;
+
+        if (error || !session) {
           setUser(null);
           setSession(null);
         } else {
-          // Sesión válida, continuar normalmente
+          // Establecer sesión y usuario INMEDIATAMENTE
           setSession(session);
-          await loadUserWithDbData(session.user ?? null);
+          setUser(session.user as EnrichedUser);
+          // Cargar datos adicionales en background (NO bloquear)
+          loadUserWithDbData(session.user).catch(() => {
+            // Si falla, ya tenemos el usuario básico
+          });
         }
       } catch (error) {
-        console.error("❌ Error inesperado en getInitialSession:", error);
-        setUser(null);
-        setSession(null);
+        console.error("Error obteniendo sesión:", error);
+        if (mounted) {
+          setUser(null);
+          setSession(null);
+        }
       } finally {
-        // Pase lo que pase, dejar de mostrar el loading
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
@@ -130,12 +135,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      // Si estamos haciendo logout, ignorar cambios de sesión temporales
-      if (isSigningOut && event !== "SIGNED_OUT") {
+      if (!mounted || (isSigningOut && event !== "SIGNED_OUT")) {
         return;
       }
 
-      // Si no hay sesión (o se ha cerrado), limpiar todo
       if (!session) {
         setSession(null);
         setUser(null);
@@ -144,28 +147,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return;
       }
 
-      // Actualizar sesión y usuario
+      // Actualizar sesión y usuario INMEDIATAMENTE (sin esperar nada)
       setSession(session);
-      await loadUserWithDbData(session?.user ?? null);
+      setUser(session.user as EnrichedUser);
       setLoading(false);
+
+      // Cargar datos adicionales en background (NO bloquear)
+      loadUserWithDbData(session.user).catch(() => {
+        // Si falla, ya tenemos el usuario básico
+      });
     });
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
   }, [isSigningOut]);
-
-  // Failsafe: si por alguna razón loading queda trabado, lo apagamos a los 8s
-  useEffect(() => {
-    if (!loading) return;
-
-    const timeoutId = setTimeout(() => {
-      console.warn("⚠️ Failsafe: forzando fin de loading después de 8s");
-      setLoading(false);
-    }, 8000);
-
-    return () => clearTimeout(timeoutId);
-  }, [loading]);
 
   // Manejo de rutas protegidas
   useEffect(() => {
