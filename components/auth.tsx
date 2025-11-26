@@ -87,23 +87,46 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   useEffect(() => {
-    // Obtener sesión inicial SOLO si no estamos haciendo logout
+    let mounted = true;
+
+    // Obtener sesión inicial
     const getInitialSession = async () => {
       if (isSigningOut) {
+        setLoading(false);
         return;
       }
 
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.getSession();
-      if (error) {
-      } else {
-        setSession(session);
-        setUser(session?.user ?? null);
-        // await loadUserWithDbData(session?.user ?? null);
+      try {
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
+
+        if (!mounted) return;
+
+        if (error || !session) {
+          setUser(null);
+          setSession(null);
+        } else {
+          // Establecer sesión y usuario INMEDIATAMENTE
+          setSession(session);
+          setUser(session.user as EnrichedUser);
+          // Cargar datos adicionales en background (NO bloquear)
+          loadUserWithDbData(session.user).catch(() => {
+            // Si falla, ya tenemos el usuario básico
+          });
+        }
+      } catch (error) {
+        console.error("Error obteniendo sesión:", error);
+        if (mounted) {
+          setUser(null);
+          setSession(null);
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
       }
-      setLoading(false);
     };
 
     getInitialSession();
@@ -112,23 +135,33 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      // Si estamos haciendo logout, ignorar cambios de sesión temporales
-      if (isSigningOut && event !== "SIGNED_OUT") {
+      if (!mounted || (isSigningOut && event !== "SIGNED_OUT")) {
         return;
       }
 
+      if (!session) {
+        setSession(null);
+        setUser(null);
+        setIsSigningOut(false);
+        setLoading(false);
+        return;
+      }
+
+      // Actualizar sesión y usuario INMEDIATAMENTE (sin esperar nada)
       setSession(session);
-      // setUser(session?.user ?? null);
-      await loadUserWithDbData(session?.user ?? null);
+      setUser(session.user as EnrichedUser);
       setLoading(false);
 
-      // Limpiar flag de logout cuando se complete
-      if (event === "SIGNED_OUT") {
-        setIsSigningOut(false);
-      }
+      // Cargar datos adicionales en background (NO bloquear)
+      loadUserWithDbData(session.user).catch(() => {
+        // Si falla, ya tenemos el usuario básico
+      });
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, [isSigningOut]);
 
   // Manejo de rutas protegidas

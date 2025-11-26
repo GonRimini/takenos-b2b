@@ -17,8 +17,17 @@ import ExchangeRate from "@/components/ExchangeRate";
 
 export default function Dashboard() {
   const { user } = useAuth();
+
   const companyName = user?.dbUser?.company?.name;
   const isBolivian = user?.dbUser?.nationality === "bolivian";
+
+  // Construir un nombre amigable evitando "undefined undefined"
+  const fullName =
+    user?.dbUser?.name && user?.dbUser?.last_name
+      ? `${user.dbUser.name} ${user.dbUser.last_name}`
+      : user?.dbUser?.name || user?.dbUser?.last_name || null;
+
+  const displayName = companyName || fullName || user?.email || "Usuario";
 
   console.log("Dashboard user:", user);
 
@@ -62,9 +71,7 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            Hola, {companyName || user?.dbUser?.name + " " + user?.dbUser?.last_name || user?.email}
-          </h1>
+          <h1 className="text-3xl font-bold text-gray-900">Hola, {displayName}</h1>
           <p className="text-gray-600 mt-1">Resumen general de tu cuenta</p>
         </div>
 
