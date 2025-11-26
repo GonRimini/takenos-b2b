@@ -155,6 +155,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
   }, [isSigningOut]);
 
+  // Failsafe: si por alguna razón loading queda trabado, lo apagamos a los 8s
+  useEffect(() => {
+    if (!loading) return;
+
+    const timeoutId = setTimeout(() => {
+      console.warn("⚠️ Failsafe: forzando fin de loading después de 8s");
+      setLoading(false);
+    }, 8000);
+
+    return () => clearTimeout(timeoutId);
+  }, [loading]);
+
   // Manejo de rutas protegidas
   useEffect(() => {
     if (loading) {
