@@ -90,6 +90,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Obtener sesión inicial SOLO si no estamos haciendo logout
     const getInitialSession = async () => {
       if (isSigningOut) {
+        setLoading(false);
         return;
       }
 
@@ -104,25 +105,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
           console.error("❌ Error obteniendo sesión:", error);
           setUser(null);
           setSession(null);
-          return;
-        }
-
-        // Si no hay sesión, dejamos al usuario como no autenticado
-        if (!session) {
+        } else if (!session) {
+          // Si no hay sesión, dejamos al usuario como no autenticado
           setUser(null);
           setSession(null);
-          return;
+        } else {
+          // Sesión válida, continuar normalmente
+          setSession(session);
+          await loadUserWithDbData(session.user ?? null);
         }
-
-        // Sesión válida, continuar normalmente
-        setSession(session);
-        await loadUserWithDbData(session?.user ?? null);
       } catch (error) {
         console.error("❌ Error inesperado en getInitialSession:", error);
         setUser(null);
         setSession(null);
+      } finally {
+        // Pase lo que pase, dejar de mostrar el loading
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     getInitialSession();
