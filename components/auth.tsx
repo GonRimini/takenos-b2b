@@ -1,165 +1,201 @@
-"use client"
+"use client";
 
-import { createContext, useContext, useEffect, useState } from "react"
-import { useRouter, usePathname } from "next/navigation"
-import { User, Session, AuthError } from "@supabase/supabase-js"
-import { supabase } from "@/lib/supabase-client"
+import { createContext, useContext, useEffect, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { User, Session, AuthError } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase-client";
 
-interface AuthContextType {
-  user: User | null
-  session: Session | null
-  loading: boolean
-  signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>
-  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>
-  signOut: () => Promise<{ error: AuthError | null }>
-  resetPassword: (email: string) => Promise<{ error: AuthError | null }>
+// 👇 agregá esto
+interface DbUser {
+  id: string;
+  email: string;
+  name: string;
+  last_name: string;
+  company_id: string;
+  company: {
+    id: string;
+    name: string;
+    // otros campos de la tabla companies si los necesitás
+  } | null;
+  nationality: string;
+  // después le agregás los campos reales de tu tabla public.users
+  [key: string]: unknown;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+type EnrichedUser = User & {
+  dbUser?: DbUser; // acá va lo que viene de public.users
+};
+
+interface AuthContextType {
+  user: EnrichedUser | null;
+  session: Session | null;
+  loading: boolean;
+  signUp: (
+    email: string,
+    password: string
+  ) => Promise<{ error: AuthError | null }>;
+  signIn: (
+    email: string,
+    password: string
+  ) => Promise<{ error: AuthError | null }>;
+  signOut: () => Promise<{ error: AuthError | null }>;
+  resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 interface AuthProviderProps {
-  children: React.ReactNode
+  children: React.ReactNode;
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<User | null>(null)
-  const [session, setSession] = useState<Session | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [isSigningOut, setIsSigningOut] = useState(false)
-  const router = useRouter()
-  const pathname = usePathname()
+  const [user, setUser] = useState<EnrichedUser | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const loadUserWithDbData = async (authUser: User | null) => {
+    if (!authUser) {
+      setUser(null);
+      return;
+    }
+
+    console.log(authUser);
+
+    const { data, error } = await supabase
+      .from("users") // 👈 tu tabla en schema public
+      .select("*, company:companies(*)")
+      .eq("id", authUser.id)
+      .single();
+
+    console.log("Loaded DB user data:", data);
+    if (error) {
+      // si falla el select, al menos guardamos el user “pelado”
+      console.log("Error loading DB user data:", error.message);
+      setUser({ ...authUser } as EnrichedUser);
+      return;
+    }
+
+    const dbUser = data as DbUser;
+
+    setUser({
+      ...authUser,
+      dbUser, // 👈 acá queda todo lo de public.users dentro de user
+    } as EnrichedUser);
+  };
 
   useEffect(() => {
     // Obtener sesión inicial SOLO si no estamos haciendo logout
     const getInitialSession = async () => {
       if (isSigningOut) {
-        console.log("🚫 Saltando getInitialSession porque estamos haciendo logout")
-        return
+        return;
       }
-      
-      const { data: { session }, error } = await supabase.auth.getSession()
-      if (error) {
-        console.error("Error getting initial session:", error)
-      } else {
-        console.log("📱 Sesión inicial obtenida:", session?.user?.email || "null")
-        setSession(session)
-        setUser(session?.user ?? null)
-      }
-      setLoading(false)
-    }
 
-    getInitialSession()
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.getSession();
+      if (error) {
+      } else {
+        setSession(session);
+        setUser(session?.user ?? null);
+        // await loadUserWithDbData(session?.user ?? null);
+      }
+      setLoading(false);
+    };
+
+    getInitialSession();
 
     // Escuchar cambios de autenticación
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log("🔐 Auth state change - Event:", event, "Session:", session?.user?.email || "null")
-        
-        // Si estamos haciendo logout, ignorar cambios de sesión temporales
-        if (isSigningOut && event !== 'SIGNED_OUT') {
-          console.log("🚫 Ignorando cambio de auth durante logout")
-          return
-        }
-        
-        setSession(session)
-        setUser(session?.user ?? null)
-        setLoading(false)
-        
-        // Limpiar flag de logout cuando se complete
-        if (event === 'SIGNED_OUT') {
-          setIsSigningOut(false)
-        }
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // Si estamos haciendo logout, ignorar cambios de sesión temporales
+      if (isSigningOut && event !== "SIGNED_OUT") {
+        return;
       }
-    )
 
-    return () => subscription.unsubscribe()
-  }, [isSigningOut])
+      setSession(session);
+      // setUser(session?.user ?? null);
+      await loadUserWithDbData(session?.user ?? null);
+      setLoading(false);
+
+      // Limpiar flag de logout cuando se complete
+      if (event === "SIGNED_OUT") {
+        setIsSigningOut(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [isSigningOut]);
 
   // Manejo de rutas protegidas
   useEffect(() => {
-    console.log("🔒 Auth route check - Loading:", loading, "User:", user?.email || "null", "Pathname:", pathname)
-    
     if (loading) {
-      console.log("🔒 Still loading, skipping route check")
-      return
+      return;
     }
 
     // Rutas públicas que no requieren autenticación
-    const publicRoutes = ["/login", "/auth/callback"]
-    
+    const publicRoutes = ["/login", "/auth/callback"];
+
     // Si no hay usuario Y no estamos en una ruta pública
     if (!user && !publicRoutes.includes(pathname)) {
-      console.log("🔒 No user and not on public route, redirecting to login")
-      router.push("/login")
-      return
+      router.push("/login");
+      return;
     }
-    
+
     // Si hay usuario Y estamos en login, redirigir al dashboard
     if (user && pathname === "/login") {
-      console.log("🔒 User exists and on login page, redirecting to dashboard")
-      router.push("/dashboard")
-      return
+      router.push("/dashboard");
+      return;
     }
-    
-    console.log("🔒 Route check passed, staying on", pathname)
-  }, [user, loading, pathname, router])
+  }, [user, loading, pathname, router]);
 
   const signUp = async (email: string, password: string) => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-    })
-    return { error }
-  }
+    });
+    return { error };
+  };
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
-    })
-    return { error }
-  }
+    });
+    return { error };
+  };
 
   const signOut = async () => {
-    console.log("🚪🚪🚪 SIGNOUT FUNCTION CALLED!")
-    console.log("🚪 Current user before signout:", user?.email)
-    console.log("🚪 Current session before signout:", session?.user?.email)
-    
     // Marcar que estamos haciendo logout para evitar consultas de sesión
-    console.log("🔥 Setting isSigningOut = true")
-    setIsSigningOut(true)
-    
+    setIsSigningOut(true);
+
     // Forzar limpieza inmediata del estado
-    console.log("🔥 Clearing user and session state")
-    setUser(null)
-    setSession(null)
-    setLoading(false)
-    
+    setUser(null);
+    setSession(null);
+    setLoading(false);
+
     // Limpiar TODO el localStorage y sessionStorage
-    console.log("🧹 Limpiando TODO el storage...")
-    localStorage.clear()
-    sessionStorage.clear()
-    
+    localStorage.clear();
+    sessionStorage.clear();
+
     // Hacer signOut de Supabase DESPUÉS de limpiar el estado local
     try {
-      console.log("📤 Enviando signOut a Supabase...")
-      await supabase.auth.signOut({ scope: 'global' })
-      console.log("✅ Supabase signOut completado")
-    } catch (err) {
-      console.log("⚠️ Supabase signOut falló, pero continuando:", err)
-    }
-    
-    console.log("🎯 SignOut controlado completado - estado limpiado")
-    console.log("🎯 User after signout:", user?.email)
-    return { error: null }
-  }
+      await supabase.auth.signOut({ scope: "global" });
+    } catch (err) {}
+
+    return { error: null };
+  };
 
   const resetPassword = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/auth/reset-password`,
-    })
-    return { error }
-  }
+    });
+    return { error };
+  };
 
   const value = {
     user,
@@ -169,7 +205,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     signIn,
     signOut,
     resetPassword,
-  }
+  };
 
   // Mostrar loading mientras se inicializa la autenticación
   if (loading) {
@@ -180,20 +216,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
           <p className="mt-2 text-gray-600">Cargando...</p>
         </div>
       </div>
-    )
+    );
   }
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  )
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext)
+  const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider")
+    throw new Error("useAuth must be used within an AuthProvider");
   }
-  return context
+  return context;
 }

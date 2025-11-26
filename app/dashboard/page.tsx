@@ -4,14 +4,12 @@
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { useAuth } from "@/components/auth";
-import { useCompanyName } from "@/hooks/use-company-name";
 import {
   useBalanceQuery,
   useMovementsQuery,
   usePendingWithdrawalsQuery,
 } from "@/hooks/dashboard/queries";
 import { useCriptoYaExchangeRateQuery } from "@/hooks/external";
-import { useIsBolivianQuery } from "@/hooks/deposits/queries";
 import { MovementsTable } from "@/components/MovementsTable";
 import { PendingWithdrawalsTable } from "@/components/PendingWithdrawalsTable";
 import { BalanceCard } from "@/components/BalanceCard";
@@ -19,7 +17,10 @@ import ExchangeRate from "@/components/ExchangeRate";
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { companyName, loading: companyLoading } = useCompanyName();
+  const companyName = user?.dbUser?.company?.name;
+  const isBolivian = user?.dbUser?.nationality === "bolivian";
+
+  console.log("Dashboard user:", user);
 
   const {
     data: balanceData,
@@ -37,6 +38,7 @@ export default function Dashboard() {
     isLoading: isLoadingWithdrawals,
     refetch: refetchWithdrawals,
   } = usePendingWithdrawalsQuery(user?.email);
+  console.log("movementsData", movementsData);
   const {
     data: exchangeRateData,
     isLoading: isLoadingExchangeRate,
@@ -44,9 +46,6 @@ export default function Dashboard() {
     error: exchangeRateError,
     refetch: refetchExchangeRate,
   } = useCriptoYaExchangeRateQuery("USDT", "BOB", 25000);
-
-  // Verificar si el usuario es boliviano
-  const { data: isBolivian, isLoading: isLoadingBolivian } = useIsBolivianQuery(user?.email);
 
   // Función para actualizar todos los datos
   const refreshAllData = async () => {
@@ -64,14 +63,7 @@ export default function Dashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">
-            Hola,{" "}
-            {companyLoading ? (
-              <span className="inline-flex items-center">
-                <span className="animate-pulse">Cargando...</span>
-              </span>
-            ) : (
-              companyName || user?.email
-            )}
+            Hola, {companyName || user?.dbUser?.name + " " + user?.dbUser?.last_name}
           </h1>
           <p className="text-gray-600 mt-1">Resumen general de tu cuenta</p>
         </div>

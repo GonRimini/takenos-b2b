@@ -659,7 +659,7 @@ function adaptInstructions(instructions: any) {
         routingNumber: "",
         bankAddress: "",
         beneficiaryName: "Wallet",
-        accountNumber: findValue(instructions.fields, "Dirección de depósito") || "—",
+        accountNumber: findValue(instructions.fields, "Dirección de Billetera") || "—",
         accountType: findValue(instructions.fields, "Wallet") || "USDT / USDC",
         beneficiaryAddress: "",
       },
