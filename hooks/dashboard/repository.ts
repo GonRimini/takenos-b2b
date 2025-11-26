@@ -14,7 +14,7 @@ export const createDashboardRepository = (authenticatedFetch: any) => ({
 
     const response = await authenticatedFetch("/api/balance", { method: "POST" })
     const data = await response.json()
-    if (!response.ok) throw new Error(data.error || "Error al cargar el balance")
+    if (!response.ok) throw new Error(data.error.message || "Error al cargar el balance")
 
     return {
       balance: Number.parseFloat(data.balance),
