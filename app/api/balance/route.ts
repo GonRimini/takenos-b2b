@@ -133,8 +133,8 @@ export async function POST(request: NextRequest) {
       
       // Cache the zero balance (SIN CAMBIOS)
       try {
-        balanceCache.set(userEmail, { balance: zeroBalance, timestamp: Date.now() })
-        console.log(`[v0] Cached zero balance for ${userEmail}: ${zeroBalance}`)
+        balanceCache.set(normalizedEmail, { balance: zeroBalance, timestamp: Date.now() })
+        console.log(`[v0] Cached zero balance for ${normalizedEmail}: ${zeroBalance}`)
       } catch (e) {
         console.log("[v0] Could not cache zero balance:", e)
       }
@@ -151,8 +151,8 @@ export async function POST(request: NextRequest) {
     const directBalance = extractBalanceFromRetool(data)
     if (directBalance !== null) {
       try {
-        balanceCache.set(userEmail, { balance: directBalance, timestamp: Date.now() })
-        console.log(`[v0] Cached balance for ${userEmail}: ${directBalance}`)
+        balanceCache.set(normalizedEmail, { balance: directBalance, timestamp: Date.now() })
+        console.log(`[v0] Cached balance for ${normalizedEmail}: ${directBalance}`)
       } catch (e) {
         console.log("[v0] Could not cache balance:", e)
       }

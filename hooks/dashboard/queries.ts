@@ -9,20 +9,15 @@ export function useBalanceQuery(userEmail?: string) {
 
   return useQuery({
     queryKey: ["balance", userEmail],
-    queryFn: async () => {
-      // Esperar un momento para asegurar que el usuario esté completamente cargado
-      await new Promise((resolve) => setTimeout(resolve, 60000));
-      return repository.getBalance(userEmail);
-    },
+    queryFn: () => repository.getBalance(userEmail),
     enabled: !!userEmail,
     staleTime: STALE_30M,
     gcTime: GC_24H,
     retry: 1,
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
     placeholderData: keepPreviousData,
-    networkMode: "offlineFirst",
   });
 }
 
@@ -37,10 +32,9 @@ export function useMovementsQuery(userEmail?: string) {
     gcTime: GC_24H,
     retry: 1,
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
     placeholderData: keepPreviousData,
-    networkMode: "offlineFirst",
   });
 }
 
@@ -55,9 +49,8 @@ export function usePendingWithdrawalsQuery(userEmail?: string) {
     gcTime: GC_24H,
     retry: 1,
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
     placeholderData: keepPreviousData,
-    networkMode: "offlineFirst",
   });
 }
