@@ -11,7 +11,7 @@ export function useBalanceQuery(userEmail?: string) {
     queryKey: ["balance", userEmail],
     queryFn: async () => {
       // Esperar un momento para asegurar que el usuario esté completamente cargado
-      await new Promise((resolve) => setTimeout(resolve, 8000));
+      await new Promise((resolve) => setTimeout(resolve, 15000));
       return repository.getBalance(userEmail);
     },
     enabled: !!userEmail,
