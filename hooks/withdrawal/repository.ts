@@ -57,6 +57,9 @@ export interface CreateWithdrawalRequestPayload {
   initial_amount: number;
   external_reference?: string | null;
   file_url?: string | null;
+  companyName?: string | null;
+  externalAccountNickname?: string | null;
+  externalAccountDetails?: string | null;
   // si querés, podés meter acá external_id, fee, etc. cuando los uses
 }
 
@@ -236,6 +239,30 @@ export const useWithdrawalRepository = () => {
     return json.data;
   };
 
+  const loadWithdrawalsByStatus = async (
+    status?: string | null
+  ): Promise<any[]> => {
+    try {
+      const url = status 
+        ? `/api/withdrawals/pending?status=${encodeURIComponent(status)}`
+        : "/api/withdrawals/pending";
+
+      const response = await authenticatedFetch(url, {
+        method: "GET",
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result?.ok) {
+        throw new Error(result?.error || "Failed to load withdrawals");
+      }
+
+      return Array.isArray(result.data) ? result.data : [];
+    } catch (error) {
+      console.error("Error loading withdrawals by status:", error);
+      throw error;
+    }
+  };
 
   return {
     uploadFile,
@@ -244,5 +271,6 @@ export const useWithdrawalRepository = () => {
     saveAccount,
     createWithdrawalRequest,
     loadWithdrawalDetailByExternalId,
+    loadWithdrawalsByStatus,
   };
 };

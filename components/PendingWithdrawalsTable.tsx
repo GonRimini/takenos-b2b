@@ -59,22 +59,16 @@ export function PendingWithdrawalsTable({
                       {formatDate(withdrawal.created_at)}
                     </TableCell>
                     <TableCell>
-                      {getWithdrawalCategoryLabel(withdrawal.category)}
-                      {withdrawal.method && (
-                        <span className="text-sm text-gray-500 ml-1">
-                          ({withdrawal.method.toUpperCase()})
-                        </span>
-                      )}
+                      {withdrawal.rail ? withdrawal.rail.toUpperCase() : "N/D"}
                     </TableCell>
                     <TableCell className="font-medium text-[#6d37d5]">
-                      {formatCurrency(withdrawal.amount_numeric || 0)}
+                      {formatCurrency(withdrawal.initial_amount || 0)}
                     </TableCell>
                     <TableCell className="text-sm text-gray-600">
-                      {withdrawal.payload?.account_reference ||
-                        "Sin referencia"}
+                      {withdrawal.external_reference || "Sin referencia"}
                     </TableCell>
                     <TableCell>
-                      <StatusBadge status="pending" />
+                      <StatusBadge status={withdrawal.status || "pending"} />
                     </TableCell>
                   </TableRow>
                 ))

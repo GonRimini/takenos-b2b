@@ -36,11 +36,11 @@ export const createDashboardRepository = (authenticatedFetch: any) => ({
   async getPendingWithdrawals(userEmail?: string): Promise<WithdrawalDTO[]> {
     if (!userEmail) throw new Error("Usuario no autenticado")
 
-    const response = await authenticatedFetch("/api/withdrawals/pending", { method: "GET" })
+    const response = await authenticatedFetch("/api/withdrawals/pending?status=pending", { method: "GET" })
     const data = await response.json()
     if (!response.ok) throw new Error(data.error || "Error al cargar retiros pendientes")
 
-    return data.success ? (data.data || []) : []
+    return data.ok ? (data.data || []) : []
   },
 })
 

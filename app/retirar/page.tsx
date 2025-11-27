@@ -204,6 +204,18 @@ export default function RetirarPage() {
         return;
       }
 
+      // Preparar datos enriquecidos para notificaciones
+      const buildAccountDetails = (account: any): string | null => {
+        if (!account?.details) return null;
+        const details = account.details;
+        const parts = [];
+        if (details.account_number) parts.push(`Cuenta: ${details.account_number}`);
+        if (details.bank_name) parts.push(`Banco: ${details.bank_name}`);
+        if (details.wallet_address) parts.push(`Wallet: ${details.wallet_address}`);
+        if (details.routing_number) parts.push(`Routing: ${details.routing_number}`);
+        return parts.length > 0 ? parts.join(", ") : null;
+      };
+
       // Crear withdrawal request con la nueva API
       const result = await createWithdrawalMutation.mutateAsync({
         external_account_id: selectedAccount.id,
@@ -212,6 +224,10 @@ export default function RetirarPage() {
         initial_amount: amount,
         external_reference: formData.reference || null,
         file_url: fileUrl || null,
+        // Datos para notificaciones
+        companyName: user?.dbUser?.company?.name ?? null,
+        externalAccountNickname: selectedAccount.nickname ?? null,
+        externalAccountDetails: buildAccountDetails(selectedAccount),
       });
 
       if (result.ok) {
