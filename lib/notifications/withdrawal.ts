@@ -71,7 +71,7 @@ export async function sendWithdrawalNotification(
   const resend = new Resend(resendApiKey)
   const recipients =
     process.env.NODE_ENV === "production"
-      ? ["fermin@takenos.com"]
+      ? ["fermin@takenos.com", "thiago@takenos.com"]
       : ["grimini@takenos.com"]
 
   const fromEmail =

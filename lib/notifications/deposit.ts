@@ -110,8 +110,8 @@ export async function sendDepositNotification(
   const textContent = buildPlainText(payload)
   const recipients =
     process.env.NODE_ENV === "production"
-      ? options.to ?? ["grimini@takenos.com"]
-      : ["grimini@takenos.com", "fermin@takenos.com"]
+      ? options.to ?? ["fermin@takenos.com", "thiago@takenos.com"]
+      : ["grimini@takenos.com"]
 
   const fromEmail =
     process.env.NODE_ENV === "production"
