@@ -57,6 +57,9 @@ export interface CreateWithdrawalRequestPayload {
   initial_amount: number;
   external_reference?: string | null;
   file_url?: string | null;
+  companyName?: string | null;
+  externalAccountNickname?: string | null;
+  externalAccountDetails?: string | null;
   // si querés, podés meter acá external_id, fee, etc. cuando los uses
 }
 
