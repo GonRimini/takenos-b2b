@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 import { getAuthenticatedUserEmail } from "@/lib/auth-middleware";
+import { sendWithdrawalNotification } from "@/lib/notifications/withdrawal";
 
 type WithdrawalRail = "ach" | "swift" | "crypto" | "local";
 
@@ -11,6 +12,10 @@ interface CreateWithdrawalRequestBody {
   initial_amount: number;
   external_reference?: string | null;
   file_url?: string | null;
+  // Datos opcionales para notificaciones (ya disponibles en frontend)
+  companyName?: string | null;
+  externalAccountNickname?: string | null;
+  externalAccountDetails?: string | null;
 }
 
 export async function POST(req: NextRequest) {
@@ -40,6 +45,9 @@ export async function POST(req: NextRequest) {
       initial_amount,
       external_reference,
       file_url,
+      companyName,
+      externalAccountNickname,
+      externalAccountDetails,
     } = body;
 
     // ✅ Validaciones básicas
@@ -97,13 +105,32 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return NextResponse.json(
-      {
-        ok: (data as any).ok === true,
-        data,
-      },
-      { status: 200 }
-    );
+    const responsePayload = {
+      ok: (data as any).ok === true,
+      data,
+    };
+
+    const jsonResponse = NextResponse.json(responsePayload, { status: 200 });
+
+    try {
+      await sendWithdrawalNotification({
+        userEmail: userEmail ?? "usuario@takenos.com",
+        requestId: (data as any)?.withdrawal_request_id ?? null,
+        externalAccountId: external_account_id,
+        rail,
+        currencyCode: currency_code,
+        amount: initial_amount,
+        externalReference: external_reference ?? null,
+        fileUrl: file_url ?? null,
+        companyName: companyName ?? null,
+        externalAccountNickname: externalAccountNickname ?? null,
+        externalAccountDetails: externalAccountDetails ?? null,
+      });
+    } catch (notificationError) {
+      console.warn("⚠️ No se pudo enviar notificación de retiro:", notificationError);
+    }
+
+    return jsonResponse;
   } catch (e: any) {
     console.error("❌ Unexpected error in POST /api/withdrawal-requests:", e);
     return NextResponse.json(

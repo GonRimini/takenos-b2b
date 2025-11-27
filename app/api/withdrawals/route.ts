@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       try {
         const recipients =
           process.env.NODE_ENV === "production"
-            ? ["fermin@takenos.com"]
+            ? ["fermin@takenos.com", "thiago@takenos.com"]
             : ["grimini@takenos.com"];
         const emailResults = [];
         const FROM_EMAIL =

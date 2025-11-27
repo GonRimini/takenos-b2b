@@ -169,3 +169,20 @@ export const useWithdrawalDetailByExternalIdQuery = (
     refetchOnWindowFocus: false,
   });
 };
+
+export const useWithdrawalsByStatusQuery = (
+  status?: string | null,
+  enabled: boolean = true
+) => {
+  const repo = useWithdrawalRepository();
+
+  return useQuery({
+    queryKey: ["withdrawals-by-status", status],
+    queryFn: () => repo.loadWithdrawalsByStatus(status),
+    enabled,
+    staleTime: 2 * 60 * 1000, // 2 minutos (más fresco para pending)
+    gcTime: 10 * 60 * 1000,
+    retry: 2,
+    refetchOnWindowFocus: true, // Refrescar cuando vuelve a la ventana
+  });
+};
