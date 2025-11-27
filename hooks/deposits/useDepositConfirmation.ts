@@ -1,15 +1,15 @@
 import { useDepositsRepository } from "@/hooks/deposits/repository";
-import { useDepositNotification } from "@/hooks/notifications/useDepositNotification";
 import { useAuthenticatedFetch } from "@/hooks/use-authenticated-fetch";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import type { DepositConfirmationParams } from "@/types/deposit-types";
+import { useAuth } from "@/components/auth";
 
 export const useDepositConfirmation = () => {
   const repo = useDepositsRepository();
-  const { sendDepositNotification } = useDepositNotification();
   const { authenticatedFetch } = useAuthenticatedFetch();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isPending, setIsPending] = useState(false);
 
   const confirmDeposit = async ({
@@ -41,6 +41,17 @@ export const useDepositConfirmation = () => {
         throw new Error("Datos incompletos para crear la solicitud de depósito");
       }
 
+      // Preparar datos enriquecidos para notificaciones
+      const buildAccountDetails = (account: any): string | null => {
+        if (!account?.details) return null;
+        const details = account.details;
+        const parts = [];
+        if (details.account_number) parts.push(`Cuenta: ${details.account_number}`);
+        if (details.bank_name) parts.push(`Banco: ${details.bank_name}`);
+        if (details.wallet_address) parts.push(`Wallet: ${details.wallet_address}`);
+        return parts.length > 0 ? parts.join(", ") : null;
+      };
+
       // Llamar al nuevo endpoint /api/deposit-request
       const response = await authenticatedFetch("/api/deposit-request", {
         method: "POST",
@@ -53,6 +64,12 @@ export const useDepositConfirmation = () => {
           rail,
           currencyCode,
           fileUrl: fileUrl || null,
+          // Datos para notificaciones
+          companyName: user?.dbUser?.company?.name ?? null,
+          externalAccountNickname: externalAccount?.nickname ?? null,
+          externalAccountDetails: buildAccountDetails(externalAccount),
+          fundingAccountNickname: destinationAccount?.nickname ?? null,
+          fundingAccountDetails: buildAccountDetails(destinationAccount),
         }),
       });
 
@@ -60,14 +77,6 @@ export const useDepositConfirmation = () => {
 
       if (!response.ok || !result?.ok) {
         throw new Error(result?.error || "Error al crear la solicitud de depósito");
-      }
-
-      if (fileUrl && file) {
-        await sendDepositNotification({
-          userEmail,
-          fileName: file.name || "comprobante_deposito.pdf",
-          fileUrl
-        });
       }
 
       toast({

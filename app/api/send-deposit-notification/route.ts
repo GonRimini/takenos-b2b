@@ -1,88 +1,55 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Resend } from "resend";
-import { sendSlackNotification } from "@/lib/slack";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import {
+  sendDepositNotification,
+  type DepositNotificationPayload,
+} from "@/lib/notifications/deposit";
 
 export async function POST(request: NextRequest) {
   try {
-    const { to, subject, userEmail, fileName, fileUrl, uploadDate } =
-      await request.json();
+    const body = await request.json();
+    const {
+      userEmail,
+      fileName,
+      fileUrl,
+      fundingAccountId,
+      externalAccountId,
+      rail,
+      currencyCode,
+      initialAmount,
+      externalReference,
+      externalId,
+      requestId,
+      to,
+    } = body ?? {};
 
-    // Validar datos requeridos
-    if (!to || !subject || !userEmail || !fileName || !fileUrl) {
+    if (!userEmail) {
       return NextResponse.json(
-        { error: "Faltan datos requeridos" },
+        { error: "Falta userEmail" },
         { status: 400 }
       );
     }
-    const textContent = `
-Nueva Solicitud de Depósito - Takenos B2B Portal
 
-DETALLES DE LA SOLICITUD:
-- Usuario: ${userEmail}
-- Fecha de carga: ${uploadDate}  
-- Archivo: ${fileName}
-
-COMPROBANTE:
-Descargar: ${fileUrl}
-
-PRÓXIMOS PASOS:
-1. Revisar el comprobante de depósito
-2. Validar los datos de la transacción  
-3. Procesar la acreditación en el sistema
-4. Notificar al usuario sobre el estado
-
-IMPORTANTE: Este es un proceso manual que requiere atención inmediata.
-
----
-Este email fue generado automáticamente por el sistema Takenos B2B Portal
-Usuario: ${userEmail} | Fecha: ${uploadDate}
-    `;
-
-    // Función para limpiar strings para tags de Resend (solo ASCII letters, numbers, underscores, dashes)
-    const sanitizeTagValue = (value: string): string => {
-      return value
-        .toLowerCase()
-        .replace(/[^a-z0-9_-]/g, "_") // Reemplazar caracteres no válidos con guión bajo
-        .replace(/_+/g, "_") // Reemplazar múltiples guiones bajos con uno solo
-        .replace(/^_|_$/g, "") // Remover guiones bajos al inicio y final
-        .substring(0, 256); // Limitar longitud (Resend tiene límite de 256 caracteres)
+    const payload: DepositNotificationPayload = {
+      userEmail,
+      requestId: requestId ?? null,
+      fundingAccountId: fundingAccountId ?? null,
+      externalAccountId: externalAccountId ?? null,
+      rail: rail ?? null,
+      currencyCode: currencyCode ?? null,
+      initialAmount: initialAmount ?? null,
+      externalReference: externalReference ?? null,
+      externalId: externalId ?? null,
+      fileUrl: fileUrl ?? null,
+      fileName: fileName ?? null,
     };
 
-    // Enviar el email usando Resend
-    const FROM_EMAIL =
-  process.env.NODE_ENV === "production"
-    ? "Takenos B2B <grimini@takenos.com>"
-    : "Takenos B2B <onboarding@resend.dev>";
-
-    const { data, error } = await resend.emails.send({
-      from: FROM_EMAIL,
-      to: process.env.NODE_ENV === "production" ? [to] : ["grimini@takenos.com", "fermin@takenos.com"],
-      subject: subject,
-      text: textContent,
-      replyTo: userEmail,
-      tags: [
-        { name: "type", value: "deposit-notification" },
-        { name: "user", value: sanitizeTagValue(userEmail) },
-      ],
+    await sendDepositNotification(payload, {
+      to: Array.isArray(to) ? to : to ? [to] : undefined,
     });
-
-    // // Enviar notificación a Slack
-    const slackMessage = `:bank: *Nueva Solicitud de Depósito*\n*Usuario:* ${userEmail}\n*Fecha de carga:* ${uploadDate}\n*Archivo:* <${fileUrl}|${fileName}>\n*Acción requerida:* Procesar la acreditación manualmente.`;
-    await sendSlackNotification(slackMessage);
-
-    if (error) {
-      console.error("Error sending email:", error);
-      return NextResponse.json(
-        { error: "Error al enviar el email: " + error.message },
-        { status: 500 }
-      );
-    }
 
     return NextResponse.json({
       success: true,
-      message: "Email enviado correctamente",
+      message: "Notificación enviada",
     });
   } catch (error) {
     console.error("Error in send-deposit-notification:", error);
