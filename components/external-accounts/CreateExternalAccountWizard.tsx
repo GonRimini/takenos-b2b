@@ -2,20 +2,20 @@
 
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+// import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+// import { useToast } from "@/hooks/use-toast";
 import { useCreateExternalAccountMutation } from "@/hooks/external-accounts/queries";
-import { 
-  externalAccountSchema, 
-  type ExternalAccountFormData 
-} from "@/hooks/external-accounts/validation";
-import type { ExternalAccountRail } from "@/hooks/external-accounts/repository";
+// import { 
+//   externalAccountSchema, 
+//   type ExternalAccountFormData 
+// } from "@/hooks/external-accounts/validation";
 import { boliviaBanks, walletNetworks } from "@/lib/withdrawal-config";
+import type { ExternalAccountRail } from "@/types/external-accounts-types";
 
 interface CreateExternalAccountWizardProps {
   onCreated?: () => Promise<void> | void;
@@ -32,7 +32,7 @@ export default function CreateExternalAccountWizard({
   description = "Agregá una cuenta bancaria, crypto wallet o cuenta local",
   defaultRail
 }: CreateExternalAccountWizardProps) {
-  const { toast } = useToast();
+  // const { toast } = useToast();
   const createMutation = useCreateExternalAccountMutation();
   
   const [selectedRail, setSelectedRail] = useState<ExternalAccountRail | undefined>(defaultRail);
@@ -53,8 +53,8 @@ export default function CreateExternalAccountWizard({
   });
 
   const watchedRail = watch("rail") || selectedRail;
-  const watchedMethod = watch("method");
-  const watchedCountry = watch("country");
+  // const watchedMethod = watch("method");
+  // const watchedCountry = watch("country");
 
   const handleRailChange = (value: ExternalAccountRail) => {
     setSelectedRail(value);
@@ -77,6 +77,7 @@ export default function CreateExternalAccountWizard({
         nickname: data.nickname,
         currency_code: data.currency_code,
         rail: data.rail,
+        beneficiary_url: data.beneficiary_url,
         is_default: data.is_default || false,
       };
 
@@ -171,7 +172,7 @@ export default function CreateExternalAccountWizard({
           {/* Campos comunes */}
           {watchedRail && (
             <>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="nickname" className="text-sm">
                     Alias *
@@ -184,6 +185,16 @@ export default function CreateExternalAccountWizard({
                   {errors.nickname && (
                     <p className="text-xs text-destructive">{errors.nickname.message as string}</p>
                   )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="beneficiary_url" className="text-sm">
+                    URL del beneficiario *
+                  </Label>
+                  <Input
+                    {...register("beneficiary_url")}
+                    placeholder="https://www.example.com"
+                    className="h-9"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="currency_code" className="text-sm">

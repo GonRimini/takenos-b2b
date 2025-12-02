@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useAuth } from "@/components/auth";
-import { useAuthenticatedFetch } from "@/hooks/use-authenticated-fetch";
 import {
   Card,
   CardContent,
@@ -66,7 +65,6 @@ export default function RetirarPage() {
   const { toast } = useToast();
   const { user } = useAuth();
   const { invalidateWithdrawalsCache } = useCacheInvalidation();
-  const { authenticatedFetch } = useAuthenticatedFetch();
 
   // React Query hook para cuentas de pago
   const {
@@ -75,8 +73,6 @@ export default function RetirarPage() {
     error: accountsError,
     refetch: refetchAccounts,
   } = useLoadAccountsQuery(true);
-
-
 
   // React Query hook para envío de withdrawal
   const submitWithdrawalMutation = useSubmitWithdrawalMutation();

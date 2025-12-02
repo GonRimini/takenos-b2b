@@ -22,14 +22,14 @@ export async function POST(req: NextRequest) {
 
     // 📥 Parsear body
     const body = await req.json();
-    const { nickname, currency_code, rail, is_default, status } = body;
+    const { nickname, currency_code, rail, is_default, status, beneficiary_url } = body;
 
     // ✅ Validaciones básicas
-    if (!nickname || !currency_code || !rail) {
+    if (!nickname || !currency_code || !rail || !beneficiary_url) {
       return NextResponse.json(
         {
           ok: false,
-          error: "Missing required fields: nickname, currency_code, rail",
+          error: "Missing required fields: nickname, currency_code, rail, beneficiary_url",
         },
         { status: 400 }
       );
@@ -70,6 +70,7 @@ export async function POST(req: NextRequest) {
       p_details: railData, // 👈 este tiene que matchear el parámetro jsonb de la RPC
       p_is_default: is_default ?? false,
       p_status: status ?? "active",
+      p_beneficiary_url: beneficiary_url,
     });
 
     if (error) {
