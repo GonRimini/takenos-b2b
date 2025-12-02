@@ -12,7 +12,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, DollarSign, FileText } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { AlertCircle, DollarSign, FileText, Info } from "lucide-react";
 import { useExternalAccountQuery } from "@/hooks/external-accounts/queries";
 import { UseFormRegister, UseFormSetValue, FieldErrors } from "react-hook-form";
 import { type WithdrawalFormData } from "@/lib/withdrawal-schema";
@@ -397,9 +403,23 @@ export function WithdrawalDetailsStep({
 
             {/* Campos de retiro */}
             <div className="space-y-2">
-              <Label htmlFor="amount" className="text-sm">
-                Monto Bruto (USD) *
-              </Label>
+              <div className="flex items-center gap-1.5">
+                <Label htmlFor="amount" className="text-sm">
+                  Monto Neto (USD) *
+                </Label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-3.5 w-3.5 text-yellow-400 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">
+                        Este es el monto que recibirás en tu cuenta.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
               <div className="relative">
                 <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
