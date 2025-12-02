@@ -1,10 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import {
-  useExternalAccountsRepository,
-  type CreateExternalAccountPayload,
-  type ExternalAccountRail,
-} from "./repository";
+import { useExternalAccountsRepository } from "@/hooks/external-accounts/repository";
+import type { CreateExternalAccountPayload,ExternalAccountRail } from "@/types/external-accounts-types";
 
 /**
  * Hook para cargar todas las cuentas externas de la empresa
