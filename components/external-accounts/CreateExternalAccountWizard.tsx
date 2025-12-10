@@ -186,8 +186,8 @@ export default function CreateExternalAccountWizard({
                 <SelectValue placeholder="Selecciona el tipo de cuenta" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ach">ACH/Wire (USD)</SelectItem>
-                <SelectItem value="swift">SWIFT (USD)</SelectItem>
+                <SelectItem value="ach">ACH/Wire</SelectItem>
+                <SelectItem value="swift">SWIFT</SelectItem>
                 <SelectItem value="crypto">Criptomonedas</SelectItem>
                 <SelectItem value="local">Moneda Local</SelectItem>
               </SelectContent>
