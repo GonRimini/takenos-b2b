@@ -185,7 +185,7 @@ export function useDepositInstructions(userEmail: string) {
       };
     } else if (method === "swift" && state.swiftData) {
       fields.push(
-        { label: "SWIFT/BIC Code", value: state.swiftData.swift_bic_code || "" },
+        { label: "SWIFT/BIC Code", value: state.swiftData.swift_bic || state.swiftData.swift_bic_code || "" },
         { label: "Número de cuenta", value: state.swiftData.account_number || "", maskable: true },
         { label: "Nombre del beneficiario", value: state.swiftData.beneficiary_name || "" },
         { label: "Banco receptor", value: state.swiftData.receiver_bank || "" },

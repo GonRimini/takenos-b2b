@@ -19,16 +19,18 @@ export interface DepositoACH {
 export interface DepositoSWIFT {
   id: string
   email: string
-  swift_bic_code: string
+  swift_bic: string  // Cambiado de swift_bic_code para coincidir con el schema real
+  swift_bic_code?: string  // Mantener para compatibilidad con sistema legacy
   account_number: string
   beneficiary_name: string
   receiver_bank: string
   account_type: string
-  beneficiary_address: string
+  beneficiary_address?: string
   beneficiary_bank_address: string
   intermediary_bank?: string
   intermediary_routing_number?: string
   intermediary_bic_code?: string
+  country_code?: string
 }
 
 export interface DepositoCrypto {
