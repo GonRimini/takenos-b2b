@@ -47,7 +47,7 @@ export default function InstructionsContent({
   if (method === "swift" && swiftData) {
     return (
       <>
-        <AccountField label="SWIFT/BIC Code" value={swiftData.swift_bic_code || ""} />
+        <AccountField label="SWIFT/BIC Code" value={swiftData.swift_bic || swiftData.swift_bic_code || ""} />
         <AccountField label="Número de cuenta" value={swiftData.account_number || ""} maskable />
         <AccountField label="Nombre del beneficiario" value={swiftData.beneficiary_name || ""} />
         <AccountField label="Banco receptor" value={swiftData.receiver_bank || ""} />

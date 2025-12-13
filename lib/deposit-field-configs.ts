@@ -43,7 +43,7 @@ export const DEPOSIT_FIELD_CONFIGS = {
   ] as FieldConfig[],
 
   swift: [
-    { key: "swift_bic_code", label: "SWIFT/BIC Code", copyable: true },
+    { key: "swift_bic", label: "SWIFT/BIC Code", copyable: true },
     {
       key: "account_number",
       label: "Número de cuenta",
@@ -58,23 +58,8 @@ export const DEPOSIT_FIELD_CONFIGS = {
     { key: "receiver_bank", label: "Banco receptor", copyable: true },
     { key: "account_type", label: "Tipo de cuenta", copyable: false },
     {
-      key: "beneficiary_address",
-      label: "Dirección del beneficiario",
-      copyable: true,
-    },
-    {
-      key: "intermediary_bank",
-      label: "Banco Intermediario",
-      copyable: true,
-    },
-    {
-      key: "intermediary_routing_number",
-      label: "Routing Number Intermediario",
-      copyable: true,
-    },
-    {
-      key: "intermediary_bic_code",
-      label: "SWIFT/BIC Code Intermediario",
+      key: "beneficiary_bank_address",
+      label: "Dirección del banco",
       copyable: true,
     },
   ] as FieldConfig[],
