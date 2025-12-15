@@ -29,6 +29,7 @@ import {
   useFileUploadMutation,
   useSaveAccountMutation,
   useCreateWithdrawalRequestMutation,
+  useUploadMultipleFilesMutation, // ✅ Nuevo hook
 } from "@/hooks/withdrawal/queries";
 // import { useExternalAccountQuery } from "@/hooks/external-accounts/queries";
 import {
@@ -52,8 +53,8 @@ import { WithdrawalDetailsStep } from "@/components/withdrawal/WithdrawalDetails
 export default function RetirarPage() {
   const [showSummary, setShowSummary] = useState(false);
   const [usedSavedAccount, setUsedSavedAccount] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]); // ✅ Cambiado a array
+  const [uploadedFileUrls, setUploadedFileUrls] = useState<string[]>([]); // ✅ Cambiado a array
 
   // Estados del wizard
   const [currentStep, setCurrentStep] = useState<
@@ -77,8 +78,11 @@ export default function RetirarPage() {
   // React Query hook para envío de withdrawal
   const submitWithdrawalMutation = useSubmitWithdrawalMutation();
 
-  // React Query hook para subida de archivos
+  // React Query hook para subida de archivos (individual - legacy)
   const fileUploadMutation = useFileUploadMutation();
+
+  // React Query hook para subida de múltiples archivos
+  const uploadMultipleFilesMutation = useUploadMultipleFilesMutation();
 
   // React Query hook para guardar cuentas
   const saveAccountMutation = useSaveAccountMutation();
@@ -88,7 +92,7 @@ export default function RetirarPage() {
 
   // Estado de loading basado en las mutations
   const isSubmitting =
-    fileUploadMutation.isPending || createWithdrawalMutation.isPending;
+    uploadMultipleFilesMutation.isPending || createWithdrawalMutation.isPending;
 
   // Debug: Log user info when component mounts
   useEffect(() => {
@@ -126,8 +130,8 @@ export default function RetirarPage() {
   };
 
   const onSubmit = async (data: WithdrawalFormData) => {
-    // Si hay archivo seleccionado, subirlo antes de mostrar el modal usando React Query
-    if (selectedFile && selectedFile instanceof File) {
+    // Si hay archivos seleccionados, subirlos antes de mostrar el modal
+    if (selectedFiles.length > 0) {
       try {
         const userEmail = getUserEmailFromStorage(user);
 
@@ -140,13 +144,15 @@ export default function RetirarPage() {
           return;
         }
 
-        // Subir archivo usando React Query mutation
-        const uploadResult = await fileUploadMutation.mutateAsync({
-          file: selectedFile,
+        // Subir múltiples archivos usando React Query mutation
+        const uploadedUrls = await uploadMultipleFilesMutation.mutateAsync({
+          files: selectedFiles,
           userEmail,
         });
 
-        setUploadedFileUrl(uploadResult.publicUrl);
+        setUploadedFileUrls(uploadedUrls);
+        
+        console.log(`✅ ${uploadedUrls.length} archivo(s) subido(s) exitosamente`);
       } catch (uploadError) {
         // Los errores ya son manejados por el mutation
         console.error("Error during file upload in onSubmit:", uploadError);
@@ -178,15 +184,16 @@ export default function RetirarPage() {
         );
       }
 
-      let fileUrl = uploadedFileUrl;
+      let fileUrls = uploadedFileUrls;
 
-      // Subir archivo si es necesario
-      if (!fileUrl && selectedFile && selectedFile instanceof File) {
-        const uploadResult = await fileUploadMutation.mutateAsync({
-          file: selectedFile,
+      // Subir archivos si es necesario
+      if (fileUrls.length === 0 && selectedFiles.length > 0) {
+        const uploadedUrls = await uploadMultipleFilesMutation.mutateAsync({
+          files: selectedFiles,
           userEmail,
         });
-        fileUrl = uploadResult.publicUrl;
+        fileUrls = uploadedUrls;
+        setUploadedFileUrls(uploadedUrls);
       }
 
       // Parsear el monto
@@ -219,7 +226,7 @@ export default function RetirarPage() {
         rail: selectedAccount.rail,
         initial_amount: amount,
         external_reference: formData.reference || null,
-        file_url: fileUrl || null,
+        file_urls: fileUrls.length > 0 ? fileUrls : null, // ✅ Enviar array de URLs
         // Datos para notificaciones
         companyName: user?.dbUser?.company?.name ?? null,
         externalAccountNickname: selectedAccount.nickname ?? null,
@@ -238,8 +245,8 @@ export default function RetirarPage() {
         setValue("amount", "");
         setValue("reference", "");
         setValue("receiptFile", undefined);
-        setSelectedFile(null);
-        setUploadedFileUrl(null);
+        setSelectedFiles([]); // ✅ Limpiar array
+        setUploadedFileUrls([]); // ✅ Limpiar array
       }
     } catch (error) {
       console.error("Error submitting withdrawal:", error);
@@ -303,8 +310,8 @@ export default function RetirarPage() {
   const handleResetForm = () => {
     resetWithdrawalForm(setValue, {
       setUsedSavedAccount,
-      setSelectedFile,
-      setUploadedFileUrl,
+      setSelectedFile: (file) => setSelectedFiles(file ? [file] : []), // ✅ Adaptador para compatibilidad
+      setUploadedFileUrl: (url) => setUploadedFileUrls(url ? [url] : []), // ✅ Adaptador para compatibilidad
     });
   };
 
@@ -538,8 +545,8 @@ export default function RetirarPage() {
           register={register}
           setValue={setValue}
           errors={errors}
-          selectedFile={selectedFile}
-          setSelectedFile={setSelectedFile}
+          selectedFiles={selectedFiles} // ✅ Pasar array
+          setSelectedFiles={setSelectedFiles} // ✅ Pasar setter de array
           handleAmountChange={handleAmountChange}
         />
       </form>
@@ -550,9 +557,12 @@ export default function RetirarPage() {
         onConfirm={handleConfirmSubmission}
         data={{
           ...getValues(),
-          receiptFile: selectedFile,
-          receiptFileUrl: uploadedFileUrl || undefined,
-          receiptFileName: selectedFile?.name,
+          receiptFile: selectedFiles[0] || null, // ✅ Por compatibilidad, pasar el primero
+          receiptFileUrl: uploadedFileUrls[0] || undefined, // ✅ Por compatibilidad, pasar el primero
+          receiptFileName: selectedFiles[0]?.name,
+          // Nuevos campos para múltiples archivos
+          receiptFiles: selectedFiles,
+          receiptFileUrls: uploadedFileUrls,
         }}
         selectedAccount={selectedAccount}
         isSubmitting={isSubmitting}

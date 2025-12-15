@@ -56,7 +56,7 @@ export interface CreateWithdrawalRequestPayload {
   rail: WithdrawalRail;
   initial_amount: number;
   external_reference?: string | null;
-  file_url?: string | null;
+  file_urls?: string[] | null; // ✅ Solo array, sin file_url legacy
   companyName?: string | null;
   externalAccountNickname?: string | null;
   externalAccountDetails?: string | null;
