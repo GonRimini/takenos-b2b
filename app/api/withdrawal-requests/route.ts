@@ -13,6 +13,7 @@ interface CreateWithdrawalRequestBody {
   external_reference?: string | null;
   file_url?: string | null;
   // Datos opcionales para notificaciones (ya disponibles en frontend)
+  file_urls?: string[] | null;
   companyName?: string | null;
   externalAccountNickname?: string | null;
   externalAccountDetails?: string | null;
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
       rail,
       initial_amount,
       external_reference,
-      file_url,
+      file_urls,
       companyName,
       externalAccountNickname,
       externalAccountDetails,
@@ -80,7 +81,7 @@ export async function POST(req: NextRequest) {
       p_rail: rail,
       p_initial_amount: initial_amount,
       p_external_reference: external_reference ?? null,
-      p_file_url: file_url ?? null,
+      p_file_urls: file_urls ?? null,
     });
 
     if (error) {
@@ -121,7 +122,7 @@ export async function POST(req: NextRequest) {
         currencyCode: currency_code,
         amount: initial_amount,
         externalReference: external_reference ?? null,
-        fileUrl: file_url ?? null,
+        // fileUrl: file_url ?? null,
         companyName: companyName ?? null,
         externalAccountNickname: externalAccountNickname ?? null,
         externalAccountDetails: externalAccountDetails ?? null,

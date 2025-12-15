@@ -18,10 +18,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { AlertCircle, DollarSign, FileText, Info } from "lucide-react";
+import { AlertCircle, DollarSign, FileText, Info, X } from "lucide-react";
 import { useExternalAccountQuery } from "@/hooks/external-accounts/queries";
 import { UseFormRegister, UseFormSetValue, FieldErrors } from "react-hook-form";
 import { type WithdrawalFormData } from "@/lib/withdrawal-schema";
+import { useToast } from "@/hooks/use-toast";
 
 interface WithdrawalDetailsStepProps {
   selectedAccount: any;
@@ -30,8 +31,8 @@ interface WithdrawalDetailsStepProps {
   register: UseFormRegister<WithdrawalFormData>;
   setValue: UseFormSetValue<WithdrawalFormData>;
   errors: FieldErrors<WithdrawalFormData>;
-  selectedFile: File | null;
-  setSelectedFile: (file: File | null) => void;
+  selectedFiles: File[]; // ✅ Cambiado de File | null a File[]
+  setSelectedFiles: (files: File[]) => void; // ✅ Cambiado para aceptar array
   handleAmountChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
@@ -42,10 +43,12 @@ export function WithdrawalDetailsStep({
   register,
   setValue,
   errors,
-  selectedFile,
-  setSelectedFile,
+  selectedFiles,
+  setSelectedFiles,
   handleAmountChange,
 }: WithdrawalDetailsStepProps) {
+  const { toast } = useToast();
+  
   // React Query hook para detalles de la cuenta seleccionada
   const { data: accountDetails, isLoading: loadingAccountDetails } =
     useExternalAccountQuery(selectedAccount?.id, !!selectedAccount?.id);
@@ -455,38 +458,59 @@ export function WithdrawalDetailsStep({
               )}
             </div>
 
-            {/* Comprobante PDF */}
+            {/* Comprobantes PDF - Múltiples archivos */}
             <div className="space-y-2">
-              <Label htmlFor="receiptFile" className="text-sm">
-                Comprobante PDF *
+              <Label htmlFor="receiptFiles" className="text-sm">
+                Comprobantes PDF *
               </Label>
               <Input
-                id="receiptFile"
+                id="receiptFiles"
                 type="file"
                 accept="application/pdf"
+                multiple
                 onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
+                  const files = Array.from(e.target.files || []);
+                  
+                  if (files.length === 0) {
+                    return;
+                  }
+                  
+                  // Validar cada archivo
+                  const validFiles: File[] = [];
+                  
+                  for (const file of files) {
                     // Validar tipo de archivo
                     if (file.type !== "application/pdf") {
-                      e.target.value = "";
-                      setSelectedFile(null);
-                      setValue("receiptFile", undefined);
-                      return;
+                      toast({
+                        title: "Error",
+                        description: `${file.name} no es un archivo PDF válido`,
+                        variant: "destructive",
+                      });
+                      continue;
                     }
+                    
                     // Validar tamaño (10MB máximo)
                     if (file.size > 10 * 1024 * 1024) {
-                      e.target.value = "";
-                      setSelectedFile(null);
-                      setValue("receiptFile", undefined);
-                      return;
+                      toast({
+                        title: "Error",
+                        description: `${file.name} supera el tamaño máximo de 10MB`,
+                        variant: "destructive",
+                      });
+                      continue;
                     }
-                    setSelectedFile(file);
-                    setValue("receiptFile", file);
-                  } else {
-                    setSelectedFile(null);
-                    setValue("receiptFile", undefined);
+                    
+                    validFiles.push(file);
                   }
+                  
+                  // Agregar archivos válidos a la lista existente
+                  if (validFiles.length > 0) {
+                    const newFiles = [...selectedFiles, ...validFiles];
+                    setSelectedFiles(newFiles);
+                    setValue("receiptFiles", newFiles);
+                  }
+                  
+                  // Limpiar el input para permitir subir el mismo archivo de nuevo
+                  e.target.value = "";
                 }}
                 className="h-9 cursor-pointer file:cursor-pointer file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
               />
@@ -495,18 +519,46 @@ export function WithdrawalDetailsStep({
                   {String(errors.receiptFile.message)}
                 </p>
               )}
-              {selectedFile && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted p-2 rounded">
-                  <FileText className="h-3 w-3" />
-                  <span>
-                    {selectedFile.name} (
-                    {(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
-                  </span>
+              
+              {/* Lista de archivos seleccionados */}
+              {selectedFiles.length > 0 && (
+                <div className="space-y-2 mt-3">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    {selectedFiles.length} archivo{selectedFiles.length !== 1 ? "s" : ""} seleccionado{selectedFiles.length !== 1 ? "s" : ""}:
+                  </p>
+                  {selectedFiles.map((file, index) => (
+                    <div
+                      key={`${file.name}-${index}`}
+                      className="flex items-center justify-between gap-2 text-xs bg-muted p-2 rounded hover:bg-muted/80 transition-colors"
+                    >
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <FileText className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                        <span className="truncate">
+                          {file.name}
+                        </span>
+                        <span className="text-muted-foreground flex-shrink-0">
+                          ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newFiles = selectedFiles.filter((_, i) => i !== index);
+                          setSelectedFiles(newFiles);
+                          setValue("receiptFiles", newFiles);
+                        }}
+                        className="text-destructive hover:text-destructive/80 flex-shrink-0 p-1 hover:bg-destructive/10 rounded transition-colors"
+                        title="Eliminar archivo"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               )}
+              
               <p className="text-xs text-muted-foreground">
-                Sube una factura, contrato, o documento PDF que justifique tu
-                retiro (máx. 10MB)
+                Puedes subir múltiples comprobantes (facturas, contratos, etc.). Máx. 10MB por archivo.
               </p>
             </div>
           </CardContent>
