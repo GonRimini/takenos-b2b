@@ -237,7 +237,7 @@ export function WithdrawalSummaryModal({
             </div>
 
             {/* Información adicional */}
-            {(data.reference || data.receiptFile) && (
+            {(data.reference || data.receiptFile || (data.receiptFiles && data.receiptFiles.length > 0)) && (
               <div className="pt-4 border-t">
                 <h3 className="text-sm font-semibold mb-3">Información adicional</h3>
                 <div className="space-y-3">
@@ -247,18 +247,41 @@ export function WithdrawalSummaryModal({
                       <div className="text-sm">{data.reference}</div>
                     </div>
                   )}
-                  {data.receiptFile && data.receiptFile instanceof File && (
+                  
+                  {/* Múltiples comprobantes */}
+                  {data.receiptFiles && Array.isArray(data.receiptFiles) && data.receiptFiles.length > 0 ? (
                     <div>
-                      <div className="text-sm font-medium text-muted-foreground">Comprobante PDF</div>
-                      <div className="text-sm flex items-center gap-2">
-                        <span className="font-mono bg-gray-100 px-2 py-1 rounded text-xs">
-                          📄 {data.receiptFile.name}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          ({(data.receiptFile.size / 1024 / 1024).toFixed(2)} MB)
-                        </span>
+                      <div className="text-sm font-medium text-muted-foreground mb-2">
+                        Comprobantes PDF ({data.receiptFiles.length})
+                      </div>
+                      <div className="space-y-2">
+                        {data.receiptFiles.map((file: File, index: number) => (
+                          <div key={`${file.name}-${index}`} className="text-sm flex items-center gap-2">
+                            <span className="font-mono bg-gray-100 px-2 py-1 rounded text-xs">
+                              📄 {file.name}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                            </span>
+                          </div>
+                        ))}
                       </div>
                     </div>
+                  ) : (
+                    /* Comprobante único (legacy) */
+                    data.receiptFile && data.receiptFile instanceof File && (
+                      <div>
+                        <div className="text-sm font-medium text-muted-foreground">Comprobante PDF</div>
+                        <div className="text-sm flex items-center gap-2">
+                          <span className="font-mono bg-gray-100 px-2 py-1 rounded text-xs">
+                            📄 {data.receiptFile.name}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            ({(data.receiptFile.size / 1024 / 1024).toFixed(2)} MB)
+                          </span>
+                        </div>
+                      </div>
+                    )
                   )}
                 </div>
               </div>

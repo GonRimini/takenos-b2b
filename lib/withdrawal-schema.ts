@@ -13,9 +13,13 @@ const baseSchema = z.object({
   reference: z.string().optional(),
   
   // Comprobante PDF para justificar el retiro
-  receiptFile: z.any().optional(), // File object, validamos en el cliente
-  receiptFileUrl: z.string().optional(), // URL del archivo subido a Supabase
-  receiptFileName: z.string().optional(), // Nombre del archivo
+  receiptFile: z.any().optional(), // File object (legacy - un solo archivo)
+  receiptFileUrl: z.string().optional(), // URL del archivo subido a Supabase (legacy)
+  receiptFileName: z.string().optional(), // Nombre del archivo (legacy)
+  
+  // Múltiples comprobantes PDF
+  receiptFiles: z.any().optional(), // Array de File objects
+  receiptFileUrls: z.any().optional(), // Array de URLs de archivos subidos
 
   // comunes opcionales (se filtran por categoría)
   country: z.string().optional(),
@@ -41,10 +45,12 @@ const baseSchema = z.object({
 
 export const withdrawalSchema = baseSchema.superRefine((data, ctx) => {
   // Validar comprobante PDF (requerido para todas las categorías)
-  if (!data.receiptFile) {
+  // Aceptar tanto receiptFile (legacy) como receiptFiles (nuevo)
+  const hasFiles = data.receiptFile || (data.receiptFiles && data.receiptFiles.length > 0);
+  if (!hasFiles) {
     ctx.addIssue({ 
       code: z.ZodIssueCode.custom, 
-      message: "Debes subir un comprobante PDF que justifique el retiro", 
+      message: "Debes subir al menos un comprobante PDF que justifique el retiro", 
       path: ["receiptFile"] 
     })
   }

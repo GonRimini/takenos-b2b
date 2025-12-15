@@ -45,6 +45,53 @@ export const useFileUploadMutation = () => {
   });
 };
 
+// Hook para subir múltiples archivos
+interface MultipleFileUploadParams {
+  files: File[];
+  userEmail?: string;
+}
+
+export const useUploadMultipleFilesMutation = () => {
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const repository = useWithdrawalRepository();
+
+  return useMutation<string[], Error, MultipleFileUploadParams>({
+    mutationFn: async ({ files, userEmail: providedEmail }) => {
+      const userEmail = providedEmail || getUserEmail(user);
+      
+      if (!userEmail) {
+        throw new Error("No se pudo obtener el email del usuario");
+      }
+
+      if (!files || files.length === 0) {
+        return [];
+      }
+
+      // Subir todos los archivos en paralelo
+      const uploadPromises = files.map(file => 
+        repository.uploadFile(file, userEmail)
+      );
+
+      const results = await Promise.all(uploadPromises);
+      
+      // Retornar solo las URLs públicas
+      return results.map(result => result.publicUrl);
+    },
+    onError: (error) => {
+      console.error("Error during multiple file upload:", error);
+      toast({
+        title: "Error al subir archivos",
+        description: error.message || "Error al subir los comprobantes PDF",
+        variant: "destructive"
+      });
+    },
+    onSuccess: (urls) => {
+      console.log(`${urls.length} archivos subidos exitosamente`);
+    }
+  });
+};
+
 // Hook para cargar cuentas guardadas
 export const useLoadAccountsQuery = (enabled: boolean) => {
   const repository = useWithdrawalRepository();
