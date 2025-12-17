@@ -12,7 +12,7 @@ interface ConditionalLayoutProps {
 export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   const pathname = usePathname()
 
-  if (pathname === "/login") {
+  if (pathname === "/login" || pathname === "/forgot-password" || pathname === "/auth/reset-password") {
     return <>{children}</>
   }
 
