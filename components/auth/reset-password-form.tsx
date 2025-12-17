@@ -42,21 +42,62 @@ export function ResetPasswordForm() {
   })
 
   useEffect(() => {
-    // Verificar si hay un hash de recuperación válido
+    // Verificar si hay una sesión de recuperación válida
     const checkToken = async () => {
+      // Primero verificar si hay un código en la URL (viene del callback)
+      const code = searchParams.get('code')
+      
+      if (code) {
+        // Intercambiar el código por una sesión
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+        
+        if (data.session && !error) {
+          setHasValidToken(true)
+          // Limpiar el código de la URL
+          window.history.replaceState({}, '', '/auth/reset-password')
+          return
+        } else {
+          console.error('Error al intercambiar código:', error)
+          setHasValidToken(false)
+          return
+        }
+      }
+
+      // Si no hay código, intentar obtener la sesión actual
+      const { data: { session }, error } = await supabase.auth.getSession()
+      
+      if (session && !error) {
+        // Si hay una sesión activa, permitir el cambio de contraseña
+        setHasValidToken(true)
+        return
+      }
+
+      // Si no hay sesión, verificar si hay un hash de recuperación válido (método legacy)
       const hashParams = new URLSearchParams(window.location.hash.substring(1))
       const accessToken = hashParams.get('access_token')
       const type = hashParams.get('type')
 
       if (type === 'recovery' && accessToken) {
-        setHasValidToken(true)
+        // Establecer la sesión con el access token del hash
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: hashParams.get('refresh_token') || '',
+        })
+        
+        if (!sessionError) {
+          setHasValidToken(true)
+          // Limpiar el hash de la URL
+          window.history.replaceState({}, '', '/auth/reset-password')
+        } else {
+          setHasValidToken(false)
+        }
       } else {
         setHasValidToken(false)
       }
     }
 
     checkToken()
-  }, [])
+  }, [searchParams])
 
   const onSubmit = async (data: ResetPasswordFormData) => {
     setIsLoading(true)
