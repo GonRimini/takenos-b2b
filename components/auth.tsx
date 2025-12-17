@@ -184,7 +184,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     // Rutas públicas que no requieren autenticación
-    const publicRoutes = ["/login", "/auth/callback"];
+    const publicRoutes = ["/login", "/auth/callback", "/auth/reset-password", "/forgot-password"];
 
     // Si no hay usuario Y no estamos en una ruta pública
     if (!user && !publicRoutes.includes(pathname)) {
