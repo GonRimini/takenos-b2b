@@ -33,6 +33,7 @@ export function RegisterForm() {
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors },
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -54,6 +55,7 @@ export function RegisterForm() {
           title: "¡Registro exitoso!",
           description: "Revisa tu email para confirmar tu cuenta",
         })
+        reset()
       }
     } catch (error) {
       toast({
