@@ -4,7 +4,6 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { User, Session, AuthError } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase-client";
-
 // 👇 agregá esto
 interface DbUser {
   id: string;
@@ -200,10 +199,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [user, loading, pathname, router]);
 
   const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data,error } = await supabase.auth.signUp({
       email,
       password,
     });
+    if(data.user){
+      // Enviar notificación a Slack a través de la API route
+      fetch('/api/slack-notification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: `👤 Nuevo usuario registrado: ${email}` })
+      }).catch(err => console.error('Error al enviar notificación a Slack:', err));
+      return { error: null };
+    }
     return { error };
   };
 
