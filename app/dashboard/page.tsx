@@ -106,13 +106,13 @@ export default function Dashboard() {
       />
 
       {/* Exchange Rate - Solo para usuarios bolivianos */}
-      {/* {isBolivian && (
+      {isBolivian && (
         <ExchangeRate 
           data={exchangeRateData}
           isLoading={isLoadingExchangeRate}
           error={isErrorExchangeRate ? exchangeRateError : null}
         />
-      )} */}
+      )}
 
       {/* Movements Table */}
       <MovementsTable 
