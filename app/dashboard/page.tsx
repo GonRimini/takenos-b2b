@@ -1,6 +1,7 @@
 "use client";
 
-
+import { useEffect } from "react";
+import { logAuditEvent } from "@/lib/audit/client";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { useAuth } from "@/components/auth";
@@ -65,6 +66,33 @@ export default function Dashboard() {
       refetchExchangeRate(),
     ]);
   };
+
+  useEffect(() => {
+    // Solo loguear cuando ya existe user completo con dbUser
+    if (!user?.id || !user?.email || !user?.dbUser) return;
+
+    // Evitar múltiples registros usando sessionStorage
+    const sessionKey = `audit_app_enter_${user.id}`;
+    const alreadyLogged = sessionStorage.getItem(sessionKey);
+    
+    if (!alreadyLogged) {
+      sessionStorage.setItem(sessionKey, "true");
+      
+      logAuditEvent({
+        action: "app.enter",
+        metadata: { 
+          page: "dashboard",
+          user_email: user.email,
+          user_name: user.dbUser.name || null,
+          user_last_name: user.dbUser.last_name || null,
+          company_name: user.dbUser.company?.name || null,
+          nationality: user.dbUser.nationality || null,
+        },
+        user_id: user.id,
+        company_id: user.dbUser.company_id || null,
+      });
+    }
+  }, [user?.id, user?.email, user?.dbUser]);
 
   return (
     <div className="space-y-6">
