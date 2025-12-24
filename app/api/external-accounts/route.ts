@@ -130,7 +130,7 @@ export async function GET(req: NextRequest) {
     const rail = searchParams.get("rail");
 
     // 🚀 Llamar a la RPC simple (ya resuelve company_id adentro)
-    const { data, error } = await sb.rpc("get_company_external_accounts", {
+    const { data, error } = await sb.rpc("get_company_external_accounts_v2", {
       p_user_id: authUserId,
     });
 
