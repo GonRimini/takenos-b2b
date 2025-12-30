@@ -1,6 +1,10 @@
 "use client";
 
-import { UseFormRegister, UseFormSetValue, UseFormWatch } from "react-hook-form";
+import {
+  UseFormRegister,
+  UseFormSetValue,
+  UseFormWatch,
+} from "react-hook-form";
 import { SWIFT_COUNTRIES, COUNTRY_CURRENCY_MAP } from "@/utils/countries";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -135,7 +139,7 @@ export default function SwiftForm({
 
       <div className="space-y-2">
         <Label htmlFor="beneficiary_bank_address" className="text-sm">
-          Dirección del banco (opcional)
+          Dirección del banco
         </Label>
         <Input
           {...register("beneficiary_bank_address")}
@@ -143,7 +147,47 @@ export default function SwiftForm({
           className="h-9"
         />
       </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="beneficiary_bank_address" className="text-sm">
+          Banco Intermediario
+        </Label>
+        <Input
+          {...register("intermediary_bank")}
+          placeholder="Nombre del banco intermediario"
+          className="h-9"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="beneficiary_bank_address" className="text-sm">
+          Routing Number Intermediario
+        </Label>
+        <Input
+          {...register("intermediary_routing_number")}
+          placeholder="Routing Number Intermediario"
+          className="h-9"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="beneficiary_bank_address" className="text-sm">
+          SWIFT/BIC Intermediario
+        </Label>
+        <Input
+          {...register("intermediary_swift_bic")}
+          placeholder="SWIFT/BIC Intermediario"
+          className="h-9"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="beneficiary_bank_address" className="text-sm">
+          Número de cuenta Intermediario
+        </Label>
+        <Input
+          {...register("intermediary_account_number")}
+          placeholder="Número de cuenta Intermediario"
+          className="h-9"
+        />
+      </div>
     </>
   );
 }
-
