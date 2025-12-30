@@ -16,6 +16,10 @@ export interface ExternalAccountSWIFT {
   beneficiary_bank_address?: string;
   beneficiary_name: string;
   account_type: "checking" | "savings";
+  intermediary_bank?: string;
+  intermediary_routing_number?: string;
+  intermediary_swift_bic?: string;
+  intermediary_account_number?: string;
 }
 
 export interface ExternalAccountCrypto {
