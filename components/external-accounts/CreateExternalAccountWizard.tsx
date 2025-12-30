@@ -107,6 +107,10 @@ export default function CreateExternalAccountWizard({
           beneficiary_name: data.beneficiary_name,
           account_type: data.account_type,
           country_code: data.country_code,
+          intermediary_bank: data.intermediary_bank || "",
+          intermediary_routing_number: data.intermediary_routing_number || "",
+          intermediary_swift_bic: data.intermediary_swift_bic || "",
+          intermediary_account_number: data.intermediary_account_number || "",
         };
       } else if (data.rail === "crypto") {
         payload.crypto = {
