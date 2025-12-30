@@ -52,7 +52,7 @@ export function BalanceCard({
             ? "Verifique su información"
             : balanceData?.lastUpdated
             ? formatLastUpdated(balanceData.lastUpdated)
-            : "No disponible"}
+            : new Date().toLocaleString()}
         </p>
       </CardContent>
     </Card>
