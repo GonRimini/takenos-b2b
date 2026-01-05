@@ -135,7 +135,7 @@ export function MovementsTable({
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-4">
           <div>
             <CardTitle className="text-xl font-semibold">
               Movimientos Recientes
@@ -144,7 +144,7 @@ export function MovementsTable({
               Historial de transacciones y operaciones
             </p>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 w-full md:w-auto justify-start">
             <Button
               onClick={downloadCSV}
               variant="cta"
@@ -170,7 +170,7 @@ export function MovementsTable({
         </div>
 
         {/* Date Filters */}
-        <div className="flex items-center space-x-4">
+        <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
           <div className="flex items-center space-x-2">
             <label
               htmlFor="startDate"
