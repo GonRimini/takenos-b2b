@@ -39,10 +39,6 @@ export function AppHeader() {
     }
   };
 
-  const handleHelp = () => {
-    router.push("/ayuda");
-  };
-
   return (
     <header className="sticky top-0 z-50 w-full border-b border-gray-200 bg-white">
       <div className="flex h-16 items-center justify-between px-4 md:px-6">
@@ -58,10 +54,9 @@ export function AppHeader() {
             <Image
               src="/logo-takenos-transparent.png"
               alt="Takenos"
-              width={120}
-              height={36}
-              priority
-              className="h-6 w-auto"
+              width={144}
+              height={42}
+                priority
             />
             </Link>
           </div>
@@ -81,18 +76,19 @@ export function AppHeader() {
         </div>
 
         {/* Right Section: Action Buttons (solo en desktop) */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
           {!isMobile && (
             <>
+            <Link href="/ayuda">
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={handleHelp}
                 aria-label="Ayuda"
                 className="text-[#6d37d5] hover:bg-[#6d37d5]/10 hover:text-[#6d37d5]"
               >
-                <CircleHelp className="h-5 w-5 lg:h-6 lg:w-6" />
+                <CircleHelp className="!h-5 !w-5" />
               </Button>
+            </Link>
               <Button
                 variant="ghost"
                 size="icon"
@@ -100,7 +96,7 @@ export function AppHeader() {
                 aria-label="Cerrar sesión"
                 className="text-[#6d37d5] hover:bg-[#6d37d5]/10 hover:text-[#6d37d5]"
               >
-                <LogOut className="h-5 w-5 lg:h-6 lg:w-6" />
+                <LogOut className="!h-5 !w-5" />
               </Button>
             </>
           )}
