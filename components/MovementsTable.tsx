@@ -221,12 +221,12 @@ export function MovementsTable({
             <Table>
               <TableHeader className="sticky top-0 bg-white z-10">
                 <TableRow>
-                  <TableHead className="bg-white text-[9px] md:text-sm px-1 md:px-4">Fecha</TableHead>
+                  <TableHead className="bg-white text-xs md:text-sm px-1 md:px-4">Fecha</TableHead>
                   <TableHead className="bg-white text-xs md:text-sm hidden md:table-cell">Tipo</TableHead>
-                  <TableHead className="bg-white text-[9px] md:text-sm px-1 md:px-4">Cuenta</TableHead>
-                  <TableHead className="text-right bg-white text-[9px] md:text-sm px-1 md:px-4">Monto</TableHead>
-                  <TableHead className="bg-white text-[9px] md:text-sm px-1 md:px-2">Estado</TableHead>
-                  <TableHead className="bg-white text-[9px] md:text-sm px-0.5 md:px-4"></TableHead>
+                  <TableHead className="bg-white text-xs md:text-sm px-1 md:px-4">Cuenta</TableHead>
+                  <TableHead className="text-right bg-white text-xs md:text-sm px-1 md:px-4">Monto</TableHead>
+                  <TableHead className="bg-white text-xs md:text-sm px-1 md:px-2">Estado</TableHead>
+                  <TableHead className="bg-white text-xs md:text-sm px-0.5 md:px-4"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -261,7 +261,7 @@ export function MovementsTable({
                             {formatDate(m.date)}
                           </span>
                         </TableCell>
-                        <TableCell className="text-xs md:text-sm py-3 md:py-4 hidden md:table-cell">
+                        <TableCell className="text-[9px] md:text-sm py-3 md:py-4 hidden md:table-cell">
                           <TransactionTypeBadge
                             rawType={m.raw_type}
                             direction={m.direction}
