@@ -221,18 +221,19 @@ export function MovementsTable({
             <Table>
               <TableHeader className="sticky top-0 bg-white z-10">
                 <TableRow>
-                  <TableHead className="bg-white">Fecha</TableHead>
-                  <TableHead className="bg-white">Tipo</TableHead>
-                  <TableHead className="bg-white">Cuenta/Destino</TableHead>
-                  <TableHead className="text-right bg-white">Monto</TableHead>
-                  <TableHead className="bg-white">Estado</TableHead>
+                  <TableHead className="bg-white text-[10px] md:text-sm px-2 md:px-4">Fecha</TableHead>
+                  <TableHead className="bg-white text-xs md:text-sm hidden md:table-cell">Tipo</TableHead>
+                  <TableHead className="bg-white text-[10px] md:text-sm px-1 md:px-4">Cuenta</TableHead>
+                  <TableHead className="text-right bg-white text-[10px] md:text-sm px-2 md:px-4">Monto</TableHead>
+                  <TableHead className="bg-white text-[10px] md:text-sm px-2 md:px-4">Estado</TableHead>
+                  <TableHead className="bg-white text-[10px] md:text-sm px-2 md:px-4"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoadingMovements ? (
                   <TableRow>
                     <TableCell
-                      colSpan={7}
+                      colSpan={6}
                       className="text-center py-8 text-gray-500"
                     >
                       Cargando...
@@ -242,7 +243,7 @@ export function MovementsTable({
                   filterMovementsByDate(movementsData).length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={7}
+                      colSpan={6}
                       className="text-center py-8 text-gray-500"
                     >
                       {startDate || endDate
@@ -255,27 +256,31 @@ export function MovementsTable({
                     const displayAmount = getDisplayAmount(m);
                     return (
                       <TableRow key={m.id}>
-                        <TableCell className="font-medium">
+                        <TableCell className="font-medium text-[10px] md:text-sm py-2 md:py-4 px-2 md:px-4">
                           {formatDate(m.date)}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="text-xs md:text-sm py-3 md:py-4 hidden md:table-cell">
                           <TransactionTypeBadge
                             rawType={m.raw_type}
                             direction={m.direction}
                           />
                         </TableCell>
-                        <TableCell>{m.account_ref}</TableCell>
+                        <TableCell className="text-[10px] md:text-sm py-2 md:py-4 px-1 md:px-4 max-w-[60px] md:max-w-none truncate">
+                          <span className="block truncate" title={m.account_ref}>
+                            {m.account_ref}
+                          </span>
+                        </TableCell>
                         <TableCell
-                          className={`text-right font-medium ${
+                          className={`text-right font-medium text-[10px] md:text-sm py-2 md:py-4 px-2 md:px-4 ${
                             displayAmount > 0 ? "text-green-600" : "text-red-600"
                           }`}
                         >
                           {formatCurrency(displayAmount)}
                         </TableCell>
-                        <TableCell>
-                          <StatusBadge status={m.status} />
+                        <TableCell className="text-[10px] md:text-sm py-2 md:py-4 px-2 md:px-4">
+                          <StatusBadge status={m.status} className="text-[10px] md:text-sm"/>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="py-2 md:py-4 px-1 md:px-4">
                           {m.raw_type === "withdrawal" ? (
                             <WithdrawalPDFButton
                               withdrawalId={m.raw_id}
