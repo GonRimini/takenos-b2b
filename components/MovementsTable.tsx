@@ -225,8 +225,8 @@ export function MovementsTable({
                   <TableHead className="bg-white text-xs md:text-sm hidden md:table-cell">Tipo</TableHead>
                   <TableHead className="bg-white text-xs md:text-sm px-1 md:px-4">Cuenta</TableHead>
                   <TableHead className="text-right bg-white text-xs md:text-sm px-1 md:px-4">Monto</TableHead>
-                  <TableHead className="bg-white text-xs md:text-sm px-1 md:px-2">Estado</TableHead>
-                  <TableHead className="bg-white text-xs md:text-sm px-0.5 md:px-4"></TableHead>
+                  <TableHead className="bg-white text-xs md:text-sm px-0.5 md:px-2 text-center">Estado</TableHead>
+                  <TableHead className="bg-white text-xs md:text-sm px-0 md:px-4"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -256,7 +256,7 @@ export function MovementsTable({
                     const displayAmount = getDisplayAmount(m);
                     return (
                       <TableRow key={m.id}>
-                        <TableCell className="font-medium text-[9px] md:text-sm py-2 md:py-4 px-1 md:px-4 max-w-[55px] md:max-w-none">
+                        <TableCell className="font-medium text-xs md:text-sm py-2 md:py-4 px-1 md:px-4 max-w-[65px] md:max-w-none">
                           <span className="block truncate">
                             {formatDate(m.date)}
                           </span>
@@ -267,13 +267,13 @@ export function MovementsTable({
                             direction={m.direction}
                           />
                         </TableCell>
-                        <TableCell className="text-[9px] md:text-sm py-2 md:py-4 px-1 md:px-4 max-w-[50px] md:max-w-none truncate">
+                        <TableCell className="text-xs md:text-sm py-2 md:py-4 px-1 md:px-4 max-w-[55px] md:max-w-none truncate">
                           <span className="block truncate" title={m.account_ref}>
                             {m.account_ref}
                           </span>
                         </TableCell>
                         <TableCell
-                          className={`text-right font-medium text-[9px] md:text-sm py-2 md:py-4 px-1 md:px-4 max-w-[60px] md:max-w-none ${
+                          className={`text-right font-medium text-xs md:text-sm py-2 md:py-4 px-1 md:px-4 max-w-[70px] md:max-w-none ${
                             displayAmount > 0 ? "text-green-600" : "text-red-600"
                           }`}
                         >
@@ -281,14 +281,16 @@ export function MovementsTable({
                             {formatCurrency(displayAmount)}
                           </span>
                         </TableCell>
-                        <TableCell className="py-2 md:py-4 px-1 md:px-2">
-                          <StatusBadge 
-                            status={m.status} 
-                            variant="compact"
-                            className="text-[9px] md:text-xs px-1 md:px-2"
-                          />
+                        <TableCell className="py-2 md:py-4 px-0.5 md:px-2">
+                          <div className="flex items-center justify-center">
+                            <StatusBadge 
+                              status={m.status} 
+                              variant="compact"
+                              className="text-[8px] md:text-xs px-1 py-0 md:px-2 whitespace-nowrap"
+                            />
+                          </div>
                         </TableCell>
-                        <TableCell className="py-2 md:py-4 px-0.5 md:px-4">
+                        <TableCell className="py-2 md:py-4 px-0 md:px-4">
                           {m.raw_type === "withdrawal" ? (
                             <WithdrawalPDFButton
                               withdrawalId={m.raw_id}
