@@ -9,7 +9,7 @@ import { useAuth } from "@/components/auth";
 import { toast } from "@/hooks/use-toast";
 import { clearUserSession } from "@/lib/auth";
 import { useIsMobile } from "@/components/ui/use-mobile";
-import { SidebarTrigger } from "@/components/ui/sidebar";
+import { CustomTrigger } from "@/components/SidebarTriggerCustom";
 
 export function AppHeader() {
   const router = useRouter();
@@ -48,7 +48,7 @@ export function AppHeader() {
       <div className="flex h-16 items-center justify-between px-4 md:px-6">
         {/* Left Section: Toggle Button */}
         <div className="flex items-center">
-          <SidebarTrigger className="hover:bg-violet-100 text-[#6d37d5]" />
+          <CustomTrigger />
         </div>
         {/* Center Section: Logo (absolutely centered) */}
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
