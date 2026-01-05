@@ -91,7 +91,7 @@ export function AppHeader() {
                 aria-label="Ayuda"
                 className="text-[#6d37d5] hover:bg-[#6d37d5]/10 hover:text-[#6d37d5]"
               >
-                <CircleHelp className="h-5 w-5" />
+                <CircleHelp className="h-5 w-5 lg:h-6 lg:w-6" />
               </Button>
               <Button
                 variant="ghost"
@@ -100,7 +100,7 @@ export function AppHeader() {
                 aria-label="Cerrar sesión"
                 className="text-[#6d37d5] hover:bg-[#6d37d5]/10 hover:text-[#6d37d5]"
               >
-                <LogOut className="h-5 w-5" />
+                <LogOut className="h-5 w-5 lg:h-6 lg:w-6" />
               </Button>
             </>
           )}
