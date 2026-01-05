@@ -116,7 +116,7 @@ console.log(`Found account:`, JSON.stringify(account, null, 2));
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-4">
         <div>
           <h2 className="text-lg font-semibold text-foreground mb-1">
             Instrucciones de depósito
@@ -131,7 +131,7 @@ console.log(`Found account:`, JSON.stringify(account, null, 2));
           size="sm"
           onClick={handleRefresh}
           disabled={isLoading}
-          className="flex items-center space-x-2"
+          className="flex items-center space-x-2 md:justify-start"
         >
           <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
           <span>Actualizar</span>
