@@ -9,6 +9,8 @@ import { clearUserSession, getUserSession } from "@/lib/auth";
 import { useAuth } from "@/components/auth";
 import { toast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const DepositIcon = () => (
   <svg
@@ -106,10 +108,19 @@ const navigation = [
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [userEmail, setUserEmail] = useState<string>("");
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const { signOut, user } = useAuth();
   const companyName = user?.dbUser?.company?.name
   const userName = `${user?.dbUser?.name || ""} ${user?.dbUser?.last_name || ""}`.trim();
+
+  // En mobile, iniciar colapsado por defecto
+  useEffect(() => {
+    if (isMobile) {
+      setIsCollapsed(true);
+    }
+  }, [isMobile]);
 
   useEffect(() => {
     const sessionUser = getUserSession();
@@ -121,6 +132,13 @@ export function Sidebar() {
       setUserEmail(user.email);
     }
   }, [user]);
+
+  // Cerrar el sidebar en mobile al navegar
+  useEffect(() => {
+    if (isMobile && !isCollapsed) {
+      setIsCollapsed(true);
+    }
+  }, [pathname, isMobile]);
 
   const handleLogout = async () => {
 
@@ -150,14 +168,53 @@ export function Sidebar() {
   };
 
   return (
-    <div className="flex h-screen w-64 flex-col bg-white border-r border-gray-200">
+    <>
+      {/* Overlay para mobile cuando el sidebar está expandido */}
+      {isMobile && !isCollapsed && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setIsCollapsed(true)}
+          aria-hidden="true"
+        />
+      )}
+
+      <div className={cn(
+        "flex h-screen flex-col bg-white border-r border-gray-200 transition-all duration-300 relative",
+        // Desktop: tamaños normales
+        !isMobile && (isCollapsed ? "w-20" : "w-64"),
+        // Mobile: fixed positioning y ancho completo cuando expandido
+        isMobile && "fixed left-0 top-0 z-50",
+        isMobile && (isCollapsed ? "w-20" : "w-full")
+      )}>
+        {/* Toggle button */}
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="absolute -right-3 top-20 z-50 flex h-6 w-6 items-center justify-center rounded-full bg-white border-2 border-gray-200 text-gray-600 hover:bg-gray-100 transition-colors"
+          aria-label={isCollapsed ? "Expandir sidebar" : "Colapsar sidebar"}
+        >
+          {isCollapsed ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <ChevronLeft className="h-4 w-4" />
+          )}
+        </button>
+
       {/* Logo */}
-      <div className="flex h-16 items-center px-6 border-b border-gray-200">
-        <div className="flex items-center">
-            <Link
-            href="/dashboard"
-            className="flex items-center justify-center py-2 mb-2"
-            >
+      <div className="flex h-16 items-center justify-center px-4 border-b border-gray-200">
+        <Link
+          href="/dashboard"
+          className="flex items-center justify-center py-2"
+        >
+          {isCollapsed ? (
+            <Image
+              src="/isotipo_color_takenos.png"
+              alt="Takenos"
+              width={32}
+              height={32}
+              priority
+              className="h-8 w-8 cursor-pointer transition-opacity duration-200 hover:opacity-80"
+            />
+          ) : (
             <Image
               src="/logo-takenos-transparent.png"
               alt="Takenos"
@@ -166,8 +223,8 @@ export function Sidebar() {
               priority
               className="h-5 w-auto cursor-pointer transition-opacity duration-200 hover:opacity-80"
             />
-            </Link>
-        </div>
+          )}
+        </Link>
       </div>
 
       {/* Navigation */}
@@ -183,13 +240,15 @@ export function Sidebar() {
                     "flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors",
                     pathname === item.href
                       ? "bg-[#6d37d5] text-white shadow-sm"
-                      : "text-gray-700 hover:bg-[#6d37d5]/10 hover:text-[#6d37d5]"
+                      : "text-gray-700 hover:bg-[#6d37d5]/10 hover:text-[#6d37d5]",
+                    isCollapsed && "justify-center"
                   )}
+                  title={isCollapsed ? item.name : undefined}
                 >
-                  <span className="mr-3">
+                  <span className={cn(isCollapsed ? "" : "mr-3")}>
                     <IconComponent />
                   </span>
-                  {item.name}
+                  {!isCollapsed && item.name}
                 </Link>
               </li>
             );
@@ -199,17 +258,29 @@ export function Sidebar() {
 
       {/* User info and logout section */}
       <div className="border-t border-gray-200 p-4">
-        <div className="mb-3">
-          <p className="text-xs text-gray-500 mb-1">Usuario conectado:</p>
-          <p className="text-sm font-medium text-gray-900 truncate">
-            {userName || userEmail}
-          </p>
-        </div>
-        <Button onClick={handleLogout} variant="logout" size="sm">
+        {!isCollapsed && (
+          <div className="mb-3">
+            <p className="text-xs text-gray-500 mb-1">Usuario conectado:</p>
+            <p className="text-sm font-medium text-gray-900 truncate">
+              {userName || userEmail}
+            </p>
+          </div>
+        )}
+        <Button 
+          onClick={handleLogout} 
+          variant="logout" 
+          size="sm"
+          className={cn(
+            "w-full",
+            isCollapsed && "justify-center px-2"
+          )}
+          title={isCollapsed ? "Cerrar sesión" : undefined}
+        >
           <LogoutIcon />
-          <span className="ml-2">Cerrar sesión</span>
+          {!isCollapsed && <span className="ml-2">Cerrar sesión</span>}
         </Button>
       </div>
     </div>
+    </>
   );
 }
