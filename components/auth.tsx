@@ -14,6 +14,7 @@ interface DbUser {
   company: {
     id: string;
     name: string;
+    country_code: string;
     // otros campos de la tabla companies si los necesitás
   } | null;
   nationality: string;

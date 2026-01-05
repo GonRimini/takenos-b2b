@@ -20,7 +20,7 @@ export default function Dashboard() {
   const { user } = useAuth();
 
   const companyName = user?.dbUser?.company?.name;
-  const isBolivian = user?.dbUser?.nationality === "bolivian";
+  const isBolivian = user?.dbUser?.company?.country_code === "BO";
 
   // Construir un nombre amigable evitando "undefined undefined"
   const fullName =
