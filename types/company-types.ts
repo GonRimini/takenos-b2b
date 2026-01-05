@@ -3,6 +3,7 @@ export interface Company {
   name: string | null;
   notes: string | null;
   retool_lookup_email: string | null;
+  country_code: string | null;
   created_at: string;
 }
 
