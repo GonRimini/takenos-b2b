@@ -84,8 +84,8 @@ export function AppSidebar() {
                       className={isActive ? "bg-[#6d37d5] text-white hover:bg-[#6d37d5] hover:text-white h-12 text-base" : "hover:bg-[#6d37d5]/10 hover:text-[#6d37d5] h-12 text-base"}
                     >
                       <button onClick={() => handleNavigation(item.href)} className="w-full">
-                        <Icon className="h-6 w-6 mr-3" />
-                        <span className="font-medium">{item.name}</span>
+                        <Icon className="h-6 w-6 mr-1" />
+                        <span className="font-medium text-md">{item.name}</span>
                       </button>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -94,34 +94,35 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        {/* Botones adicionales en mobile */}
-        {isMobile && (
-          <SidebarGroup className="mt-auto px-3 py-4 bg-white">
-            <SidebarGroupContent>
-              <div className="space-y-2">
-                <Button
-                  onClick={handleLogout}
-                  variant="ghost"
-                  className="w-full justify-start text-[#6d37d5] hover:bg-[#6d37d5]/10 hover:text-[#6d37d5] h-12 text-base"
-                >
-                  <LogOut className="mr-3 h-6 w-6" />
-                  <span className="font-medium">Cerrar sesión</span>
-                </Button>
-              </div>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
       </SidebarContent>
 
-      {/* Footer con info de usuario - solo desktop */}
-      {!isMobile && (
+      {/* Footer - diferente para mobile y desktop */}
+      {isMobile ? (
+        <SidebarFooter className="border-t border-gray-200 p-4 bg-white">
+          <Button
+            onClick={handleLogout}
+            variant="ghost"
+            className="w-full justify-start text-[#6d37d5] hover:bg-[#6d37d5]/10 hover:text-[#6d37d5] h-12 text-base"
+          >
+            <LogOut className="mr-3 h-6 w-6" />
+            <span className="font-medium">Cerrar sesión</span>
+          </Button>
+        </SidebarFooter>
+      ) : (
         <SidebarFooter className="border-t border-gray-200 p-6 bg-white">
           <div className="space-y-2">
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Usuario conectado</p>
             <p className="text-sm font-semibold text-gray-900 truncate">
-              {userName || userEmail}
+               {userName || userEmail}
             </p>
+            <Button
+              onClick={handleLogout}
+              variant="ghost"
+              className="w-full justify-start text-[#6d37d5] hover:bg-[#6d37d5]/10 hover:text-[#6d37d5] h-10 text-sm"
+            >
+              <LogOut className="h-5 w-5" />
+              Cerrar sesión
+            </Button>
           </div>
         </SidebarFooter>
       )}
