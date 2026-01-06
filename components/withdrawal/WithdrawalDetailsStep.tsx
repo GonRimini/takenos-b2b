@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/tooltip";
 import { AlertCircle, DollarSign, FileText, Info, X } from "lucide-react";
 import { useExternalAccountQuery } from "@/hooks/external-accounts/queries";
-import { UseFormRegister, UseFormSetValue, FieldErrors } from "react-hook-form";
+import { UseFormRegister, UseFormSetValue, FieldErrors, UseFormClearErrors } from "react-hook-form";
 import { type WithdrawalFormData } from "@/lib/withdrawal-schema";
 import { useToast } from "@/hooks/use-toast";
 
@@ -34,6 +34,7 @@ interface WithdrawalDetailsStepProps {
   selectedFiles: File[]; // ✅ Cambiado de File | null a File[]
   setSelectedFiles: (files: File[]) => void; // ✅ Cambiado para aceptar array
   handleAmountChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  clearErrors: UseFormClearErrors<WithdrawalFormData>;
 }
 
 export function WithdrawalDetailsStep({
@@ -46,6 +47,7 @@ export function WithdrawalDetailsStep({
   selectedFiles,
   setSelectedFiles,
   handleAmountChange,
+  clearErrors,
 }: WithdrawalDetailsStepProps) {
   const { toast } = useToast();
   
@@ -428,13 +430,19 @@ export function WithdrawalDetailsStep({
                 <Input
                   id="amount"
                   {...register("amount")}
-                  onChange={handleAmountChange}
+                  onChange={(e) => {
+                    handleAmountChange(e);
+                    // Limpiar error cuando el usuario empiece a escribir
+                    if (e.target.value.trim() !== "" && e.target.value !== "0.00") {
+                      clearErrors("amount");
+                    }
+                  }}
                   placeholder="0.00"
                   className="pl-10 font-mono h-9"
                 />
               </div>
               {errors.amount && (
-                <p className="text-xs text-destructive">
+                <p className="text-xs text-red-500 ">
                   {errors.amount.message}
                 </p>
               )}
@@ -507,6 +515,8 @@ export function WithdrawalDetailsStep({
                     const newFiles = [...selectedFiles, ...validFiles];
                     setSelectedFiles(newFiles);
                     setValue("receiptFiles", newFiles);
+                    // Limpiar error cuando se agregue al menos un archivo
+                    clearErrors("receiptFile");
                   }
                   
                   // Limpiar el input para permitir subir el mismo archivo de nuevo
@@ -515,7 +525,7 @@ export function WithdrawalDetailsStep({
                 className="h-9 cursor-pointer file:cursor-pointer file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
               />
               {errors.receiptFile && (
-                <p className="text-xs text-destructive">
+                <p className="text-xs text-red-500">
                   {String(errors.receiptFile.message)}
                 </p>
               )}
@@ -546,6 +556,10 @@ export function WithdrawalDetailsStep({
                           const newFiles = selectedFiles.filter((_, i) => i !== index);
                           setSelectedFiles(newFiles);
                           setValue("receiptFiles", newFiles);
+                          // Si después de eliminar aún hay archivos, mantener el error limpio
+                          if (newFiles.length > 0) {
+                            clearErrors("receiptFile");
+                          }
                         }}
                         className="text-destructive hover:text-destructive/80 flex-shrink-0 p-1 hover:bg-destructive/10 rounded transition-colors"
                         title="Eliminar archivo"
