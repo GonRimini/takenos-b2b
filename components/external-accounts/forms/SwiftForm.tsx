@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import {
   UseFormRegister,
   UseFormSetValue,
@@ -29,6 +30,15 @@ export default function SwiftForm({
   watch,
   errors,
 }: SwiftFormProps) {
+  const currentCountryCode = watch("country_code");
+
+  // Setear valor por defecto de country_code
+  useEffect(() => {
+    if (!currentCountryCode) {
+      setValue("country_code", "US");
+    }
+  }, [currentCountryCode, setValue]);
+
   return (
     <>
       <div className="grid grid-cols-2 gap-4">
@@ -41,7 +51,7 @@ export default function SwiftForm({
               setValue("country_code", value);
               setValue("currency_code", COUNTRY_CURRENCY_MAP[value] ?? "USD");
             }}
-            value={watch("country_code")}
+            value={watch("country_code") || "US"}
           >
             <SelectTrigger className="h-9">
               <SelectValue placeholder="Selecciona el país" />
@@ -54,18 +64,23 @@ export default function SwiftForm({
               ))}
             </SelectContent>
           </Select>
+          {errors.country_code && (
+            <p className="text-xs text-red-500">
+              {errors.country_code.message as string}
+            </p>
+          )}
         </div>
         <div className="space-y-2">
           <Label htmlFor="beneficiary_name" className="text-sm">
             Titular de la cuenta *
           </Label>
           <Input
-            {...register("beneficiary_name")}
-            placeholder="Nombre completo"
+            {...register("beneficiary_name", { required: true })}
+            placeholder="John Doe"
             className="h-9"
           />
           {errors.beneficiary_name && (
-            <p className="text-xs text-destructive">
+            <p className="text-xs text-red-500">
               {errors.beneficiary_name.message as string}
             </p>
           )}
@@ -78,12 +93,12 @@ export default function SwiftForm({
             Banco *
           </Label>
           <Input
-            {...register("receiver_bank")}
-            placeholder="Nombre del banco"
+            {...register("receiver_bank", { required: true })}
+            placeholder="Bank of America"
             className="h-9"
           />
           {errors.receiver_bank && (
-            <p className="text-xs text-destructive">
+            <p className="text-xs text-red-500">
               {errors.receiver_bank.message as string}
             </p>
           )}
@@ -93,12 +108,13 @@ export default function SwiftForm({
             SWIFT/BIC *
           </Label>
           <Input
-            {...register("swift_bic")}
+            {...register("swift_bic", { required: true })}
             placeholder="ABCDUS33XXX"
-            className="font-mono h-9"
+            className="font-mono h-9 uppercase"
+            maxLength={11}
           />
           {errors.swift_bic && (
-            <p className="text-xs text-destructive">
+            <p className="text-xs text-red-500">
               {errors.swift_bic.message as string}
             </p>
           )}
@@ -111,12 +127,12 @@ export default function SwiftForm({
             Número de cuenta / IBAN *
           </Label>
           <Input
-            {...register("account_number")}
-            placeholder="Número de cuenta o IBAN"
+            {...register("account_number", { required: true })}
+            placeholder="123456789"
             className="font-mono h-9"
           />
           {errors.account_number && (
-            <p className="text-xs text-destructive">
+            <p className="text-xs text-red-500">
               {errors.account_number.message as string}
             </p>
           )}
@@ -134,59 +150,91 @@ export default function SwiftForm({
               <SelectItem value="savings">Savings</SelectItem>
             </SelectContent>
           </Select>
+          {errors.account_type && (
+            <p className="text-xs text-red-500">
+              {errors.account_type.message as string}
+            </p>
+          )}
         </div>
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="beneficiary_bank_address" className="text-sm">
-          Dirección del banco
+          Dirección del banco (opcional)
         </Label>
         <Input
           {...register("beneficiary_bank_address")}
           placeholder="123 Main St, City, State"
           className="h-9"
         />
+        {errors.beneficiary_bank_address && (
+          <p className="text-xs text-red-500">
+            {errors.beneficiary_bank_address.message as string}
+          </p>
+        )}
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="beneficiary_bank_address" className="text-sm">
-          Banco Intermediario
+        <Label htmlFor="intermediary_bank" className="text-sm">
+          Banco Intermediario (opcional)
         </Label>
         <Input
           {...register("intermediary_bank")}
           placeholder="Nombre del banco intermediario"
           className="h-9"
         />
+        {errors.intermediary_bank && (
+          <p className="text-xs text-red-500">
+            {errors.intermediary_bank.message as string}
+          </p>
+        )}
       </div>
       <div className="space-y-2">
-        <Label htmlFor="beneficiary_bank_address" className="text-sm">
-          Routing Number Intermediario
+        <Label htmlFor="intermediary_routing_number" className="text-sm">
+          Routing Number Intermediario (opcional)
         </Label>
         <Input
           {...register("intermediary_routing_number")}
-          placeholder="Routing Number Intermediario"
-          className="h-9"
+          placeholder="123456789"
+          className="font-mono h-9"
+          maxLength={9}
         />
+        {errors.intermediary_routing_number && (
+          <p className="text-xs text-red-500">
+            {errors.intermediary_routing_number.message as string}
+          </p>
+        )}
       </div>
       <div className="space-y-2">
-        <Label htmlFor="beneficiary_bank_address" className="text-sm">
-          SWIFT/BIC Intermediario
+        <Label htmlFor="intermediary_swift_bic" className="text-sm">
+          SWIFT/BIC Intermediario (opcional)
         </Label>
         <Input
           {...register("intermediary_swift_bic")}
-          placeholder="SWIFT/BIC Intermediario"
-          className="h-9"
+          placeholder="ABCDUS33XXX"
+          className="font-mono h-9 uppercase"
+          maxLength={11}
         />
+        {errors.intermediary_swift_bic && (
+          <p className="text-xs text-red-500">
+            {errors.intermediary_swift_bic.message as string}
+          </p>
+        )}
       </div>
       <div className="space-y-2">
-        <Label htmlFor="beneficiary_bank_address" className="text-sm">
-          Número de cuenta Intermediario
+        <Label htmlFor="intermediary_account_number" className="text-sm">
+          Número de cuenta Intermediario (opcional)
         </Label>
         <Input
           {...register("intermediary_account_number")}
-          placeholder="Número de cuenta Intermediario"
-          className="h-9"
+          placeholder="123456789"
+          className="font-mono h-9"
         />
+        {errors.intermediary_account_number && (
+          <p className="text-xs text-red-500">
+            {errors.intermediary_account_number.message as string}
+          </p>
+        )}
       </div>
     </>
   );
