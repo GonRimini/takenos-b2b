@@ -149,6 +149,8 @@ export default function RetirarPage() {
     setValue,
     formState: { errors },
     getValues,
+    setError,
+    clearErrors,
   } = useForm<WithdrawalFormData>({
     // resolver: zodResolver(withdrawalSchema),
   });
@@ -159,6 +161,35 @@ export default function RetirarPage() {
   };
 
   const onSubmit = async (data: WithdrawalFormData) => {
+    // Validar que haya un monto
+    let hasErrors = false;
+    
+    if (!data.amount || data.amount.trim() === "" || data.amount === "0.00") {
+      setError("amount", {
+        type: "manual",
+        message: "Debes ingresar un monto válido",
+      });
+      hasErrors = true;
+    } else {
+      clearErrors("amount");
+    }
+
+    // Validar que haya al menos un archivo
+    if (selectedFiles.length === 0) {
+      setError("receiptFile", {
+        type: "manual",
+        message: "Debes subir al menos un comprobante PDF",
+      });
+      hasErrors = true;
+    } else {
+      clearErrors("receiptFile");
+    }
+
+    // Si hay errores, no continuar
+    if (hasErrors) {
+      return;
+    }
+
     // Si hay archivos seleccionados, subirlos antes de mostrar el modal
     if (selectedFiles.length > 0) {
       try {
@@ -577,6 +608,7 @@ export default function RetirarPage() {
           selectedFiles={selectedFiles} // ✅ Pasar array
           setSelectedFiles={setSelectedFiles} // ✅ Pasar setter de array
           handleAmountChange={handleAmountChange}
+          clearErrors={clearErrors}
         />
       </form>
 
