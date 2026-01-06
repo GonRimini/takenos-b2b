@@ -4,6 +4,13 @@ import { z } from "zod";
 const baseAccountSchema = z.object({
   nickname: z.string().min(3, "El apodo debe tener al menos 3 caracteres"),
   currency_code: z.string().min(3, "Código de moneda requerido"),
+  beneficiary_url: z
+    .string()
+    .min(1, "URL del beneficiario es requerida")
+    .regex(
+      /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/,
+      "Debe ser una URL válida (ej: www.example.com o https://example.com)"
+    ),
   is_default: z.boolean().optional(),
 });
 
@@ -11,24 +18,76 @@ const baseAccountSchema = z.object({
 export const achAccountSchema = baseAccountSchema.extend({
   rail: z.literal("ach"),
   ach: z.object({
-    account_number: z.string().min(1, "Número de cuenta requerido"),
-    routing_number: z.string().min(9, "Routing number debe tener 9 dígitos"),
-    receiver_bank: z.string().min(1, "Banco receptor requerido"),
-    beneficiary_bank_address: z.string().optional(),
+    account_number: z
+      .string()
+      .min(1, "Número de cuenta requerido")
+      .regex(/^[0-9\-\/\s]+$/, "El número de cuenta solo puede contener números y símbolos (-, /)"),
+    routing_number: z
+      .string()
+      .length(9, "Routing number debe tener exactamente 9 dígitos")
+      .regex(/^\d{9}$/, "Routing number debe contener solo dígitos"),
+    receiver_bank: z
+      .string()
+      .min(1, "Banco receptor requerido")
+      .regex(/^[a-zA-Z0-9\s]+$/, "El nombre del banco no puede contener símbolos"),
+    beneficiary_bank_address: z
+      .string()
+      .regex(/^[a-zA-Z0-9\s,.-]*$/, "La dirección no puede contener símbolos especiales")
+      .optional()
+      .or(z.literal("")),
     beneficiary_name: z.string().min(1, "Nombre del beneficiario requerido"),
     account_type: z.enum(["checking", "savings"]),
+    country_code: z.string().length(2, "Código de país debe tener 2 caracteres").optional(),
   }),
 });
 
 export const swiftAccountSchema = baseAccountSchema.extend({
   rail: z.literal("swift"),
   swift: z.object({
-    swift_bic: z.string().min(8, "SWIFT/BIC debe tener al menos 8 caracteres"),
-    account_number: z.string().min(1, "Número de cuenta requerido"),
-    receiver_bank: z.string().min(1, "Banco receptor requerido"),
-    beneficiary_bank_address: z.string().optional(),
-    beneficiary_name: z.string().min(1, "Nombre del beneficiario requerido"),
+    beneficiary_name: z
+      .string()
+      .min(1, "Nombre del beneficiario requerido")
+      .regex(/^[a-zA-Z\s]+$/, "El nombre solo puede contener letras y espacios"),
+    receiver_bank: z
+      .string()
+      .min(1, "Banco receptor requerido")
+      .regex(/^[a-zA-Z0-9\s]+$/, "El nombre del banco no puede contener símbolos"),
+    swift_bic: z
+      .string()
+      .min(8, "SWIFT/BIC debe tener 8 u 11 caracteres")
+      .max(11, "SWIFT/BIC debe tener 8 u 11 caracteres")
+      .regex(/^[A-Z0-9]{8}$|^[A-Z0-9]{11}$/, "SWIFT/BIC debe tener 8 u 11 caracteres (solo A-Z y 0-9)"),
+    account_number: z
+      .string()
+      .min(1, "Número de cuenta requerido")
+      .regex(/^[0-9\-\/\s]+$/, "El número de cuenta solo puede contener números y símbolos (-, /)"),
+    beneficiary_bank_address: z
+      .string()
+      .regex(/^[a-zA-Z0-9\s,.-]*$/, "La dirección no puede contener símbolos especiales")
+      .optional()
+      .or(z.literal("")),
     account_type: z.enum(["checking", "savings"]),
+    country_code: z.string().length(2, "Código de país debe tener 2 caracteres"),
+    intermediary_bank: z
+      .string()
+      .regex(/^[a-zA-Z0-9\s]*$/, "El nombre del banco no puede contener símbolos")
+      .optional()
+      .or(z.literal("")),
+    intermediary_routing_number: z
+      .string()
+      .regex(/^$|^\d{9}$/, "Routing number debe tener exactamente 9 dígitos")
+      .optional()
+      .or(z.literal("")),
+    intermediary_swift_bic: z
+      .string()
+      .regex(/^$|^[A-Z0-9]{8}$|^[A-Z0-9]{11}$/, "SWIFT/BIC debe tener 8 u 11 caracteres (solo A-Z y 0-9)")
+      .optional()
+      .or(z.literal("")),
+    intermediary_account_number: z
+      .string()
+      .regex(/^[0-9\-\/\s]*$/, "El número de cuenta solo puede contener números y símbolos (-, /)")
+      .optional()
+      .or(z.literal("")),
   }),
 });
 
