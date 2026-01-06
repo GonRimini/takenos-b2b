@@ -21,6 +21,12 @@ import {
 } from "@/components/ui/select";
 import { useCreateExternalAccountMutation } from "@/hooks/external-accounts/queries";
 import type { ExternalAccountRail } from "@/types/external-accounts-types";
+import {
+  achAccountSchema,
+  swiftAccountSchema,
+  cryptoAccountSchema,
+  localAccountSchema,
+} from "@/hooks/external-accounts/validation";
 
 import { AchForm, SwiftForm, CryptoForm, LocalForm } from "./forms";
 
@@ -45,17 +51,37 @@ export default function CreateExternalAccountWizard({
     ExternalAccountRail | undefined
   >(defaultRail);
 
+  // Obtener el schema apropiado según el rail
+  const getSchemaForRail = (rail?: ExternalAccountRail) => {
+    switch (rail) {
+      case "ach":
+        return achAccountSchema;
+      case "swift":
+        return swiftAccountSchema;
+      case "crypto":
+        return cryptoAccountSchema;
+      case "local":
+        return localAccountSchema;
+      default:
+        return undefined;
+    }
+  };
+
   const {
     register,
     handleSubmit,
     watch,
     setValue,
+    setError,
     formState: { errors },
     reset,
   } = useForm<any>({
+    mode: "onBlur",
     defaultValues: {
       rail: defaultRail,
+      nickname: "",
       currency_code: "USD",
+      beneficiary_url: "",
       is_default: false,
     },
   });
@@ -78,12 +104,12 @@ export default function CreateExternalAccountWizard({
 
   const onSubmit = async (data: any) => {
     try {
-      // Construir el payload según el rail seleccionado
+      // Construir el payload con la estructura correcta según el rail
       let payload: any = {
         nickname: data.nickname,
         currency_code: data.currency_code,
         rail: data.rail,
-        beneficiary_url: data.beneficiary_url,
+        beneficiary_url: data.beneficiary_url || "",
         is_default: data.is_default || false,
       };
 
@@ -131,9 +157,28 @@ export default function CreateExternalAccountWizard({
         };
       }
 
-      const result = await createMutation.mutateAsync(payload);
+      // Validar con el schema apropiado
+      const schema = getSchemaForRail(data.rail);
+      if (schema) {
+        const result = schema.safeParse(payload);
+        if (!result.success) {
+          // Mapear los errores de zod a los campos del formulario
+          result.error.errors.forEach((error) => {
+            const path = error.path.join(".");
+            // Eliminar el prefijo del rail (ej: "ach.account_number" -> "account_number")
+            const fieldName = path.includes(".") ? path.split(".").pop() : path;
+            setError(fieldName as any, {
+              type: "validation",
+              message: error.message,
+            });
+          });
+          return;
+        }
+      }
 
-      if (result.ok) {
+      const apiResult = await createMutation.mutateAsync(payload);
+
+      if (apiResult.ok) {
         reset();
         await onCreated?.();
       }
@@ -212,7 +257,7 @@ export default function CreateExternalAccountWizard({
                     className="h-9"
                   />
                   {errors.nickname && (
-                    <p className="text-xs text-destructive">
+                    <p className="text-xs text-red-500">
                       {errors.nickname.message as string}
                     </p>
                   )}
@@ -222,10 +267,15 @@ export default function CreateExternalAccountWizard({
                     URL del beneficiario *
                   </Label>
                   <Input
-                    {...register("beneficiary_url")}
-                    placeholder="https://www.example.com"
+                    {...register("beneficiary_url", { required: true })}
+                    placeholder="www.example.com"
                     className="h-9"
                   />
+                  {errors.beneficiary_url && (
+                    <p className="text-xs text-red-500">
+                      {errors.beneficiary_url.message as string}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="currency_code" className="text-sm">
