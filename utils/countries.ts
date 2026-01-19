@@ -40,6 +40,7 @@ export const SWIFT_COUNTRIES = [
   { code: "HK", label: "🇭🇰 Hong Kong",    currency: "USD" },
   { code: "CN", label: "🇨🇳 China",        currency: "USD" },
   { code: "GB", label: "🇬🇧 Reino Unido",  currency: "USD" },
+  { code: "SG", label: "🇸🇬 Singapur",      currency: "USD" },
 ];
 
 // Lista unificada de todos los países (sin duplicados)
