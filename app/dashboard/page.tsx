@@ -14,7 +14,7 @@ import { useCriptoYaExchangeRateQuery } from "@/hooks/external";
 import { MovementsTable } from "@/components/MovementsTable";
 import { PendingWithdrawalsTable } from "@/components/PendingWithdrawalsTable";
 import { BalanceCard } from "@/components/BalanceCard";
-import ExchangeRate from "@/components/ExchangeRate";
+// import ExchangeRate from "@/components/ExchangeRate";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -134,6 +134,7 @@ export default function Dashboard() {
       />
 
       {/* Exchange Rate - Solo para usuarios bolivianos */}
+      {/* 
        {isBolivian && (
         <ExchangeRate 
           data={exchangeRateData}
@@ -141,6 +142,7 @@ export default function Dashboard() {
           error={isErrorExchangeRate ? exchangeRateError : null}
         />
       )}
+      */}
 
       {/* Movements Table */}
       <MovementsTable 
