@@ -131,7 +131,26 @@ export function MovementsTable({
 
   // Calcular los movimientos filtrados para usarlos en ambas descargas y la tabla
   const filteredMovements = useMemo(() => {
-    return filterMovementsByDate(movementsData || []);
+    const dataToFilter = movementsData || [];
+    
+    if (!startDate && !endDate) {
+      return dataToFilter;
+    }
+
+    return dataToFilter.filter((movement) => {
+      const movementDate = new Date(movement.date);
+      const start = startDate ? new Date(startDate) : null;
+      const end = endDate ? new Date(endDate) : null;
+
+      if (start && end) {
+        return movementDate >= start && movementDate <= end;
+      } else if (start) {
+        return movementDate >= start;
+      } else if (end) {
+        return movementDate <= end;
+      }
+      return true;
+    });
   }, [movementsData, startDate, endDate]);
 
   return (
