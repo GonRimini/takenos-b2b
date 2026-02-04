@@ -159,7 +159,7 @@ export function MovementsTable({
               Descargar CSV
             </Button>
             <DownloadStatement
-              data={movementsData || []}
+              data={ filterMovementsByDate(movementsData || []) }
               disabled={
                 isLoadingMovements ||
                 !movementsData ||
