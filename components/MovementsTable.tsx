@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -46,10 +46,7 @@ export function MovementsTable({
   console.log("📄 [MovementsTable] movementsData:", movementsData);
 
   const downloadCSV = () => {
-    if (!movementsData || movementsData.length === 0) return;
-
-    // Filtrar movimientos por fecha si hay filtros aplicados
-    const filteredMovements = filterMovementsByDate(movementsData);
+    if (!filteredMovements || filteredMovements.length === 0) return;
 
     // Crear headers del CSV
     const headers = [
@@ -133,7 +130,9 @@ export function MovementsTable({
   };
 
   // Calcular los movimientos filtrados para usarlos en ambas descargas y la tabla
-  const filteredMovements = filterMovementsByDate(movementsData || []);
+  const filteredMovements = useMemo(() => {
+    return filterMovementsByDate(movementsData || []);
+  }, [movementsData, startDate, endDate]);
 
   return (
     <Card>
