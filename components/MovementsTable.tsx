@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -46,7 +46,10 @@ export function MovementsTable({
   console.log("📄 [MovementsTable] movementsData:", movementsData);
 
   const downloadCSV = () => {
-    if (!filteredMovements || filteredMovements.length === 0) return;
+    if (!movementsData || movementsData.length === 0) return;
+
+    // Filtrar movimientos por fecha si hay filtros aplicados
+    const filteredMovements = filterMovementsByDate(movementsData);
 
     // Crear headers del CSV
     const headers = [
@@ -129,30 +132,6 @@ export function MovementsTable({
     setEndDate("");
   };
 
-  // Calcular los movimientos filtrados para usarlos en ambas descargas y la tabla
-  const filteredMovements = useMemo(() => {
-    const dataToFilter = movementsData || [];
-    
-    if (!startDate && !endDate) {
-      return dataToFilter;
-    }
-
-    return dataToFilter.filter((movement) => {
-      const movementDate = new Date(movement.date);
-      const start = startDate ? new Date(startDate) : null;
-      const end = endDate ? new Date(endDate) : null;
-
-      if (start && end) {
-        return movementDate >= start && movementDate <= end;
-      } else if (start) {
-        return movementDate >= start;
-      } else if (end) {
-        return movementDate <= end;
-      }
-      return true;
-    });
-  }, [movementsData, startDate, endDate]);
-
   return (
     <Card>
       <CardHeader>
@@ -180,7 +159,7 @@ export function MovementsTable({
               Descargar CSV
             </Button>
             <DownloadStatement
-              data={filteredMovements}
+              data={movementsData || []}
               disabled={
                 isLoadingMovements ||
                 !movementsData ||
@@ -261,7 +240,7 @@ export function MovementsTable({
                     </TableCell>
                   </TableRow>
                 ) : !movementsData ||
-                  filteredMovements.length === 0 ? (
+                  filterMovementsByDate(movementsData).length === 0 ? (
                   <TableRow>
                     <TableCell
                       colSpan={6}
@@ -273,7 +252,7 @@ export function MovementsTable({
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredMovements.map((m) => {
+                  filterMovementsByDate(movementsData).map((m) => {
                     const displayAmount = getDisplayAmount(m);
                     return (
                       <TableRow key={m.id}>
@@ -339,9 +318,9 @@ export function MovementsTable({
             </Table>
           </div>
           {/* Mostrar indicador de scroll */}
-          {movementsData && filteredMovements.length > 8 && (
+          {movementsData && filterMovementsByDate(movementsData).length > 8 && (
             <div className="text-center py-2 text-sm text-gray-500 bg-gray-50 border-t">
-              {filteredMovements.length} movimientos -
+              {filterMovementsByDate(movementsData).length} movimientos -
               Desplázate para ver todos
             </div>
           )}
