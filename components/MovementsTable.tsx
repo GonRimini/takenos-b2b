@@ -132,6 +132,9 @@ export function MovementsTable({
     setEndDate("");
   };
 
+  // Calcular los movimientos filtrados una vez antes del render
+  const filteredData = filterMovementsByDate(movementsData || []);
+
   return (
     <Card>
       <CardHeader>
@@ -159,7 +162,7 @@ export function MovementsTable({
               Descargar CSV
             </Button>
             <DownloadStatement
-              data={ filterMovementsByDate(movementsData || []) }
+              data={filteredData}
               disabled={
                 isLoadingMovements ||
                 !movementsData ||
@@ -240,7 +243,7 @@ export function MovementsTable({
                     </TableCell>
                   </TableRow>
                 ) : !movementsData ||
-                  filterMovementsByDate(movementsData).length === 0 ? (
+                  filteredData.length === 0 ? (
                   <TableRow>
                     <TableCell
                       colSpan={6}
@@ -252,7 +255,7 @@ export function MovementsTable({
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filterMovementsByDate(movementsData).map((m) => {
+                  filteredData.map((m) => {
                     const displayAmount = getDisplayAmount(m);
                     return (
                       <TableRow key={m.id}>
@@ -318,9 +321,9 @@ export function MovementsTable({
             </Table>
           </div>
           {/* Mostrar indicador de scroll */}
-          {movementsData && filterMovementsByDate(movementsData).length > 8 && (
+          {movementsData && filteredData.length > 8 && (
             <div className="text-center py-2 text-sm text-gray-500 bg-gray-50 border-t">
-              {filterMovementsByDate(movementsData).length} movimientos -
+              {filteredData.length} movimientos -
               Desplázate para ver todos
             </div>
           )}
